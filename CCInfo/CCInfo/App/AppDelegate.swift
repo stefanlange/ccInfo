@@ -52,7 +52,9 @@ final class AppState: ObservableObject {
         let home = FileManager.default.homeDirectoryForCurrentUser
         let claudePath = home.appendingPathComponent(".claude/projects").path
         fileWatcher = FileWatcher(path: claudePath) { [weak self] in
-            Task { await self?.refreshLocalData() }
+            Task { @MainActor in
+                await self?.refreshLocalData()
+            }
         }
         fileWatcher?.start()
     }
