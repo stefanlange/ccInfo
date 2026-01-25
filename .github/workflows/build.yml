@@ -1,8 +1,9 @@
-name: Build & Test
+name: Build & Release
 
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
     branches: [main]
 
@@ -11,9 +12,46 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
+
       - name: Build
         run: |
           xcodebuild -project CCInfo/CCInfo.xcodeproj \
                      -scheme CCInfo \
                      -configuration Release \
+                     -derivedDataPath build \
                      CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload app artifact
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: CCInfo-app
+          path: build/Build/Products/Release/CCInfo.app
+
+  release:
+    needs: build
+    runs-on: macos-14
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download app artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: CCInfo-app
+          path: CCInfo.app
+
+      - name: Create DMG
+        run: |
+          mkdir -p dmg-contents
+          cp -R CCInfo.app dmg-contents/
+          ln -s /Applications dmg-contents/Applications
+          hdiutil create -volname "ccInfo" -srcfolder dmg-contents -ov -format UDZO ccInfo-${{ github.ref_name }}.dmg
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ccInfo-${{ github.ref_name }}.dmg
+          generate_release_notes: true
