@@ -43,6 +43,9 @@ jobs:
           name: CCInfo-app
           path: CCInfo.app
 
+      - name: Fix executable permissions
+        run: chmod +x CCInfo.app/Contents/MacOS/CCInfo
+
       - name: Create DMG
         run: |
           mkdir -p dmg-contents
