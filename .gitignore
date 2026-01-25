@@ -1,0 +1,33 @@
+# Xcode
+**/build/
+**/DerivedData/
+**/*.xcuserstate
+**/xcuserdata/
+**/*.xccheckout
+**/*.moved-aside
+**/*.hmap
+**/*.ipa
+**/*.dSYM.zip
+**/*.dSYM
+
+# Swift Package Manager
+**/.build/
+**/Packages/
+**/Package.resolved
+
+# macOS
+**/.DS_Store
+**/._*
+
+# Build artifacts
+**/*.dmg
+**/*.app
+**/*.zip
+**/releases/*.dmg
+
+# Environment
+**/.env
+**/.env.local
+
+# Claude Code
+.claude/

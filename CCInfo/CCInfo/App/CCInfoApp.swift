@@ -1,0 +1,120 @@
+import SwiftUI
+import AppKit
+
+@main
+struct CCInfoApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
+    var body: some Scene {
+        MenuBarExtra {
+            MenuBarView()
+                .environmentObject(appDelegate.appState)
+        } label: {
+            MenuBarLabel()
+                .environmentObject(appDelegate.appState)
+        }
+        .menuBarExtraStyle(.window)
+
+        Settings {
+            SettingsView()
+                .environmentObject(appDelegate.appState)
+        }
+
+        Window(String(localized: "Sign in to Claude"), id: "auth") {
+            AuthWebView()
+                .environmentObject(appDelegate.appState)
+        }
+        .windowResizability(.contentSize)
+    }
+}
+
+struct MenuBarLabel: View {
+    @EnvironmentObject var appState: AppState
+
+    var body: some View {
+        if appState.isAuthenticated, let usage = appState.usageData {
+            Image(nsImage: MenuBarImageRenderer.render(
+                fiveHour: usage.fiveHour.utilization,
+                sevenDay: usage.sevenDay.utilization
+            ))
+        } else {
+            Image(systemName: "gauge.with.dots.needle.bottom.50percent")
+        }
+    }
+}
+
+enum MenuBarImageRenderer {
+    // MARK: - Layout Constants
+    private enum Layout {
+        static let width: CGFloat = 54
+        static let height: CGFloat = 18
+        static let barWidth: CGFloat = 28
+        static let barHeight: CGFloat = 6
+        static let rowHeight: CGFloat = 9
+        static let barCornerRadius: CGFloat = 2
+        static let textOffset: CGFloat = 2
+        static let fontSize: CGFloat = 8
+    }
+
+    static func render(fiveHour: Double, sevenDay: Double) -> NSImage {
+        let size = NSSize(width: Layout.width, height: Layout.height)
+
+        let image = NSImage(size: size, flipped: false) { rect in
+            // Draw two rows
+            drawRow(value: fiveHour, y: Layout.height - Layout.rowHeight)
+            drawRow(value: sevenDay, y: 0)
+            return true
+        }
+
+        image.isTemplate = false
+        return image
+    }
+
+    private static func drawRow(value: Double, y: CGFloat) {
+        let color = colorFor(value)
+        let barY = y + 1.5
+
+        // Background bar
+        let bgRect = NSRect(x: 0, y: barY, width: Layout.barWidth, height: Layout.barHeight)
+        let bgPath = NSBezierPath(roundedRect: bgRect, xRadius: Layout.barCornerRadius, yRadius: Layout.barCornerRadius)
+        NSColor.gray.withAlphaComponent(0.3).setFill()
+        bgPath.fill()
+
+        // Filled bar
+        let fillWidth = Layout.barWidth * min(value, 100) / 100
+        if fillWidth > 0 {
+            let fillRect = NSRect(x: 0, y: barY, width: fillWidth, height: Layout.barHeight)
+            let fillPath = NSBezierPath(roundedRect: fillRect, xRadius: Layout.barCornerRadius, yRadius: Layout.barCornerRadius)
+            color.setFill()
+            fillPath.fill()
+        }
+
+        // Percentage text with dark shadow for visibility on any background
+        let text = "\(Int(value))%"
+        let font = NSFont.monospacedDigitSystemFont(ofSize: Layout.fontSize, weight: .medium)
+
+        let shadow = NSShadow()
+        shadow.shadowColor = NSColor.black.withAlphaComponent(0.7)
+        shadow.shadowOffset = NSSize(width: 0, height: -0.5)
+        shadow.shadowBlurRadius = 1.5
+
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.white,
+            .shadow: shadow
+        ]
+        let textSize = text.size(withAttributes: attributes)
+        let textX = Layout.barWidth + Layout.textOffset
+        let textY = y + (Layout.rowHeight - textSize.height) / 2
+        text.draw(at: NSPoint(x: textX, y: textY), withAttributes: attributes)
+    }
+
+    private static func colorFor(_ value: Double) -> NSColor {
+        switch value {
+        case ..<50: .systemGreen
+        case ..<80: .systemYellow
+        default: .systemRed
+        }
+    }
+}
+
