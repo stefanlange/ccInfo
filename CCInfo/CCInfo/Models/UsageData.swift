@@ -40,13 +40,13 @@ struct UsageData: Sendable {
             formatter.allowedUnits = [.hour, .minute]
             formatter.unitsStyle = .abbreviated
             formatter.zeroFormattingBehavior = .dropLeading
+            formatter.calendar = Calendar.current
             return formatter
         }()
 
         private static let resetDateFormatter: DateFormatter = {
             let formatter = DateFormatter()
-            formatter.dateFormat = "E, dd.MM. HH:mm"
-            formatter.locale = .current
+            formatter.setLocalizedDateFormatFromTemplate("EddMMHHmm")
             return formatter
         }()
 

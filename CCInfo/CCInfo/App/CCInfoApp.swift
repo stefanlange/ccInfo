@@ -53,7 +53,7 @@ enum MenuBarImageRenderer {
         static let rowHeight: CGFloat = 9
         static let barCornerRadius: CGFloat = 2
         static let textOffset: CGFloat = 2
-        static let fontSize: CGFloat = 8
+        static let fontSize: CGFloat = 9
     }
 
     static func render(fiveHour: Double, sevenDay: Double) -> NSImage {
@@ -89,19 +89,13 @@ enum MenuBarImageRenderer {
             fillPath.fill()
         }
 
-        // Percentage text with dark shadow for visibility on any background
+        // Percentage text
         let text = "\(Int(value))%"
         let font = NSFont.monospacedDigitSystemFont(ofSize: Layout.fontSize, weight: .medium)
 
-        let shadow = NSShadow()
-        shadow.shadowColor = NSColor.black.withAlphaComponent(0.7)
-        shadow.shadowOffset = NSSize(width: 0, height: -0.5)
-        shadow.shadowBlurRadius = 1.5
-
         let attributes: [NSAttributedString.Key: Any] = [
             .font: font,
-            .foregroundColor: NSColor.white,
-            .shadow: shadow
+            .foregroundColor: NSColor.labelColor
         ]
         let textSize = text.size(withAttributes: attributes)
         let textX = Layout.barWidth + Layout.textOffset
