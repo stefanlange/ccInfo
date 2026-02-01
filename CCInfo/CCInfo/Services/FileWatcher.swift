@@ -1,14 +1,19 @@
 import Foundation
 
 /// Watches a file system path for changes using FSEvents
+/// @unchecked Sendable is safe here because all mutable state (stream) is protected by NSLock
 final class FileWatcher: @unchecked Sendable {
     private var stream: FSEventStreamRef?
     private let path: String
     private let callback: @Sendable () -> Void
     private let lock = NSLock()
 
-    // Strong reference to prevent deallocation while stream is active
-    private static var activeWatchers = NSHashTable<FileWatcher>.weakObjects()
+    // Strong references to prevent deallocation while stream is active
+    // Using NSHashTable with objectPointerPersonality for strong references
+    private static var activeWatchers: NSHashTable<FileWatcher> = {
+        let hashTable = NSHashTable<FileWatcher>(options: .strongMemory)
+        return hashTable
+    }()
     private static let watchersLock = NSLock()
 
     init(path: String, callback: @escaping @Sendable () -> Void) {
@@ -17,7 +22,19 @@ final class FileWatcher: @unchecked Sendable {
     }
 
     deinit {
-        stop()
+        // Ensure stream is stopped before deallocation to prevent use-after-free
+        lock.lock()
+        let hasActiveStream = stream != nil
+        lock.unlock()
+
+        if hasActiveStream {
+            stop()
+        }
+
+        // Verify we're not in activeWatchers anymore
+        Self.watchersLock.lock()
+        assert(!Self.activeWatchers.contains(self), "FileWatcher deallocated while still in activeWatchers")
+        Self.watchersLock.unlock()
     }
 
     func start() {

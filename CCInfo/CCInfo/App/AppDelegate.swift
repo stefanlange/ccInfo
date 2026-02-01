@@ -7,6 +7,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        Task {
+            await NotificationService.shared.requestAuthorization()
+        }
         appState.startMonitoring()
     }
 
@@ -25,9 +28,13 @@ final class AppState: ObservableObject {
     @Published var showingAuth = false
 
     let keychainService = KeychainService()
-    private lazy var apiClient = ClaudeAPIClient(keychainService: keychainService)
+    private let apiClient: ClaudeAPIClient
     private let jsonlParser = JSONLParser()
     private let logger = Logger(subsystem: "com.ccinfo.app", category: "AppState")
+
+    init() {
+        self.apiClient = ClaudeAPIClient(keychainService: keychainService)
+    }
 
     private var fileWatcher: FileWatcher?
     private var refreshTask: Task<Void, Never>?
@@ -46,14 +53,15 @@ final class AppState: ObservableObject {
             return
         }
 
-        Task { await refreshAll() }
+        Task { @MainActor in await refreshAll() }
         startRefreshTask()
 
         let home = FileManager.default.homeDirectoryForCurrentUser
         let claudePath = home.appendingPathComponent(".claude/projects").path
         fileWatcher = FileWatcher(path: claudePath) { [weak self] in
-            Task { @MainActor [weak self] in
-                await self?.refreshLocalData()
+            guard let self else { return }
+            Task { @MainActor in
+                await self.refreshLocalData()
             }
         }
         fileWatcher?.start()
@@ -78,9 +86,16 @@ final class AppState: ObservableObject {
 
         refreshTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(interval))
-                guard !Task.isCancelled else { break }
-                await self?.refreshUsage()
+                do {
+                    try await Task.sleep(for: .seconds(interval))
+                    guard !Task.isCancelled else { break }
+                    await self?.refreshUsage()
+                } catch is CancellationError {
+                    break
+                } catch {
+                    // Unexpected error - should not happen with Task.sleep
+                    break
+                }
             }
         }
     }
@@ -94,7 +109,9 @@ final class AppState: ObservableObject {
         isLoading = true
         error = nil
         do {
-            usageData = try await apiClient.fetchUsage()
+            let usage = try await apiClient.fetchUsage()
+            usageData = usage
+            NotificationService.shared.checkThresholds(usage: usage)
         } catch let apiError as ClaudeAPIClient.APIError {
             error = apiError
             logger.error("API error: \(apiError.localizedDescription)")

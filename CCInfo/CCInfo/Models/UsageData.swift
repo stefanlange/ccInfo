@@ -28,6 +28,7 @@ struct UsageData: Sendable {
     let fiveHour: WindowUsage
     let sevenDay: WindowUsage
     let sevenDaySonnet: WindowUsage?
+    let sevenDayOpus: WindowUsage?
     let fetchedAt: Date
 
     struct WindowUsage: Sendable {
@@ -71,6 +72,9 @@ struct UsageData: Sendable {
             resetsAt: response.sevenDay?.resetsAt
         )
         self.sevenDaySonnet = response.sevenDaySonnet.map {
+            WindowUsage(utilization: $0.utilization, resetsAt: $0.resetsAt)
+        }
+        self.sevenDayOpus = response.sevenDayOpus.map {
             WindowUsage(utilization: $0.utilization, resetsAt: $0.resetsAt)
         }
         self.fetchedAt = Date()

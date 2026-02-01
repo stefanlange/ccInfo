@@ -67,17 +67,59 @@ struct GeneralTab: View {
 
 struct AccountTab: View {
     @EnvironmentObject var appState: AppState
+    @State private var orgIdCopied = false
+
     var body: some View {
         Form {
             if appState.isAuthenticated, let creds = appState.credentials {
-                LabeledContent("Status") { HStack { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green); Text("Connected") } }
-                LabeledContent("Organization") { Text(creds.organizationId.prefix(8) + "...").font(.system(.body, design: .monospaced)).foregroundStyle(.secondary) }
-                Section { Button("Sign out", role: .destructive) { appState.signOut() } }
+                LabeledContent(String(localized: "Status")) { HStack { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green); Text(String(localized: "Connected")) } }
+
+                LabeledContent(String(localized: "Organization")) {
+                    VStack(alignment: .trailing, spacing: 4) {
+                        if let orgName = creds.organizationName {
+                            Text(orgName).font(.body)
+                        }
+
+                        HStack(spacing: 6) {
+                            Text(String(creds.organizationId.prefix(8)) + "...")
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(.secondary)
+
+                            Button {
+                                copyOrgId(creds.organizationId)
+                            } label: {
+                                Image(systemName: orgIdCopied ? "checkmark" : "doc.on.doc")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(orgIdCopied ? .green : .secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .help(String(localized: "Copy Organization ID"))
+                        }
+                    }
+                }
+
+                Section { Button(String(localized: "Sign out"), role: .destructive) { appState.signOut() } }
             } else {
-                LabeledContent("Status") { HStack { Image(systemName: "xmark.circle.fill").foregroundStyle(.red); Text("Not connected") } }
-                Section { Button("Sign in") { appState.showingAuth = true }.buttonStyle(.borderedProminent) }
+                LabeledContent(String(localized: "Status")) { HStack { Image(systemName: "xmark.circle.fill").foregroundStyle(.red); Text(String(localized: "Not connected")) } }
+                Section { Button(String(localized: "Sign in")) { appState.showingAuth = true }.buttonStyle(.borderedProminent) }
             }
         }.formStyle(.grouped).padding()
+    }
+
+    private func copyOrgId(_ orgId: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(orgId, forType: .string)
+
+        withAnimation {
+            orgIdCopied = true
+        }
+
+        Task {
+            try? await Task.sleep(for: .seconds(3))
+            withAnimation {
+                orgIdCopied = false
+            }
+        }
     }
 }
 

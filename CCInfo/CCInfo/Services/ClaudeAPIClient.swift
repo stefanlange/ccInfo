@@ -34,7 +34,7 @@ actor ClaudeAPIClient {
         }
 
         guard let url = URL(string: "\(baseURL)/organizations/\(creds.organizationId)/usage") else {
-            logger.error("Failed to construct usage URL for org: \(creds.organizationId.prefix(8))...")
+            logger.error("Failed to construct usage URL for organization")
             throw APIError.invalidURL
         }
 
@@ -63,10 +63,42 @@ actor ClaudeAPIClient {
         decoder.dateDecodingStrategy = .iso8601
         return UsageData(from: try decoder.decode(UsageResponse.self, from: data))
     }
+
+    /// Fetch organization name for display purposes
+    func fetchOrganizationName(organizationId: String, sessionKey: String) async throws -> String {
+        guard let url = URL(string: "\(baseURL)/organizations/\(organizationId)/dust/org_shortname") else {
+            logger.error("Failed to construct organization name URL")
+            throw APIError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.setValue("sessionKey=\(sessionKey)", forHTTPHeaderField: "Cookie")
+        request.setValue("web_claude_ai", forHTTPHeaderField: "anthropic-client-platform")
+        request.timeoutInterval = 10
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let http = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+
+        guard http.statusCode == 200 else {
+            logger.warning("Organization name API returned status: \(http.statusCode)")
+            throw APIError.httpError(http.statusCode)
+        }
+
+        struct OrgNameResponse: Codable {
+            let shortname: String
+        }
+
+        let orgResponse = try JSONDecoder().decode(OrgNameResponse.self, from: data)
+        return orgResponse.shortname
+    }
 }
 
 struct ClaudeCredentials: Codable, Sendable {
     let sessionKey: String
     let organizationId: String
+    let organizationName: String?
     let createdAt: Date
 }

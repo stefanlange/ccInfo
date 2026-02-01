@@ -16,6 +16,10 @@ struct MenuBarView: View {
                         UsageSection(title: String(localized: "Sonnet Weekly"), utilization: sonnet.utilization, resetTime: sonnet.formattedTimeUntilReset, resetDate: sonnet.formattedResetDate)
                         Divider()
                     }
+                    if let opus = usage.sevenDayOpus {
+                        UsageSection(title: String(localized: "Opus Weekly"), utilization: opus.utilization, resetTime: opus.formattedTimeUntilReset, resetDate: opus.formattedResetDate)
+                        Divider()
+                    }
                 }
                 if let ctx = appState.contextWindow {
                     ContextSection(context: ctx)
@@ -94,6 +98,38 @@ struct UsageSection: View {
 
 struct ContextSection: View {
     let context: ContextWindow
+
+    private var barColor: Color {
+        if context.isNearAutoCompact {
+            return .orange
+        }
+        let utilization = context.utilization
+        if utilization < 50 {
+            return .green
+        } else if utilization < 75 {
+            return .yellow
+        } else {
+            return .orange
+        }
+    }
+
+    private var maxTokensFormatted: String {
+        if context.maxTokens >= 1_000_000 {
+            return "1M"
+        } else {
+            return "\(context.maxTokens / 1000)k"
+        }
+    }
+
+    private func modelBadgeColor(for model: ClaudeModel) -> Color {
+        switch model {
+        case .opus: return .purple
+        case .sonnet: return context.isExtendedContext ? .red : .orange
+        case .haiku: return .cyan
+        case .unknown: return .secondary
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
@@ -101,22 +137,99 @@ struct ContextSection: View {
                 Spacer()
                 if context.isNearAutoCompact { Label("Near autocompact", systemImage: "exclamationmark.triangle.fill").font(.caption2).foregroundStyle(.orange) }
             }
-            ProgressView(value: context.utilization, total: 100).tint(context.isNearAutoCompact ? .orange : .blue)
-            Text("\(context.currentTokens / 1000)k / \(context.maxTokens / 1000)k").font(.caption).foregroundStyle(.secondary)
+            ProgressView(value: context.utilization, total: 100).tint(barColor)
+            HStack {
+                Text("\(context.currentTokens / 1000)k / \(maxTokensFormatted)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if let model = context.activeModel {
+                    Text(model.displayName(extended: context.isExtendedContext))
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(modelBadgeColor(for: model).opacity(0.2))
+                        .foregroundStyle(modelBadgeColor(for: model))
+                        .clipShape(Capsule())
+                }
+            }
         }
     }
 }
 
 struct SessionSection: View {
     let session: SessionData
+
+    private var sortedModels: [ClaudeModel] {
+        session.models.sorted { $0.displayName < $1.displayName }
+    }
+
+    private func formatModelList() -> String {
+        sortedModels
+            .filter { $0 != .unknown }
+            .map { $0.displayName }
+            .joined(separator: ", ")
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Session Details").font(.caption).foregroundStyle(.secondary).textCase(.uppercase)
-            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
-                GridRow { Text("Input:").foregroundStyle(.secondary); Text("\(session.tokens.totalInput)") }
-                GridRow { Text("Output:").foregroundStyle(.secondary); Text("\(session.tokens.output)") }
-                GridRow { Text("Cost (API eq.):").foregroundStyle(.secondary); Text(String(format: "$%.2f", session.tokens.estimatedCost)) }
+            Text(String(localized: "Session Details"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 3) {
+                GridRow {
+                    Text(String(localized: "Models:")).foregroundStyle(.secondary)
+                    Text(formatModelList())
+                        .gridColumnAlignment(.trailing)
+                        .monospacedDigit()
+                }
+                Divider()
+                GridRow {
+                    Text(String(localized: "Input:")).foregroundStyle(.secondary)
+                    Text(formatTokens(session.tokens.input))
+                        .gridColumnAlignment(.trailing)
+                        .monospacedDigit()
+                }
+                GridRow {
+                    Text(String(localized: "Output:")).foregroundStyle(.secondary)
+                    Text(formatTokens(session.tokens.output))
+                        .gridColumnAlignment(.trailing)
+                        .monospacedDigit()
+                }
+                GridRow {
+                    Text(String(localized: "Cache Write:")).foregroundStyle(.secondary)
+                    Text(formatTokens(session.tokens.cacheCreation))
+                        .gridColumnAlignment(.trailing)
+                        .monospacedDigit()
+                }
+                GridRow {
+                    Text(String(localized: "Cache Read:")).foregroundStyle(.secondary)
+                    Text(formatTokens(session.tokens.cacheRead))
+                        .gridColumnAlignment(.trailing)
+                        .monospacedDigit()
+                }
+                Divider()
+                GridRow {
+                    Text(String(localized: "Total:")).foregroundStyle(.secondary).fontWeight(.medium)
+                    Text(formatTokens(session.tokens.totalTokens))
+                        .gridColumnAlignment(.trailing)
+                        .monospacedDigit()
+                        .fontWeight(.medium)
+                }
+                GridRow {
+                    Text(String(localized: "Cost (API eq.):")).foregroundStyle(.secondary)
+                    Text(String(format: "$%.2f", session.estimatedCost))
+                        .gridColumnAlignment(.trailing)
+                        .monospacedDigit()
+                }
             }.font(.caption)
         }
+    }
+
+    private func formatTokens(_ tokens: Int) -> String {
+        tokens.formatted(.number.grouping(.automatic))
     }
 }

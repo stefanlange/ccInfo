@@ -30,7 +30,8 @@ struct AuthWebViewRepresentable: NSViewRepresentable {
     let onCredentials: (ClaudeCredentials) -> Void
     let onLoading: (Bool) -> Void
     
-    private static let loginURL = URL(string: "https://claude.ai/login")!
+    // Static URL is guaranteed valid - using compile-time initialization
+    private static let loginURL = URL(string: "https://claude.ai/login")! // swiftlint:disable:this force_unwrapping
 
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
@@ -85,7 +86,9 @@ struct AuthWebViewRepresentable: NSViewRepresentable {
                 var sessionKey: String?
                 var orgId: String?
 
-                for cookie in cookies where cookie.domain.contains("claude.ai") {
+                // Only accept cookies from official Claude.ai domain (exact match for security)
+                let validDomains = ["claude.ai", ".claude.ai"]
+                for cookie in cookies where validDomains.contains(cookie.domain) {
                     if cookie.name == "sessionKey" {
                         sessionKey = cookie.value
                     } else if cookie.name == "lastActiveOrg" {
@@ -96,8 +99,29 @@ struct AuthWebViewRepresentable: NSViewRepresentable {
                 guard let sk = sessionKey, let oi = orgId else { return }
 
                 self.credentialsExtracted = true
-                DispatchQueue.main.async {
-                    self.parent.onCredentials(ClaudeCredentials(sessionKey: sk, organizationId: oi, createdAt: Date()))
+
+                // Fetch organization name in background (best-effort)
+                Task {
+                    let apiClient = await ClaudeAPIClient(keychainService: KeychainService())
+
+                    let fetchedOrgName: String?
+                    do {
+                        fetchedOrgName = try await apiClient.fetchOrganizationName(organizationId: oi, sessionKey: sk)
+                    } catch {
+                        // Log failure but proceed with authentication
+                        // Organization ID will be displayed as fallback
+                        fetchedOrgName = nil
+                        print("Warning: Failed to fetch organization name: \(error.localizedDescription)")
+                    }
+
+                    await MainActor.run {
+                        self.parent.onCredentials(ClaudeCredentials(
+                            sessionKey: sk,
+                            organizationId: oi,
+                            organizationName: fetchedOrgName,
+                            createdAt: Date()
+                        ))
+                    }
                 }
             }
         }

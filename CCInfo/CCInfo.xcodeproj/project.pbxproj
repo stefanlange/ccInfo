@@ -20,6 +20,7 @@
 		F000000B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100000B /* SettingsView.swift */; };
 		F000000C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F100000C /* Assets.xcassets */; };
 		F000000D /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = F100000F /* Localizable.xcstrings */; };
+		F000000E /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000010 /* NotificationService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -38,6 +39,7 @@
 		F100000D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F100000E /* CCInfo.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CCInfo.entitlements; sourceTree = "<group>"; };
 		F100000F /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		F1000010 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		F1000020 /* CCInfo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CCInfo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -97,6 +99,7 @@
 				F1000006 /* KeychainService.swift */,
 				F1000007 /* JSONLParser.swift */,
 				F1000008 /* FileWatcher.swift */,
+				F1000010 /* NotificationService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -236,6 +239,7 @@
 				F0000009 /* MenuBarView.swift in Sources */,
 				F000000A /* AuthWebView.swift in Sources */,
 				F000000B /* SettingsView.swift in Sources */,
+				F000000E /* NotificationService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -367,7 +371,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
@@ -404,7 +408,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
