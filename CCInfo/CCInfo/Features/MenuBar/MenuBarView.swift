@@ -59,14 +59,13 @@ struct MenuBarView: View {
     }
     
     private var footerButtons: some View {
-        HStack {
+        VStack(alignment: .leading, spacing: 10) {
             Button { Task { await appState.refreshAll() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }.buttonStyle(.borderless).disabled(appState.isLoading)
-            Spacer()
             SettingsLink { Label("Settings", systemImage: "gear") }
                 .buttonStyle(.borderless)
                 .simultaneousGesture(TapGesture().onEnded { NSApp.activate(ignoringOtherApps: true) })
             Button { NSApplication.shared.terminate(nil) } label: { Label("Quit", systemImage: "power") }.buttonStyle(.borderless)
-        }.font(.caption)
+        }.font(.callout)
     }
 }
 
