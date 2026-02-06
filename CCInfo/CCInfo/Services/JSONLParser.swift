@@ -1,7 +1,7 @@
 import Foundation
 import OSLog
 
-final class JSONLParser {
+actor JSONLParser {
     private let claudeProjectsPath: URL
     private let decoder: JSONDecoder
     private let logger = Logger(subsystem: "com.ccinfo.app", category: "JSONLParser")

@@ -153,9 +153,9 @@ final class AppState: ObservableObject {
 
     func refreshLocalData() async {
         do {
-            contextWindow = try jsonlParser.getCurrentContextWindow()
-            if let sessionURL = jsonlParser.findLatestSession() {
-                sessionData = try jsonlParser.parseSession(at: sessionURL)
+            contextWindow = try await jsonlParser.getCurrentContextWindow()
+            if let sessionURL = await jsonlParser.findLatestSession() {
+                sessionData = try await jsonlParser.parseSession(at: sessionURL)
             }
         } catch {
             logger.warning("Local data error: \(error.localizedDescription)")
