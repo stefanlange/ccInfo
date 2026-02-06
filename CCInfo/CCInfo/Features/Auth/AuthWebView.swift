@@ -102,7 +102,7 @@ struct AuthWebViewRepresentable: NSViewRepresentable {
 
                 // Fetch organization name in background (best-effort)
                 Task {
-                    let apiClient = ClaudeAPIClient(keychainService: KeychainService())
+                    let apiClient = await ClaudeAPIClient(keychainService: KeychainService())
 
                     let fetchedOrgName: String?
                     do {
