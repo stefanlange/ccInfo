@@ -13,13 +13,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "APP_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          else
+            echo "APP_VERSION=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          fi
+
       - name: Build
         run: |
           xcodebuild -project CCInfo/CCInfo.xcodeproj \
                      -scheme CCInfo \
                      -configuration Release \
                      -derivedDataPath build \
-                     CODE_SIGNING_ALLOWED=NO
+                     CODE_SIGNING_ALLOWED=NO \
+                     MARKETING_VERSION="$APP_VERSION"
 
       - name: Upload app artifact
         if: startsWith(github.ref, 'refs/tags/v')

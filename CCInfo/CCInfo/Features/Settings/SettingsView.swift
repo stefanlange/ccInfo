@@ -124,12 +124,18 @@ struct AccountTab: View {
 }
 
 struct AboutTab: View {
+    private var versionLabel: String {
+        let value = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+        let isVersion = value.contains(".")
+        return isVersion ? "Version \(value)" : "Build \(value)"
+    }
+
     var body: some View {
         VStack(spacing: 12) {
             Image(systemName: "gauge.with.dots.needle.bottom.50percent").font(.system(size: 50)).foregroundStyle(.blue)
             Text("ccInfo").font(.title2).fontWeight(.semibold)
             Text("Know your limits. Use them wisely.").font(.subheadline).foregroundStyle(.secondary)
-            Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0")").font(.caption).foregroundStyle(.tertiary)
+            Text(versionLabel).font(.caption).foregroundStyle(.tertiary)
             Spacer()
         }.padding()
     }
