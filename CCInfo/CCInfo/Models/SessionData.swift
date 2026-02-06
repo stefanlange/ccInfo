@@ -116,9 +116,9 @@ struct SessionData: Sendable {
     let tokens: TokenStats
     let models: Set<ClaudeModel>  // All models used in this session
 
-    /// Estimated cost based on models used in this session
+    /// Estimated cost based on per-entry model pricing
     var estimatedCost: Double {
-        tokens.estimatedCost(for: models)
+        tokens.cost
     }
 
     struct TokenStats: Sendable {
@@ -126,39 +126,13 @@ struct SessionData: Sendable {
         let output: Int
         let cacheCreation: Int
         let cacheRead: Int
+        let cost: Double
 
         var totalInput: Int { input + cacheCreation + cacheRead }
         var totalTokens: Int { input + output + cacheCreation + cacheRead }
 
-        /// Calculate estimated API cost based on used models
-        /// Uses most expensive model as conservative estimate when multiple models are used
-        func estimatedCost(for models: Set<ClaudeModel>) -> Double {
-            // Determine which pricing to use
-            let pricing: ClaudeModel.Pricing
-
-            if models.isEmpty || models.contains(.unknown) && models.count == 1 {
-                // Fallback to Sonnet pricing
-                pricing = ClaudeModel.sonnet.pricing
-            } else if models.count == 1, let singleModel = models.first {
-                // Single model - use exact pricing
-                pricing = singleModel.pricing
-            } else {
-                // Multiple models - use most expensive for conservative estimate
-                let sortedByPrice = models
-                    .filter { $0 != .unknown }
-                    .sorted { $0.pricing.output > $1.pricing.output }
-                pricing = sortedByPrice.first?.pricing ?? ClaudeModel.sonnet.pricing
-            }
-
-            let inputCost = Double(input) / 1_000_000 * pricing.input
-            let outputCost = Double(output) / 1_000_000 * pricing.output
-            let cacheWriteCost = Double(cacheCreation) / 1_000_000 * pricing.cacheWrite
-            let cacheReadCost = Double(cacheRead) / 1_000_000 * pricing.cacheRead
-            return inputCost + outputCost + cacheWriteCost + cacheReadCost
-        }
-
         static var zero: TokenStats {
-            TokenStats(input: 0, output: 0, cacheCreation: 0, cacheRead: 0)
+            TokenStats(input: 0, output: 0, cacheCreation: 0, cacheRead: 0, cost: 0)
         }
 
         /// Combine token stats (cumulative across all models)
@@ -167,7 +141,8 @@ struct SessionData: Sendable {
                 input: lhs.input + rhs.input,
                 output: lhs.output + rhs.output,
                 cacheCreation: lhs.cacheCreation + rhs.cacheCreation,
-                cacheRead: lhs.cacheRead + rhs.cacheRead
+                cacheRead: lhs.cacheRead + rhs.cacheRead,
+                cost: lhs.cost + rhs.cost
             )
         }
     }

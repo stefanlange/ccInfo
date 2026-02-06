@@ -57,14 +57,19 @@ final class JSONLParser {
                 detectedModels.insert(entryModel)
             }
 
-            if entry.message?.role == "assistant", let u = entry.message?.usage {
-                let entryTokens = SessionData.TokenStats(
-                    input: u.inputTokens ?? 0,
-                    output: u.outputTokens ?? 0,
-                    cacheCreation: u.cacheCreationInputTokens ?? 0,
-                    cacheRead: u.cacheReadInputTokens ?? 0
-                )
-                tokens = tokens + entryTokens
+            if let u = entry.message?.usage {
+                let input = u.inputTokens ?? 0
+                let output = u.outputTokens ?? 0
+                let cacheCreation = u.cacheCreationInputTokens ?? 0
+                let cacheRead = u.cacheReadInputTokens ?? 0
+                let pricing = entryModel.pricing
+                let entryCost = Double(input) / 1_000_000 * pricing.input
+                             + Double(output) / 1_000_000 * pricing.output
+                             + Double(cacheCreation) / 1_000_000 * pricing.cacheWrite
+                             + Double(cacheRead) / 1_000_000 * pricing.cacheRead
+                tokens = tokens + SessionData.TokenStats(
+                    input: input, output: output, cacheCreation: cacheCreation,
+                    cacheRead: cacheRead, cost: entryCost)
             }
         }
 
