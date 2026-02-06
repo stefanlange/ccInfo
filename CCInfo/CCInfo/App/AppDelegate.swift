@@ -23,6 +23,7 @@ final class AppState: ObservableObject {
     @Published private(set) var usageData: UsageData?
     @Published private(set) var sessionData: SessionData?
     @Published private(set) var contextWindow: ContextWindow?
+    @Published private(set) var availableUpdate: AvailableUpdate?
     @Published private(set) var isLoading = false
     @Published private(set) var error: Error?
     @Published var showingAuth = false
@@ -38,6 +39,7 @@ final class AppState: ObservableObject {
 
     private var fileWatcher: FileWatcher?
     private var refreshTask: Task<Void, Never>?
+    private var updateCheckTask: Task<Void, Never>?
 
     private var refreshInterval: TimeInterval {
         let interval = UserDefaults.standard.double(forKey: "refreshInterval")
@@ -55,6 +57,7 @@ final class AppState: ObservableObject {
 
         Task { @MainActor in await refreshAll() }
         startRefreshTask()
+        startUpdateCheckTask()
 
         let home = FileManager.default.homeDirectoryForCurrentUser
         let claudePath = home.appendingPathComponent(".claude/projects").path
@@ -70,6 +73,8 @@ final class AppState: ObservableObject {
     func stopMonitoring() {
         refreshTask?.cancel()
         refreshTask = nil
+        updateCheckTask?.cancel()
+        updateCheckTask = nil
         fileWatcher?.stop()
         fileWatcher = nil
     }
@@ -94,6 +99,29 @@ final class AppState: ObservableObject {
                     break
                 } catch {
                     // Unexpected error - should not happen with Task.sleep
+                    break
+                }
+            }
+        }
+    }
+
+    private func startUpdateCheckTask() {
+        updateCheckTask?.cancel()
+        updateCheckTask = Task { [weak self] in
+            // Initial check
+            let update = await UpdateChecker.checkForUpdate()
+            self?.availableUpdate = update
+
+            // Repeat hourly
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(for: .seconds(3600))
+                    guard !Task.isCancelled else { break }
+                    let update = await UpdateChecker.checkForUpdate()
+                    self?.availableUpdate = update
+                } catch is CancellationError {
+                    break
+                } catch {
                     break
                 }
             }

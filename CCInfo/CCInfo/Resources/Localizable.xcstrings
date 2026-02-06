@@ -638,6 +638,54 @@
         }
       }
     },
+    "update.available %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Es steht eine neue Version von ccInfo zur Verfügung: **%@**."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A new version of ccInfo is available: **%@**."
+          }
+        }
+      }
+    },
+    "update.currentVersion %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sie verwenden noch Version **%@**."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You are still using version **%@**."
+          }
+        }
+      }
+    },
+    "update.download" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bitte klicken Sie hier, um die neue Version herunterzuladen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Please click here to download the new version."
+          }
+        }
+      }
+    },
     "Version %@" : {
       "extractionState" : "stale",
       "localizations" : {

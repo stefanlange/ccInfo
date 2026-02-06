@@ -7,6 +7,10 @@ struct MenuBarView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if appState.isAuthenticated {
+                if let update = appState.availableUpdate {
+                    UpdateBanner(update: update)
+                    Divider()
+                }
                 if let usage = appState.usageData {
                     UsageSection(title: String(localized: "5-Hour Window"), utilization: usage.fiveHour.utilization, resetTime: usage.fiveHour.formattedTimeUntilReset)
                     Divider()
@@ -230,5 +234,40 @@ struct SessionSection: View {
 
     private func formatTokens(_ tokens: Int) -> String {
         tokens.formatted(.number.grouping(.automatic))
+    }
+}
+
+struct UpdateBanner: View {
+    let update: AvailableUpdate
+
+    private var currentVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+    }
+
+    var body: some View {
+        Button {
+            NSWorkspace.shared.open(update.url)
+        } label: {
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "info.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.blue)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("update.available \(update.version)")
+                    Text("update.currentVersion \(currentVersion)")
+                    Text("update.download")
+                }
+                .font(.caption)
+                .multilineTextAlignment(.leading)
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.blue.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+        .buttonStyle(.plain)
     }
 }

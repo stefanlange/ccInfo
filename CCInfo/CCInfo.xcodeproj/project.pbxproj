@@ -21,6 +21,7 @@
 		F000000C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F100000C /* Assets.xcassets */; };
 		F000000D /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = F100000F /* Localizable.xcstrings */; };
 		F000000E /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000010 /* NotificationService.swift */; };
+		F000000F /* UpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000011 /* UpdateChecker.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -40,6 +41,7 @@
 		F100000E /* CCInfo.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CCInfo.entitlements; sourceTree = "<group>"; };
 		F100000F /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		F1000010 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
+		F1000011 /* UpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateChecker.swift; sourceTree = "<group>"; };
 		F1000020 /* CCInfo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CCInfo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -100,6 +102,7 @@
 				F1000007 /* JSONLParser.swift */,
 				F1000008 /* FileWatcher.swift */,
 				F1000010 /* NotificationService.swift */,
+				F1000011 /* UpdateChecker.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -240,6 +243,7 @@
 				F000000A /* AuthWebView.swift in Sources */,
 				F000000B /* SettingsView.swift in Sources */,
 				F000000E /* NotificationService.swift in Sources */,
+				F000000F /* UpdateChecker.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
