@@ -27,6 +27,7 @@ final class AppState: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var error: Error?
     @Published var showingAuth = false
+    @Published var statisticsPeriod: StatisticsPeriod = .today
 
     let keychainService = KeychainService()
     private let apiClient: ClaudeAPIClient
@@ -35,6 +36,10 @@ final class AppState: ObservableObject {
 
     init() {
         self.apiClient = ClaudeAPIClient(keychainService: keychainService)
+        if let raw = UserDefaults.standard.string(forKey: "statisticsPeriod"),
+           let period = StatisticsPeriod(rawValue: raw) {
+            self.statisticsPeriod = period
+        }
     }
 
     private var fileWatcher: FileWatcher?
@@ -94,7 +99,7 @@ final class AppState: ObservableObject {
                 do {
                     try await Task.sleep(for: .seconds(interval))
                     guard !Task.isCancelled else { break }
-                    await self?.refreshUsage()
+                    await self?.refreshAll()
                 } catch is CancellationError {
                     break
                 } catch {
@@ -154,12 +159,16 @@ final class AppState: ObservableObject {
     func refreshLocalData() async {
         do {
             contextWindow = try await jsonlParser.getCurrentContextWindow()
-            if let sessionURL = await jsonlParser.findLatestSession() {
-                sessionData = try await jsonlParser.parseSession(at: sessionURL)
-            }
+            sessionData = try await jsonlParser.parseForPeriod(statisticsPeriod)
         } catch {
             logger.warning("Local data error: \(error.localizedDescription)")
         }
+    }
+
+    func updateStatisticsPeriod(_ period: StatisticsPeriod) {
+        statisticsPeriod = period
+        UserDefaults.standard.set(period.rawValue, forKey: "statisticsPeriod")
+        Task { await refreshLocalData() }
     }
 
     func signIn(credentials: ClaudeCredentials) {

@@ -30,7 +30,7 @@ struct MenuBarView: View {
                     Divider()
                 }
                 if let session = appState.sessionData {
-                    SessionSection(session: session)
+                    SessionSection(session: session, period: appState.statisticsPeriod)
                     Divider()
                 }
                 footerButtons
@@ -163,6 +163,7 @@ struct ContextSection: View {
 
 struct SessionSection: View {
     let session: SessionData
+    let period: StatisticsPeriod
 
     private var sortedModels: [ClaudeModel] {
         session.models.sorted { $0.displayName < $1.displayName }
@@ -177,7 +178,7 @@ struct SessionSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(String(localized: "Session Details"))
+            Text(period.displayName)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)

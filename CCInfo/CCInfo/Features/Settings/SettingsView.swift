@@ -45,9 +45,22 @@ struct GeneralTab: View {
             .onChange(of: refreshInterval) { _, _ in
                 appState.updateRefreshInterval()
             }
+
+            Picker(String(localized: "Statistics"), selection: periodBinding) {
+                ForEach(StatisticsPeriod.allCases, id: \.self) { period in
+                    Text(period.displayName).tag(period)
+                }
+            }
         }
         .formStyle(.grouped)
         .padding()
+    }
+
+    private var periodBinding: Binding<StatisticsPeriod> {
+        Binding(
+            get: { appState.statisticsPeriod },
+            set: { appState.updateStatisticsPeriod($0) }
+        )
     }
 
     private func updateLaunchAtLogin(enabled: Bool) {

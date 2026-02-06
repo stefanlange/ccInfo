@@ -1,5 +1,31 @@
 import Foundation
 
+// MARK: - Statistics Period
+
+enum StatisticsPeriod: String, CaseIterable, Sendable {
+    case session, today, thisWeek, thisMonth
+
+    var displayName: String {
+        switch self {
+        case .session:   return String(localized: "Session")
+        case .today:     return String(localized: "Today")
+        case .thisWeek:  return String(localized: "This Week")
+        case .thisMonth: return String(localized: "This Month")
+        }
+    }
+
+    /// Nil for .session (= no date filter, single file)
+    func periodStart(calendar: Calendar = .current) -> Date? {
+        let now = Date()
+        switch self {
+        case .session:   return nil
+        case .today:     return calendar.startOfDay(for: now)
+        case .thisWeek:  return calendar.dateInterval(of: .weekOfYear, for: now)?.start
+        case .thisMonth: return calendar.dateInterval(of: .month, for: now)?.start
+        }
+    }
+}
+
 // MARK: - Claude Model Pricing
 
 /// Represents Claude model variants with their respective API pricing
@@ -112,7 +138,7 @@ struct JSONLEntry: Codable, Sendable {
 }
 
 struct SessionData: Sendable {
-    let sessionId: String
+    let sessionId: String?
     let tokens: TokenStats
     let models: Set<ClaudeModel>  // All models used in this session
 
