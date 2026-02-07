@@ -194,22 +194,28 @@ actor PricingService {
         }
     }
 
-    /// Parse raw LiteLLM JSON data, filtering to Claude models only
+    /// Parse raw LiteLLM JSON data, filtering to Claude models only.
+    /// Uses JSONSerialization first to avoid all-or-nothing decoding failures
+    /// from non-Claude entries with incompatible schemas (image/audio/embedding models).
     private func parsePricingData(_ data: Data) throws -> [String: ModelPricing] {
         do {
-            let decoder = JSONDecoder()
-            let rawData = try decoder.decode([String: LiteLLMModel].self, from: data)
-
-            // Filter to Claude models only (keys containing "claude", case-insensitive)
-            let claudeModels = rawData.filter { key, _ in
-                key.lowercased().contains("claude")
+            guard let rawDict = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                throw PricingError.parseError(URLError(.cannotParseResponse))
             }
 
-            // Convert to ModelPricing
-            let converted = claudeModels.mapValues { ModelPricing(from: $0) }
+            let decoder = JSONDecoder()
+            var result: [String: ModelPricing] = [:]
 
-            logger.info("Parsed \(converted.count) Claude model prices from LiteLLM data (filtered from \(rawData.count) total)")
-            return converted
+            for (key, value) in rawDict where key.lowercased().contains("claude") {
+                guard let entryData = try? JSONSerialization.data(withJSONObject: value),
+                      let model = try? decoder.decode(LiteLLMModel.self, from: entryData) else {
+                    continue
+                }
+                result[key] = ModelPricing(from: model)
+            }
+
+            logger.info("Parsed \(result.count) Claude model prices from LiteLLM data (filtered from \(rawDict.count) total)")
+            return result
         } catch {
             logger.error("Failed to parse pricing data: \(error.localizedDescription)")
             throw PricingError.parseError(error)
