@@ -173,7 +173,13 @@ struct SessionSection: View {
     let period: StatisticsPeriod
 
     private var sortedModels: [ModelIdentifier] {
-        session.models.sorted { $0.displayName < $1.displayName }
+        let tierOrder: [ClaudeModel: Int] = [.opus: 0, .sonnet: 1, .haiku: 2, .unknown: 3]
+        return session.models.sorted { a, b in
+            let aTier = tierOrder[a.family] ?? 999
+            let bTier = tierOrder[b.family] ?? 999
+            if aTier != bTier { return aTier < bTier }
+            return a.displayName < b.displayName
+        }
     }
 
     private func formatModelList() -> String {
@@ -233,16 +239,18 @@ struct SessionSection: View {
                 GridRow {
                     Text(String(localized: "Cost (API eq.):")).foregroundStyle(.secondary)
                     HStack(spacing: 2) {
-                        Text(String(format: "$%.2f", session.estimatedCost))
-                            .monospacedDigit()
-                        if session.isCostEstimated {
-                            Text("*")
+                        if session.isCostEstimated && session.estimatedCost > 0 {
+                            Text("~")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
-                                .help(String(localized: "Estimated — exact model pricing unavailable"))
                         }
+                        Text(session.estimatedCost.formattedCurrency())
+                            .monospacedDigit()
                     }
                     .gridColumnAlignment(.trailing)
+                    .help(session.isCostEstimated && session.estimatedCost > 0
+                        ? String(localized: "Estimated (Sonnet 4 Pricing) \u{2014} model not in pricing database")
+                        : "")
                 }
             }.font(.caption)
         }
