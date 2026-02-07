@@ -8,19 +8,21 @@
 |------|---------|---------|
 | Session key, organization ID | macOS Keychain | API authentication |
 | Statistics period, refresh interval | UserDefaults | User preferences |
+| Model pricing cache | Application Support | Offline pricing fallback (refreshed every 12h) |
 
 Keychain entries use `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` — they are only accessible when your Mac is unlocked and are excluded from iCloud backup.
 
 ## Network Connections
 
-The app connects to exactly two external domains:
+The app connects to exactly three external domains:
 
 | Domain | Purpose |
 |--------|---------|
 | `claude.ai` | Fetching your usage data (5-hour and 7-day windows, organization name) |
 | `api.github.com` | Checking for app updates (reads the latest release tag) |
+| `raw.githubusercontent.com` | Fetching model pricing data from the LiteLLM open-source repository |
 
-No authentication tokens, device identifiers, or personal data are sent to GitHub. The update check is a simple anonymous GET request.
+No authentication tokens, device identifiers, or personal data are sent to GitHub. The update check and pricing fetch are simple anonymous GET requests.
 
 ## Local File Access
 
@@ -39,7 +41,7 @@ The app reads Claude Code session files at `~/.claude/projects/**/*.jsonl` to ca
 
 The app requests no special entitlements. It uses:
 
-- **Network access** for API calls to claude.ai and update checks via GitHub
+- **Network access** for API calls to claude.ai, update checks via GitHub, and pricing data from LiteLLM
 - **Keychain access** for secure credential storage
 - **File system read access** to `~/.claude/projects/` for session data
 - **Notification permission** (optional) for usage threshold alerts at 80% and 95%
