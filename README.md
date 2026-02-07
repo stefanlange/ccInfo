@@ -51,7 +51,7 @@ Build with ⌘B, run with ⌘R.
 - ❌ Collects no telemetry
 - ❌ Sends no data to third parties
 
-See [PRIVACY.md](docs/PRIVACY.md) for details.
+See [PRIVACY.md](PRIVACY.md) for details.
 
 ## License
 
