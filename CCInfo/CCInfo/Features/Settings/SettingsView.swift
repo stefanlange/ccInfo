@@ -14,6 +14,7 @@ struct SettingsView: View {
                 .environmentObject(appState)
                 .tabItem { Label("Account", systemImage: "person.crop.circle") }
             AboutTab()
+                .environmentObject(appState)
                 .tabItem { Label("About", systemImage: "info.circle") }
         }
         .frame(width: 400, height: 250)
@@ -137,6 +138,8 @@ struct AccountTab: View {
 }
 
 struct AboutTab: View {
+    @EnvironmentObject var appState: AppState
+
     private var versionLabel: String {
         let value = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
         let isVersion = value.contains(".")
@@ -149,7 +152,66 @@ struct AboutTab: View {
             Text("ccInfo").font(.title2).fontWeight(.semibold)
             Text("Know your limits. Use them wisely.").font(.subheadline).foregroundStyle(.secondary)
             Text(versionLabel).font(.caption).foregroundStyle(.tertiary)
+
+            Divider().padding(.horizontal)
+
+            HStack {
+                Text("Pricing Data")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                PricingStatusRow(
+                    dataSource: appState.pricingDataSource,
+                    lastUpdate: appState.pricingLastUpdate
+                )
+            }
+            .padding(.horizontal)
+
             Spacer()
         }.padding()
+    }
+}
+
+struct PricingStatusRow: View {
+    let dataSource: PricingDataSource
+    let lastUpdate: Date?
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(statusColor)
+                .frame(width: 8, height: 8)
+
+            Text(statusLabel)
+                .font(.caption)
+
+            if let lastUpdate {
+                Text("— \(relativeTime(for: lastUpdate))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var statusColor: Color {
+        switch dataSource {
+        case .live: return .green
+        case .cached: return .yellow
+        case .bundled: return .gray
+        }
+    }
+
+    private var statusLabel: String {
+        switch dataSource {
+        case .live: return "Live"
+        case .cached: return "Cached"
+        case .bundled: return "Bundled"
+        }
+    }
+
+    private func relativeTime(for date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return formatter.localizedString(for: date, relativeTo: .now)
     }
 }
