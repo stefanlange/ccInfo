@@ -4,9 +4,11 @@ import OSLog
 actor JSONLParser {
     private let claudeProjectsPath: URL
     private let decoder: JSONDecoder
+    private let pricingService: PricingService
     private let logger = Logger(subsystem: "com.ccinfo.app", category: "JSONLParser")
 
-    init() {
+    init(pricingService: PricingService = .shared) {
+        self.pricingService = pricingService
         claudeProjectsPath = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/projects")
         decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
@@ -31,41 +33,6 @@ actor JSONLParser {
         return latest?.0
     }
     
-    // TODO: Phase 3 - Replace with PricingService.pricing(for:)
-    private func temporaryPricing(for model: ClaudeModel) -> (input: Double, output: Double, cacheWrite: Double, cacheRead: Double) {
-        switch model {
-        case .opus:    return (15.0, 75.0, 18.75, 1.50)
-        case .sonnet:  return (3.0, 15.0, 3.75, 0.30)
-        case .haiku:   return (1.0, 5.0, 1.25, 0.10)
-        case .unknown: return (3.0, 15.0, 3.75, 0.30)
-        }
-    }
-
-    // TODO: Phase 3 - Replace with PricingService.pricing(for:)
-    private func detectFamily(_ modelId: String?) -> ClaudeModel {
-        guard let id = modelId?.lowercased() else { return .unknown }
-        if id.contains("opus") { return .opus }
-        if id.contains("sonnet") { return .sonnet }
-        if id.contains("haiku") { return .haiku }
-        return .unknown
-    }
-
-    private func accumulateTokens(from entry: JSONLEntry) -> SessionData.TokenStats? {
-        guard let u = entry.message?.usage else { return nil }
-        let input = u.inputTokens ?? 0
-        let output = u.outputTokens ?? 0
-        let cacheCreation = u.cacheCreationInputTokens ?? 0
-        let cacheRead = u.cacheReadInputTokens ?? 0
-        let family = detectFamily(entry.rawModelId)
-        let pricing = temporaryPricing(for: family)
-        let cost = Double(input) / 1_000_000 * pricing.input
-                 + Double(output) / 1_000_000 * pricing.output
-                 + Double(cacheCreation) / 1_000_000 * pricing.cacheWrite
-                 + Double(cacheRead) / 1_000_000 * pricing.cacheRead
-        return SessionData.TokenStats(input: input, output: output,
-            cacheCreation: cacheCreation, cacheRead: cacheRead, cost: cost)
-    }
-
     func parseSession(at url: URL, availableModelKeys: Set<String> = []) throws -> SessionData {
         let lines = try String(contentsOf: url, encoding: .utf8).components(separatedBy: .newlines)
         var tokens = SessionData.TokenStats.zero
