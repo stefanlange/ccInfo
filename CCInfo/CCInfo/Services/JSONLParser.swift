@@ -41,13 +41,23 @@ actor JSONLParser {
         }
     }
 
+    // TODO: Phase 3 - Replace with PricingService.pricing(for:)
+    private func detectFamily(_ modelId: String?) -> ClaudeModel {
+        guard let id = modelId?.lowercased() else { return .unknown }
+        if id.contains("opus") { return .opus }
+        if id.contains("sonnet") { return .sonnet }
+        if id.contains("haiku") { return .haiku }
+        return .unknown
+    }
+
     private func accumulateTokens(from entry: JSONLEntry) -> SessionData.TokenStats? {
         guard let u = entry.message?.usage else { return nil }
         let input = u.inputTokens ?? 0
         let output = u.outputTokens ?? 0
         let cacheCreation = u.cacheCreationInputTokens ?? 0
         let cacheRead = u.cacheReadInputTokens ?? 0
-        let pricing = temporaryPricing(for: entry.detectedModel)
+        let family = detectFamily(entry.rawModelId)
+        let pricing = temporaryPricing(for: family)
         let cost = Double(input) / 1_000_000 * pricing.input
                  + Double(output) / 1_000_000 * pricing.output
                  + Double(cacheCreation) / 1_000_000 * pricing.cacheWrite
@@ -56,11 +66,11 @@ actor JSONLParser {
             cacheCreation: cacheCreation, cacheRead: cacheRead, cost: cost)
     }
 
-    func parseSession(at url: URL) throws -> SessionData {
+    func parseSession(at url: URL, availableModelKeys: Set<String> = []) throws -> SessionData {
         let lines = try String(contentsOf: url, encoding: .utf8).components(separatedBy: .newlines)
         var tokens = SessionData.TokenStats.zero
         var sessionId = url.deletingPathExtension().lastPathComponent
-        var detectedModels: Set<ClaudeModel> = []
+        var rawModelIds: Set<String> = []
 
         for line in lines where !line.isEmpty {
             guard let data = line.data(using: .utf8) else {
@@ -75,9 +85,8 @@ actor JSONLParser {
 
             if let sid = entry.sessionId { sessionId = sid }
 
-            let entryModel = entry.detectedModel
-            if entryModel != .unknown {
-                detectedModels.insert(entryModel)
+            if let modelId = entry.rawModelId, modelId != "<synthetic>" {
+                rawModelIds.insert(modelId)
             }
 
             if let entryTokens = accumulateTokens(from: entry) {
@@ -85,16 +94,16 @@ actor JSONLParser {
             }
         }
 
-        if detectedModels.isEmpty {
-            detectedModels.insert(.unknown)
-        }
+        let models: Set<ModelIdentifier> = rawModelIds.isEmpty
+            ? [.unknown]
+            : Set(rawModelIds.map { ModelIdentifier(rawId: $0, availableModelKeys: availableModelKeys) })
 
-        return SessionData(sessionId: sessionId, tokens: tokens, models: detectedModels)
+        return SessionData(sessionId: sessionId, tokens: tokens, models: models)
     }
 
-    func parseAggregate(since periodStart: Date) -> SessionData {
+    func parseAggregate(since periodStart: Date, availableModelKeys: Set<String> = []) -> SessionData {
         var tokens = SessionData.TokenStats.zero
-        var detectedModels: Set<ClaudeModel> = []
+        var rawModelIds: Set<String> = []
 
         guard let enumerator = FileManager.default.enumerator(
             at: claudeProjectsPath,
@@ -123,9 +132,8 @@ actor JSONLParser {
                 // Only include entries with timestamp >= periodStart
                 guard let timestamp = entry.timestamp, timestamp >= periodStart else { continue }
 
-                let entryModel = entry.detectedModel
-                if entryModel != .unknown {
-                    detectedModels.insert(entryModel)
+                if let modelId = entry.rawModelId, modelId != "<synthetic>" {
+                    rawModelIds.insert(modelId)
                 }
 
                 if let entryTokens = accumulateTokens(from: entry) {
@@ -134,25 +142,25 @@ actor JSONLParser {
             }
         }
 
-        if detectedModels.isEmpty {
-            detectedModels.insert(.unknown)
-        }
+        let models: Set<ModelIdentifier> = rawModelIds.isEmpty
+            ? [.unknown]
+            : Set(rawModelIds.map { ModelIdentifier(rawId: $0, availableModelKeys: availableModelKeys) })
 
-        return SessionData(sessionId: nil, tokens: tokens, models: detectedModels)
+        return SessionData(sessionId: nil, tokens: tokens, models: models)
     }
 
-    func parseForPeriod(_ period: StatisticsPeriod) throws -> SessionData? {
+    func parseForPeriod(_ period: StatisticsPeriod, availableModelKeys: Set<String> = []) throws -> SessionData? {
         switch period {
         case .session:
             guard let url = findLatestSession() else { return nil }
-            return try parseSession(at: url)
+            return try parseSession(at: url, availableModelKeys: availableModelKeys)
         case .today, .thisWeek, .thisMonth:
             guard let start = period.periodStart() else { return nil }
-            return parseAggregate(since: start)
+            return parseAggregate(since: start, availableModelKeys: availableModelKeys)
         }
     }
     
-    func getCurrentContextWindow() throws -> ContextWindow {
+    func getCurrentContextWindow(availableModelKeys: Set<String> = []) throws -> ContextWindow {
         guard let url = findLatestSession() else {
             return ContextWindow(currentTokens: 0, activeModel: nil)
         }
@@ -163,12 +171,12 @@ actor JSONLParser {
                   let entry = try? decoder.decode(JSONLEntry.self, from: data),
                   let usage = entry.message?.usage else { continue }
 
-            // Extract model from newest entry
-            let activeModel = entry.detectedModel
-            return ContextWindow(
-                currentTokens: usage.totalInputTokens,
-                activeModel: activeModel != .unknown ? activeModel : nil
-            )
+            let activeModel: ModelIdentifier? = entry.rawModelId.map {
+                ModelIdentifier(rawId: $0, availableModelKeys: availableModelKeys)
+            }
+            // Only return non-unknown models
+            let finalModel = activeModel?.family != .unknown ? activeModel : nil
+            return ContextWindow(currentTokens: usage.totalInputTokens, activeModel: finalModel)
         }
 
         return ContextWindow(currentTokens: 0, activeModel: nil)

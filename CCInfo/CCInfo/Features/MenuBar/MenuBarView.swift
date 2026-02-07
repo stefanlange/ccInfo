@@ -131,8 +131,8 @@ struct ContextSection: View {
         }
     }
 
-    private func modelBadgeColor(for model: ClaudeModel) -> Color {
-        switch model {
+    private func modelBadgeColor(for model: ModelIdentifier) -> Color {
+        switch model.family {
         case .opus: return .purple
         case .sonnet: return context.isExtendedContext ? .red : .orange
         case .haiku: return .cyan
@@ -154,7 +154,7 @@ struct ContextSection: View {
                     .foregroundStyle(.secondary)
                 Spacer()
                 if let model = context.activeModel {
-                    Text(model.displayName(extended: context.isExtendedContext))
+                    Text(model.displayName)
                         .font(.caption2)
                         .fontWeight(.medium)
                         .padding(.horizontal, 5)
@@ -172,13 +172,13 @@ struct SessionSection: View {
     let session: SessionData
     let period: StatisticsPeriod
 
-    private var sortedModels: [ClaudeModel] {
+    private var sortedModels: [ModelIdentifier] {
         session.models.sorted { $0.displayName < $1.displayName }
     }
 
     private func formatModelList() -> String {
         sortedModels
-            .filter { $0 != .unknown }
+            .filter { $0.family != .unknown }
             .map { $0.displayName }
             .joined(separator: ", ")
     }
@@ -232,9 +232,17 @@ struct SessionSection: View {
                 }
                 GridRow {
                     Text(String(localized: "Cost (API eq.):")).foregroundStyle(.secondary)
-                    Text(String(format: "$%.2f", session.estimatedCost))
-                        .gridColumnAlignment(.trailing)
-                        .monospacedDigit()
+                    HStack(spacing: 2) {
+                        Text(String(format: "$%.2f", session.estimatedCost))
+                            .monospacedDigit()
+                        if session.isCostEstimated {
+                            Text("*")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .help(String(localized: "Estimated — exact model pricing unavailable"))
+                        }
+                    }
+                    .gridColumnAlignment(.trailing)
                 }
             }.font(.caption)
         }
