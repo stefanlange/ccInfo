@@ -14,6 +14,41 @@ actor JSONLParser {
         decoder.dateDecodingStrategy = .iso8601
     }
     
+    // MARK: - Private Types
+
+    private struct TokenCounts {
+        var input = 0
+        var output = 0
+        var cacheCreation = 0
+        var cacheRead = 0
+    }
+
+    // MARK: - Private Methods
+
+    private func calculateCost(
+        tokensByModel: [String: TokenCounts],
+        availableModelKeys: Set<String>
+    ) async -> (cost: Double, models: Set<ModelIdentifier>) {
+        var totalCost = 0.0
+        var models: Set<ModelIdentifier> = []
+
+        for (rawModelId, counts) in tokensByModel {
+            let identifier = ModelIdentifier(rawId: rawModelId, availableModelKeys: availableModelKeys)
+            models.insert(identifier)
+            let pricing = await pricingService.pricing(for: identifier.pricingKey)
+
+            let modelCost = Double(counts.input) * pricing.inputCostPerToken
+                          + Double(counts.output) * pricing.outputCostPerToken
+                          + Double(counts.cacheCreation) * pricing.cacheCreationCostPerToken
+                          + Double(counts.cacheRead) * pricing.cacheReadCostPerToken
+            totalCost += modelCost
+        }
+
+        return (totalCost, models)
+    }
+
+    // MARK: - Public Methods
+
     func findLatestSession() -> URL? {
         guard let enumerator = FileManager.default.enumerator(at: claudeProjectsPath, includingPropertiesForKeys: [.contentModificationDateKey], options: [.skipsHiddenFiles]) else { return nil }
         var latest: (URL, Date)?
@@ -33,11 +68,14 @@ actor JSONLParser {
         return latest?.0
     }
     
-    func parseSession(at url: URL, availableModelKeys: Set<String> = []) throws -> SessionData {
+    func parseSession(at url: URL, availableModelKeys: Set<String> = []) async throws -> SessionData {
         let lines = try String(contentsOf: url, encoding: .utf8).components(separatedBy: .newlines)
-        var tokens = SessionData.TokenStats.zero
         var sessionId = url.deletingPathExtension().lastPathComponent
-        var rawModelIds: Set<String> = []
+        var tokensByModel: [String: TokenCounts] = [:]
+        var totalInput = 0
+        var totalOutput = 0
+        var totalCacheCreation = 0
+        var totalCacheRead = 0
 
         for line in lines where !line.isEmpty {
             guard let data = line.data(using: .utf8) else {
@@ -52,32 +90,55 @@ actor JSONLParser {
 
             if let sid = entry.sessionId { sessionId = sid }
 
-            if let modelId = entry.rawModelId, modelId != "<synthetic>" {
-                rawModelIds.insert(modelId)
-            }
+            // Skip entries without usage or valid model ID
+            guard let usage = entry.message?.usage,
+                  let rawModelId = entry.rawModelId,
+                  rawModelId != "<synthetic>" else { continue }
 
-            if let entryTokens = accumulateTokens(from: entry) {
-                tokens = tokens + entryTokens
-            }
+            // Accumulate tokens per model
+            var counts = tokensByModel[rawModelId, default: TokenCounts()]
+            counts.input += usage.inputTokens ?? 0
+            counts.output += usage.outputTokens ?? 0
+            counts.cacheCreation += usage.cacheCreationInputTokens ?? 0
+            counts.cacheRead += usage.cacheReadInputTokens ?? 0
+            tokensByModel[rawModelId] = counts
+
+            // Also accumulate totals for TokenStats
+            totalInput += usage.inputTokens ?? 0
+            totalOutput += usage.outputTokens ?? 0
+            totalCacheCreation += usage.cacheCreationInputTokens ?? 0
+            totalCacheRead += usage.cacheReadInputTokens ?? 0
         }
 
-        let models: Set<ModelIdentifier> = rawModelIds.isEmpty
-            ? [.unknown]
-            : Set(rawModelIds.map { ModelIdentifier(rawId: $0, availableModelKeys: availableModelKeys) })
+        // Calculate cost and models
+        let (cost, models) = tokensByModel.isEmpty
+            ? (0.0, Set([.unknown]))
+            : await calculateCost(tokensByModel: tokensByModel, availableModelKeys: availableModelKeys)
+
+        let tokens = SessionData.TokenStats(
+            input: totalInput,
+            output: totalOutput,
+            cacheCreation: totalCacheCreation,
+            cacheRead: totalCacheRead,
+            cost: cost
+        )
 
         return SessionData(sessionId: sessionId, tokens: tokens, models: models)
     }
 
-    func parseAggregate(since periodStart: Date, availableModelKeys: Set<String> = []) -> SessionData {
-        var tokens = SessionData.TokenStats.zero
-        var rawModelIds: Set<String> = []
+    func parseAggregate(since periodStart: Date, availableModelKeys: Set<String> = []) async -> SessionData {
+        var tokensByModel: [String: TokenCounts] = [:]
+        var totalInput = 0
+        var totalOutput = 0
+        var totalCacheCreation = 0
+        var totalCacheRead = 0
 
         guard let enumerator = FileManager.default.enumerator(
             at: claudeProjectsPath,
             includingPropertiesForKeys: [.contentModificationDateKey],
             options: [.skipsHiddenFiles]
         ) else {
-            return SessionData(sessionId: nil, tokens: tokens, models: [.unknown])
+            return SessionData(sessionId: nil, tokens: .zero, models: [.unknown])
         }
 
         while let url = enumerator.nextObject() as? URL {
@@ -99,31 +160,51 @@ actor JSONLParser {
                 // Only include entries with timestamp >= periodStart
                 guard let timestamp = entry.timestamp, timestamp >= periodStart else { continue }
 
-                if let modelId = entry.rawModelId, modelId != "<synthetic>" {
-                    rawModelIds.insert(modelId)
-                }
+                // Skip entries without usage or valid model ID
+                guard let usage = entry.message?.usage,
+                      let rawModelId = entry.rawModelId,
+                      rawModelId != "<synthetic>" else { continue }
 
-                if let entryTokens = accumulateTokens(from: entry) {
-                    tokens = tokens + entryTokens
-                }
+                // Accumulate tokens per model
+                var counts = tokensByModel[rawModelId, default: TokenCounts()]
+                counts.input += usage.inputTokens ?? 0
+                counts.output += usage.outputTokens ?? 0
+                counts.cacheCreation += usage.cacheCreationInputTokens ?? 0
+                counts.cacheRead += usage.cacheReadInputTokens ?? 0
+                tokensByModel[rawModelId] = counts
+
+                // Also accumulate totals for TokenStats
+                totalInput += usage.inputTokens ?? 0
+                totalOutput += usage.outputTokens ?? 0
+                totalCacheCreation += usage.cacheCreationInputTokens ?? 0
+                totalCacheRead += usage.cacheReadInputTokens ?? 0
             }
         }
 
-        let models: Set<ModelIdentifier> = rawModelIds.isEmpty
-            ? [.unknown]
-            : Set(rawModelIds.map { ModelIdentifier(rawId: $0, availableModelKeys: availableModelKeys) })
+        // Calculate cost and models
+        let (cost, models) = tokensByModel.isEmpty
+            ? (0.0, Set([.unknown]))
+            : await calculateCost(tokensByModel: tokensByModel, availableModelKeys: availableModelKeys)
+
+        let tokens = SessionData.TokenStats(
+            input: totalInput,
+            output: totalOutput,
+            cacheCreation: totalCacheCreation,
+            cacheRead: totalCacheRead,
+            cost: cost
+        )
 
         return SessionData(sessionId: nil, tokens: tokens, models: models)
     }
 
-    func parseForPeriod(_ period: StatisticsPeriod, availableModelKeys: Set<String> = []) throws -> SessionData? {
+    func parseForPeriod(_ period: StatisticsPeriod, availableModelKeys: Set<String> = []) async throws -> SessionData? {
         switch period {
         case .session:
             guard let url = findLatestSession() else { return nil }
-            return try parseSession(at: url, availableModelKeys: availableModelKeys)
+            return try await parseSession(at: url, availableModelKeys: availableModelKeys)
         case .today, .thisWeek, .thisMonth:
             guard let start = period.periodStart() else { return nil }
-            return parseAggregate(since: start, availableModelKeys: availableModelKeys)
+            return await parseAggregate(since: start, availableModelKeys: availableModelKeys)
         }
     }
     
