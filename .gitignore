@@ -31,4 +31,5 @@
 
 # Claude Code
 .claude/
+.planning/
 CLAUDE.md
