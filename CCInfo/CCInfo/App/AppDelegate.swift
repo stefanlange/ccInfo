@@ -60,6 +60,11 @@ final class AppState: ObservableObject {
             return
         }
 
+        // Start pricing data monitoring (fetch + 12h refresh cycle)
+        Task {
+            await PricingService.shared.startMonitoring()
+        }
+
         Task { @MainActor in await refreshAll() }
         startRefreshTask()
         startUpdateCheckTask()
@@ -82,6 +87,9 @@ final class AppState: ObservableObject {
         updateCheckTask = nil
         fileWatcher?.stop()
         fileWatcher = nil
+        Task {
+            await PricingService.shared.stopMonitoring()
+        }
     }
 
     func updateRefreshInterval() {
