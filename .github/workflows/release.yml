@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g. 1.2.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate tag does not exist
+        run: |
+          if git ls-remote --tags origin | grep -q "refs/tags/v${{ inputs.version }}$"; then
+            echo "::error::Tag v${{ inputs.version }} already exists"
+            exit 1
+          fi
+
+      - name: Build
+        run: |
+          xcodebuild -project CCInfo/CCInfo.xcodeproj \
+                     -scheme CCInfo \
+                     -configuration Release \
+                     -derivedDataPath build \
+                     CODE_SIGNING_ALLOWED=NO \
+                     MARKETING_VERSION="${{ inputs.version }}"
+
+      - name: Create and push tag
+        run: |
+          git tag "v${{ inputs.version }}"
+          git push origin "v${{ inputs.version }}"
+
+      - name: Fix executable permissions
+        run: chmod +x build/Build/Products/Release/CCInfo.app/Contents/MacOS/CCInfo
+
+      - name: Ad-hoc code sign
+        run: codesign --force --deep --sign - build/Build/Products/Release/CCInfo.app
+
+      - name: Create DMG
+        run: |
+          mkdir -p dmg-contents
+          cp -R build/Build/Products/Release/CCInfo.app dmg-contents/
+          ln -s /Applications dmg-contents/Applications
+          hdiutil create -volname "ccInfo" -srcfolder dmg-contents -ov -format UDZO "ccInfo-v${{ inputs.version }}.dmg"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ inputs.version }}
+          files: ccInfo-v${{ inputs.version }}.dmg
+          generate_release_notes: true

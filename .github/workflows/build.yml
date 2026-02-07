@@ -1,9 +1,8 @@
-name: Build & Release
+name: CI
 
 on:
   push:
     branches: [main]
-    tags: ['v*']
   pull_request:
     branches: [main]
 
@@ -13,65 +12,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch tags
-        run: git fetch --tags --force
-
-      - name: Set version
-        run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            echo "APP_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
-          elif TAG=$(git describe --tags --exact-match 2>/dev/null) && [[ "$TAG" == v* ]]; then
-            echo "APP_VERSION=${TAG#v}" >> "$GITHUB_ENV"
-          else
-            echo "APP_VERSION=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
-          fi
-
       - name: Build
         run: |
           xcodebuild -project CCInfo/CCInfo.xcodeproj \
                      -scheme CCInfo \
                      -configuration Release \
                      -derivedDataPath build \
-                     CODE_SIGNING_ALLOWED=NO \
-                     MARKETING_VERSION="$APP_VERSION"
-
-      - name: Upload app artifact
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-artifact@v4
-        with:
-          name: CCInfo-app
-          path: build/Build/Products/Release/CCInfo.app
-
-  release:
-    needs: build
-    runs-on: macos-14
-    if: startsWith(github.ref, 'refs/tags/v')
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download app artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: CCInfo-app
-          path: CCInfo.app
-
-      - name: Fix executable permissions
-        run: chmod +x CCInfo.app/Contents/MacOS/CCInfo
-
-      - name: Ad-hoc code sign
-        run: codesign --force --deep --sign - CCInfo.app
-
-      - name: Create DMG
-        run: |
-          mkdir -p dmg-contents
-          cp -R CCInfo.app dmg-contents/
-          ln -s /Applications dmg-contents/Applications
-          hdiutil create -volname "ccInfo" -srcfolder dmg-contents -ov -format UDZO ccInfo-${{ github.ref_name }}.dmg
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: ccInfo-${{ github.ref_name }}.dmg
-          generate_release_notes: true
+                     CODE_SIGNING_ALLOWED=NO
