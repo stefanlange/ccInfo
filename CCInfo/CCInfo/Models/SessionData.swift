@@ -43,34 +43,6 @@ enum ClaudeModel: String, Sendable, CaseIterable {
         case .unknown: return "Unknown"
         }
     }
-
-    /// Extended display name with context information
-    func displayName(extended: Bool) -> String {
-        switch self {
-        case .sonnet:
-            return extended ? "Sonnet 1M" : "Sonnet"
-        default:
-            return displayName
-        }
-    }
-
-    /// Initialize from model ID string (e.g., "claude-sonnet-4-5-20250929")
-    init(fromModelId modelId: String?) {
-        guard let modelId = modelId?.lowercased() else {
-            self = .unknown
-            return
-        }
-
-        if modelId.contains("opus") {
-            self = .opus
-        } else if modelId.contains("sonnet") {
-            self = .sonnet
-        } else if modelId.contains("haiku") {
-            self = .haiku
-        } else {
-            self = .unknown
-        }
-    }
 }
 
 // MARK: - JSONL Parsing
@@ -106,20 +78,25 @@ struct JSONLEntry: Codable, Sendable {
         }
     }
 
-    /// Extract model from entry (checks both top-level and message-level)
-    var detectedModel: ClaudeModel {
-        ClaudeModel(fromModelId: model ?? message?.model)
+    /// Extract raw model ID string from entry (checks both top-level and message-level)
+    var rawModelId: String? {
+        model ?? message?.model
     }
 }
 
 struct SessionData: Sendable {
     let sessionId: String?
     let tokens: TokenStats
-    let models: Set<ClaudeModel>  // All models used in this session
+    let models: Set<ModelIdentifier>  // All models used in this session
 
     /// Estimated cost based on per-entry model pricing
     var estimatedCost: Double {
         tokens.cost
+    }
+
+    /// True if any model in this session used fallback pricing
+    var isCostEstimated: Bool {
+        models.contains { $0.isFallback }
     }
 
     struct TokenStats: Sendable {
@@ -160,7 +137,7 @@ struct ContextWindow: Sendable {
     }
 
     let currentTokens: Int
-    let activeModel: ClaudeModel?
+    let activeModel: ModelIdentifier?
 
     /// Detected maximum tokens (200k standard or 1M extended)
     var maxTokens: Int {
@@ -183,7 +160,7 @@ struct ContextWindow: Sendable {
         currentTokens >= maxTokens - Constants.autoCompactThreshold
     }
 
-    init(currentTokens: Int, activeModel: ClaudeModel? = nil) {
+    init(currentTokens: Int, activeModel: ModelIdentifier? = nil) {
         self.currentTokens = currentTokens
         self.activeModel = activeModel
     }
