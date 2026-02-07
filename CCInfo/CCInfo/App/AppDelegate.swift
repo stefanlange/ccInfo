@@ -28,6 +28,8 @@ final class AppState: ObservableObject {
     @Published private(set) var error: Error?
     @Published var showingAuth = false
     @Published var statisticsPeriod: StatisticsPeriod = .today
+    @Published private(set) var pricingDataSource: PricingDataSource = .bundled
+    @Published private(set) var pricingLastUpdate: Date?
 
     let keychainService = KeychainService()
     private let apiClient: ClaudeAPIClient
@@ -144,6 +146,12 @@ final class AppState: ObservableObject {
     func refreshAll() async {
         await refreshUsage()
         await refreshLocalData()
+        await refreshPricingStatus()
+    }
+
+    func refreshPricingStatus() async {
+        pricingDataSource = await PricingService.shared.dataSource
+        pricingLastUpdate = await PricingService.shared.lastUpdateTimestamp
     }
 
     func refreshUsage() async {

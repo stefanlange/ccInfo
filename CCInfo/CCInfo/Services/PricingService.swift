@@ -6,6 +6,7 @@ actor PricingService {
 
     private var pricingData: [String: ModelPricing]?
     private(set) var dataSource: PricingDataSource = .bundled
+    private(set) var lastUpdateTimestamp: Date?
     private let logger = Logger(subsystem: "com.ccinfo.app", category: "PricingService")
     private var refreshTask: Task<Void, Never>?
 
@@ -14,6 +15,9 @@ actor PricingService {
         // Uses static method to avoid actor-isolation warnings in nonisolated init
         self.pricingData = Self.loadBundledData(logger: logger)
         // dataSource defaults to .bundled via property initializer
+        if pricingData != nil {
+            lastUpdateTimestamp = Date.now
+        }
         // Background fetch started separately via startMonitoring()
     }
 
@@ -106,6 +110,7 @@ actor PricingService {
         if !cacheStale, let cached = loadCachedData() {
             pricingData = cached
             dataSource = .cached
+            lastUpdateTimestamp = Date.now
             logger.info("Loaded \(cached.count) models from fresh cache")
             return
         }
@@ -115,6 +120,7 @@ actor PricingService {
             let fetched = try await fetchFromNetwork()
             pricingData = fetched
             dataSource = .live
+            lastUpdateTimestamp = Date.now
             saveCachedData(fetched)
             logger.info("Fetched \(fetched.count) models from network, cache updated")
             return
@@ -126,6 +132,7 @@ actor PricingService {
         if let cached = loadCachedData() {
             pricingData = cached
             dataSource = .cached
+            lastUpdateTimestamp = Date.now
             logger.warning("Using stale cache (\(cached.count) models) after network failure")
             return
         }
