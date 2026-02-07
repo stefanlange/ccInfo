@@ -64,12 +64,19 @@ struct MenuBarView: View {
     
     private var footerButtons: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Button { Task { await appState.refreshAll() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }.buttonStyle(.borderless).disabled(appState.isLoading)
-            SettingsLink { Label("Settings", systemImage: "gear") }
+            Button { Task { await appState.refreshAll() } } label: { footerLabel("Refresh", systemImage: "arrow.clockwise") }.buttonStyle(.borderless).disabled(appState.isLoading)
+            SettingsLink { footerLabel("Settings", systemImage: "gear") }
                 .buttonStyle(.borderless)
                 .simultaneousGesture(TapGesture().onEnded { NSApp.activate(ignoringOtherApps: true) })
-            Button { NSApplication.shared.terminate(nil) } label: { Label("Quit", systemImage: "power") }.buttonStyle(.borderless)
+            Button { NSApplication.shared.terminate(nil) } label: { footerLabel("Quit", systemImage: "power") }.buttonStyle(.borderless)
         }.font(.callout)
+    }
+
+    private func footerLabel(_ title: LocalizedStringKey, systemImage: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: systemImage).frame(width: 16, alignment: .center)
+            Text(title)
+        }
     }
 }
 
