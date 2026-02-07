@@ -166,8 +166,9 @@ final class AppState: ObservableObject {
 
     func refreshLocalData() async {
         do {
-            contextWindow = try await jsonlParser.getCurrentContextWindow()
-            sessionData = try await jsonlParser.parseForPeriod(statisticsPeriod)
+            let availableKeys = await PricingService.shared.availableModelKeys
+            contextWindow = try await jsonlParser.getCurrentContextWindow(availableModelKeys: availableKeys)
+            sessionData = try await jsonlParser.parseForPeriod(statisticsPeriod, availableModelKeys: availableKeys)
         } catch {
             logger.warning("Local data error: \(error.localizedDescription)")
         }
