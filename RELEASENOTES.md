@@ -1,5 +1,16 @@
 # Release Notes
 
+## 1.2.0 – 2026-02-07
+
+- Add dynamic pricing service that fetches live model prices from LiteLLM every 12 hours, with bundled JSON fallback
+- Calculate session cost per JSONL entry using actual model pricing instead of fixed Sonnet 4 rates
+- Show estimated cost with tilde prefix (~) when a model is not in the pricing database
+- Add pricing data status row in Settings About tab showing data source and last update time
+- Use fixed USD formatting with adaptive precision for cost display
+- Add privacy policy
+- Fix footer button label alignment
+- Split CI and release into separate workflows
+
 ## 1.1.1 – 2026-02-06
 
 - Use MARKETING_VERSION variable in Info.plist for version injection
