@@ -11,8 +11,9 @@ actor PricingService {
 
     private init() {
         // Non-blocking init: load bundled data synchronously (milliseconds, safe)
-        self.pricingData = loadBundledData()
-        self.dataSource = .bundled
+        // Uses static method to avoid actor-isolation warnings in nonisolated init
+        self.pricingData = Self.loadBundledData(logger: logger)
+        // dataSource defaults to .bundled via property initializer
         // Background fetch started separately via startMonitoring()
     }
 
@@ -65,17 +66,21 @@ actor PricingService {
     // MARK: - Private Methods
 
     /// Load bundled fallback JSON from app bundle
-    private func loadBundledData() -> [String: ModelPricing]? {
+    /// Static + nonisolated to allow calling from actor init without isolation warnings
+    private nonisolated static func loadBundledData(logger: Logger) -> [String: ModelPricing]? {
         guard let url = Bundle.main.url(forResource: "claude-pricing-fallback", withExtension: "json") else {
-            logger.warning("No bundled pricing fallback found (expected until Plan 02)")
+            logger.warning("No bundled pricing fallback found")
             return nil
         }
 
         do {
             let data = try Data(contentsOf: url)
-            let parsed = try parsePricingData(data)
-            logger.info("Loaded \(parsed.count) models from bundled fallback")
-            return parsed
+            let decoder = JSONDecoder()
+            let rawData = try decoder.decode([String: LiteLLMModel].self, from: data)
+            let claudeModels = rawData.filter { key, _ in key.lowercased().contains("claude") }
+            let converted = claudeModels.mapValues { ModelPricing(from: $0) }
+            logger.info("Loaded \(converted.count) models from bundled fallback")
+            return converted
         } catch {
             logger.error("Failed to load bundled pricing data: \(error.localizedDescription)")
             return nil
