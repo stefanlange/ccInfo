@@ -19,6 +19,11 @@ actor PricingService {
 
     // MARK: - Public API
 
+    /// Returns the set of lowercase model keys available in current pricing data
+    var availableModelKeys: Set<String> {
+        Set(pricingData?.keys.map { $0.lowercased() } ?? [])
+    }
+
     /// Returns pricing for the specified model ID, with Sonnet fallback if not found
     func pricing(for modelId: String) -> ModelPricing {
         // Try exact match first
@@ -34,6 +39,11 @@ actor PricingService {
         // Fallback to Sonnet default
         logger.debug("Model '\(modelId)' not found in pricing data, using Sonnet default")
         return ModelPricing.sonnetDefault
+    }
+
+    /// Returns pricing for the specified ModelIdentifier
+    func pricing(for identifier: ModelIdentifier) -> ModelPricing {
+        return pricing(for: identifier.pricingKey)
     }
 
     /// Start periodic monitoring: fetch immediately, then refresh every 12h

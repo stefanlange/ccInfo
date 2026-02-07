@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		EF0F5FCBC4A348098818D6D0 /* ModelIdentifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = D51C78C5173F4E4198388DE0 /* ModelIdentifier.swift */; };
+
 		F0000001 /* CCInfoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000001 /* CCInfoApp.swift */; };
 		F0000002 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000002 /* AppDelegate.swift */; };
 		F0000003 /* UsageData.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000003 /* UsageData.swift */; };
@@ -28,6 +30,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		D51C78C5173F4E4198388DE0 /* ModelIdentifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelIdentifier.swift; sourceTree = "<group>"; };
+
 		F1000001 /* CCInfoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CCInfoApp.swift; sourceTree = "<group>"; };
 		F1000002 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		F1000003 /* UsageData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageData.swift; sourceTree = "<group>"; };
@@ -97,7 +101,7 @@
 				F1000003 /* UsageData.swift */,
 				F1000004 /* SessionData.swift */,
 				F1000012 /* PricingModels.swift */,
-			);
+				D51C78C5173F4E4198388DE0 /* ModelIdentifier.swift */,);
 			path = Models;
 			sourceTree = "<group>";
 		};
@@ -256,7 +260,7 @@
 				F000000F /* UpdateChecker.swift in Sources */,
 				F0000010 /* PricingModels.swift in Sources */,
 				F0000011 /* PricingService.swift in Sources */,
-			);
+				EF0F5FCBC4A348098818D6D0 /* ModelIdentifier.swift in Sources */,);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */

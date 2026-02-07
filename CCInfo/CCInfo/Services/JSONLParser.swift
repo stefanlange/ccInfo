@@ -31,13 +31,23 @@ actor JSONLParser {
         return latest?.0
     }
     
+    // TODO: Phase 3 - Replace with PricingService.pricing(for:)
+    private func temporaryPricing(for model: ClaudeModel) -> (input: Double, output: Double, cacheWrite: Double, cacheRead: Double) {
+        switch model {
+        case .opus:    return (15.0, 75.0, 18.75, 1.50)
+        case .sonnet:  return (3.0, 15.0, 3.75, 0.30)
+        case .haiku:   return (1.0, 5.0, 1.25, 0.10)
+        case .unknown: return (3.0, 15.0, 3.75, 0.30)
+        }
+    }
+
     private func accumulateTokens(from entry: JSONLEntry) -> SessionData.TokenStats? {
         guard let u = entry.message?.usage else { return nil }
         let input = u.inputTokens ?? 0
         let output = u.outputTokens ?? 0
         let cacheCreation = u.cacheCreationInputTokens ?? 0
         let cacheRead = u.cacheReadInputTokens ?? 0
-        let pricing = entry.detectedModel.pricing
+        let pricing = temporaryPricing(for: entry.detectedModel)
         let cost = Double(input) / 1_000_000 * pricing.input
                  + Double(output) / 1_000_000 * pricing.output
                  + Double(cacheCreation) / 1_000_000 * pricing.cacheWrite

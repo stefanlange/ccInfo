@@ -28,37 +28,12 @@ enum StatisticsPeriod: String, CaseIterable, Sendable {
 
 // MARK: - Claude Model Pricing
 
-/// Represents Claude model variants with their respective API pricing
+/// Represents Claude model variants for UI grouping
 enum ClaudeModel: String, Sendable, CaseIterable {
     case opus = "opus"
     case sonnet = "sonnet"
     case haiku = "haiku"
     case unknown = "unknown"
-
-    /// Pricing per million tokens
-    struct Pricing: Sendable {
-        let input: Double
-        let output: Double
-        let cacheWrite: Double
-        let cacheRead: Double
-    }
-
-    var pricing: Pricing {
-        switch self {
-        case .opus:
-            // Claude Opus 4.5: $15/$75 per MTok
-            return Pricing(input: 15.0, output: 75.0, cacheWrite: 18.75, cacheRead: 1.50)
-        case .sonnet:
-            // Claude Sonnet 4.5: $3/$15 per MTok (same for standard and 1M context variants)
-            return Pricing(input: 3.0, output: 15.0, cacheWrite: 3.75, cacheRead: 0.30)
-        case .haiku:
-            // Claude Haiku 4.5: $1/$5 per MTok
-            return Pricing(input: 1.0, output: 5.0, cacheWrite: 1.25, cacheRead: 0.10)
-        case .unknown:
-            // Default to Sonnet pricing
-            return Pricing(input: 3.0, output: 15.0, cacheWrite: 3.75, cacheRead: 0.30)
-        }
-    }
 
     var displayName: String {
         switch self {
