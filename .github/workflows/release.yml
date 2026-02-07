@@ -51,9 +51,17 @@ jobs:
           ln -s /Applications dmg-contents/Applications
           hdiutil create -volname "ccInfo" -srcfolder dmg-contents -ov -format UDZO "ccInfo-v${{ inputs.version }}.dmg"
 
+      - name: Extract release notes
+        id: notes
+        run: |
+          body=$(awk '/^## ${{ inputs.version }} /{found=1; next} /^## /{if(found) exit} found' RELEASENOTES.md)
+          echo "body<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$body" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ inputs.version }}
           files: ccInfo-v${{ inputs.version }}.dmg
-          generate_release_notes: true
+          body: ${{ steps.notes.outputs.body }}
