@@ -379,28 +379,18 @@ struct SessionSwitcher: View {
 struct UpdateBanner: View {
     let update: AvailableUpdate
 
-    private var currentVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
-    }
-
     var body: some View {
         Button {
             NSWorkspace.shared.open(update.url)
         } label: {
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "info.circle.fill")
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.down.circle.fill")
                     .font(.title3)
                     .foregroundStyle(.blue)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("update.available \(update.version)")
-                    Text("update.currentVersion \(currentVersion)")
-                    Text("update.download")
-                }
-                .font(.caption)
-                .multilineTextAlignment(.leading)
-                .foregroundStyle(.primary)
-                .fixedSize(horizontal: false, vertical: true)
+                Text("update.availableShort \(update.version)")
+                    .font(.caption)
+                    .foregroundStyle(.primary)
             }
             .padding(8)
             .frame(maxWidth: .infinity, alignment: .leading)

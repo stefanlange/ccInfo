@@ -44,7 +44,7 @@ The app requests no special entitlements. It uses:
 - **Network access** for API calls to claude.ai, update checks via GitHub, and pricing data from LiteLLM
 - **Keychain access** for secure credential storage
 - **File system read access** to `~/.claude/projects/` for session data
-- **Notification permission** (optional) for usage threshold alerts at 80% and 95%
+- **Notification permission** (optional) for usage threshold alerts (80%/95%) and update availability
 
 ## Open Source
 

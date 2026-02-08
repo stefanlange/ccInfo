@@ -14,6 +14,9 @@ final class NotificationService {
     private var notifiedFiveHour: Set<Int> = []
     private var notifiedSevenDay: Set<Int> = []
 
+    // Track last notified update version to avoid duplicate update notifications
+    private var hasNotifiedForUpdate: String?
+
     enum WindowType: String {
         case fiveHour = "5-Hour"
         case sevenDay = "Weekly"
@@ -110,6 +113,30 @@ final class NotificationService {
                 logger.info("Sent notification for \(window.rawValue) at \(threshold)%")
             } catch {
                 logger.error("Failed to send notification: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    // MARK: - Update Notification
+
+    /// Send a notification when a new app update is available
+    func sendUpdateNotification(version: String) {
+        guard hasNotifiedForUpdate != version else { return }
+        hasNotifiedForUpdate = version
+
+        let content = UNMutableNotificationContent()
+        content.title = "ccInfo"
+        content.body = String(localized: "notification.updateAvailable \(version)")
+        content.interruptionLevel = .active
+
+        let request = UNNotificationRequest(identifier: "update-available", content: content, trigger: nil)
+
+        Task { @MainActor in
+            do {
+                try await notificationCenter.add(request)
+                logger.info("Sent update notification for version \(version)")
+            } catch {
+                logger.error("Failed to send update notification: \(error.localizedDescription)")
             }
         }
     }

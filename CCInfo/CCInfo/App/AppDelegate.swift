@@ -142,6 +142,9 @@ final class AppState: ObservableObject {
             // Initial check
             let update = await UpdateChecker.checkForUpdate()
             self?.availableUpdate = update
+            if let update {
+                NotificationService.shared.sendUpdateNotification(version: update.version)
+            }
 
             // Repeat hourly
             while !Task.isCancelled {
@@ -150,6 +153,9 @@ final class AppState: ObservableObject {
                     guard !Task.isCancelled else { break }
                     let update = await UpdateChecker.checkForUpdate()
                     self?.availableUpdate = update
+                    if let update {
+                        NotificationService.shared.sendUpdateNotification(version: update.version)
+                    }
                 } catch is CancellationError {
                     break
                 } catch {

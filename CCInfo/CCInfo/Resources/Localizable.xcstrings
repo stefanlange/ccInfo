@@ -817,50 +817,34 @@
         }
       }
     },
-    "update.available %@" : {
+    "notification.updateAvailable %@" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Es steht eine neue Version von ccInfo zur Verfügung: **%@**."
+            "value" : "Es steht ein Update auf Version %@ zum Download bereit."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A new version of ccInfo is available: **%@**."
+            "value" : "An update to version %@ is available for download."
           }
         }
       }
     },
-    "update.currentVersion %@" : {
+    "update.availableShort %@" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sie verwenden noch Version **%@**."
+            "value" : "Update verfügbar: **%@**"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "You are still using version **%@**."
-          }
-        }
-      }
-    },
-    "update.download" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bitte klicken Sie hier, um die neue Version herunterzuladen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Please click here to download the new version."
+            "value" : "Update available: **%@**"
           }
         }
       }
