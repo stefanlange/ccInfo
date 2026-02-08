@@ -10,12 +10,25 @@ A native macOS MenuBar app for real-time monitoring of your Claude usage.
 
 ## Features
 
-- **5-Hour Window Tracking** – See your current session utilization with reset countdown
-- **Weekly Limit Monitoring** – Track your 7-day quota (real data from Claude.ai)
-- **Context Window Status** – Monitor how full your current context is
+### Usage Monitoring
+
+- **5-Hour Window Tracking** – Current session utilization with reset countdown
+- **Weekly Limit Monitoring** – 7-day quota with separate Sonnet and Opus breakdowns (real data from claude.ai)
+- **Context Window Status** – Monitor your main context and active subagent context windows with model badge and utilization bar
+
+### Session Intelligence
+
+- **Multi-Session Switcher** – Toggle between active Claude Code sessions (with configurable activity threshold)
+- **Token Statistics** – Input/output token counts aggregated by today, week, or month
+- **Dynamic Cost Estimation** – Live model pricing via LiteLLM with per-model cost calculation
 - **Burn Rate Calculation** – Understand your token consumption velocity
-- **Cost Equivalent** – See what your usage would cost on API pricing
-- **Secure Authentication** – Tokens stored in macOS Keychain
+
+### Auto-Updates & Configuration
+
+- **Update Checker** – Automatic hourly checks with macOS notification when a new version is available
+- **Configurable Refresh Interval** – Manual or automatic polling from 30 seconds to 10 minutes
+- **Launch at Login** – Start ccInfo automatically with macOS
+- **Secure Authentication** – Session tokens stored in macOS Keychain
 
 ## Installation
 
@@ -46,12 +59,16 @@ Build with ⌘B, run with ⌘R.
 
 ## Privacy
 
-- ✅ Stores tokens locally in the macOS Keychain
-- ✅ Communicates only with claude.ai
-- ❌ Collects no telemetry
-- ❌ Sends no data to third parties
+- Stores tokens locally in the macOS Keychain
+- Communicates only with claude.ai and the LiteLLM pricing API
+- Collects no telemetry
+- Sends no data to third parties
 
 See [PRIVACY.md](PRIVACY.md) for details.
+
+## Release Notes
+
+See [RELEASENOTES.md](RELEASENOTES.md) for the full changelog.
 
 ## License
 
