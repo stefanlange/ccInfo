@@ -54,6 +54,7 @@ actor JSONLParser {
         var latest: (URL, Date)?
         while let url = enumerator.nextObject() as? URL {
             guard url.pathExtension == "jsonl",
+                  !url.pathComponents.contains("subagents"),
                   let values = try? url.resourceValues(forKeys: [.contentModificationDateKey]),
                   let modDate = values.contentModificationDate else { continue }
 
@@ -208,11 +209,7 @@ actor JSONLParser {
         }
     }
     
-    func getCurrentContextWindow(availableModelKeys: Set<String> = []) throws -> ContextWindow {
-        guard let url = findLatestSession() else {
-            return ContextWindow(currentTokens: 0, activeModel: nil)
-        }
-
+    func getContextWindowForFile(at url: URL, availableModelKeys: Set<String> = []) throws -> ContextWindow {
         for line in try String(contentsOf: url, encoding: .utf8).components(separatedBy: .newlines).reversed() {
             guard !line.isEmpty,
                   let data = line.data(using: .utf8),
@@ -222,11 +219,66 @@ actor JSONLParser {
             let activeModel: ModelIdentifier? = entry.rawModelId.map {
                 ModelIdentifier(rawId: $0, availableModelKeys: availableModelKeys)
             }
-            // Only return non-unknown models
             let finalModel = activeModel?.family != .unknown ? activeModel : nil
             return ContextWindow(currentTokens: usage.totalInputTokens, activeModel: finalModel)
         }
 
         return ContextWindow(currentTokens: 0, activeModel: nil)
+    }
+
+    func getCurrentContextWindow(availableModelKeys: Set<String> = []) throws -> ContextWindow {
+        guard let url = findLatestSession() else {
+            return ContextWindow(currentTokens: 0, activeModel: nil)
+        }
+        return try getContextWindowForFile(at: url, availableModelKeys: availableModelKeys)
+    }
+
+    func findActiveAgents(for sessionURL: URL, threshold: TimeInterval = 30) -> [(url: URL, agentId: String, lastModified: Date)] {
+        let sessionDir = sessionURL.deletingPathExtension()
+        let subagentsDir = sessionDir.appendingPathComponent("subagents")
+
+        guard FileManager.default.fileExists(atPath: subagentsDir.path) else { return [] }
+
+        guard let contents = try? FileManager.default.contentsOfDirectory(
+            at: subagentsDir,
+            includingPropertiesForKeys: [.contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        ) else { return [] }
+
+        let now = Date()
+        var agents: [(url: URL, agentId: String, lastModified: Date)] = []
+
+        for url in contents {
+            guard url.pathExtension == "jsonl",
+                  let values = try? url.resourceValues(forKeys: [.contentModificationDateKey]),
+                  let modDate = values.contentModificationDate,
+                  now.timeIntervalSince(modDate) <= threshold else { continue }
+
+            let agentId = url.deletingPathExtension().lastPathComponent
+            agents.append((url: url, agentId: agentId, lastModified: modDate))
+        }
+
+        return agents
+    }
+
+    func getContextWindowState(availableModelKeys: Set<String> = [], agentThreshold: TimeInterval = 30) throws -> ContextWindowState? {
+        guard let sessionURL = findLatestSession() else { return nil }
+
+        let mainContext = try getContextWindowForFile(at: sessionURL, availableModelKeys: availableModelKeys)
+        let activeAgentFiles = findActiveAgents(for: sessionURL, threshold: agentThreshold)
+
+        var agentContexts: [AgentContext] = []
+        for agent in activeAgentFiles {
+            guard let ctx = try? getContextWindowForFile(at: agent.url, availableModelKeys: availableModelKeys),
+                  ctx.currentTokens > 0 else { continue }
+            agentContexts.append(AgentContext(
+                agentId: agent.agentId,
+                contextWindow: ctx,
+                lastModified: agent.lastModified
+            ))
+        }
+
+        agentContexts.sort { $0.lastModified > $1.lastModified }
+        return ContextWindowState(main: mainContext, activeAgents: agentContexts)
     }
 }

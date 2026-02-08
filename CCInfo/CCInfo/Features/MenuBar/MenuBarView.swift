@@ -25,8 +25,11 @@ struct MenuBarView: View {
                         Divider()
                     }
                 }
-                if let ctx = appState.contextWindow {
-                    ContextSection(context: ctx)
+                if let state = appState.contextWindowState {
+                    ContextSection(context: state.main)
+                    if !state.activeAgents.isEmpty {
+                        AgentContextList(agents: state.activeAgents)
+                    }
                     Divider()
                 }
                 if let session = appState.sessionData {
@@ -258,6 +261,72 @@ struct SessionSection: View {
 
     private func formatTokens(_ tokens: Int) -> String {
         tokens.formatted(.number.grouping(.automatic))
+    }
+}
+
+struct AgentContextList: View {
+    let agents: [AgentContext]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(agents) { agent in
+                AgentContextRow(agent: agent)
+            }
+        }
+        .padding(.top, 4)
+    }
+}
+
+struct AgentContextRow: View {
+    let agent: AgentContext
+
+    private var barColor: Color {
+        let utilization = agent.contextWindow.utilization
+        if agent.contextWindow.isNearAutoCompact { return .orange }
+        if utilization < 50 { return .green }
+        if utilization < 75 { return .yellow }
+        return .orange
+    }
+
+    private func badgeColor(for model: ModelIdentifier) -> Color {
+        switch model.family {
+        case .opus: return .purple
+        case .sonnet: return agent.contextWindow.isExtendedContext ? .red : .orange
+        case .haiku: return .cyan
+        case .unknown: return .secondary
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            HStack(spacing: 4) {
+                Image(systemName: "arrow.turn.down.right")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+
+                if let model = agent.contextWindow.activeModel {
+                    let color = badgeColor(for: model)
+                    Text(model.displayName)
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(color.opacity(0.2))
+                        .foregroundStyle(color)
+                        .clipShape(Capsule())
+                }
+            }
+            .frame(width: 80, alignment: .leading)
+
+            ProgressView(value: agent.contextWindow.utilization, total: 100)
+                .tint(barColor)
+
+            Text("\(agent.contextWindow.currentTokens / 1000)k")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .monospacedDigit()
+                .frame(width: 36, alignment: .trailing)
+        }
     }
 }
 

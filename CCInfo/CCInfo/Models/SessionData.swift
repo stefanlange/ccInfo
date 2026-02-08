@@ -165,3 +165,15 @@ struct ContextWindow: Sendable {
         self.activeModel = activeModel
     }
 }
+
+struct AgentContext: Sendable, Identifiable {
+    let agentId: String
+    let contextWindow: ContextWindow
+    let lastModified: Date
+    var id: String { agentId }
+}
+
+struct ContextWindowState: Sendable {
+    let main: ContextWindow
+    let activeAgents: [AgentContext]
+}

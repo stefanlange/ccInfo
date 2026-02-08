@@ -22,7 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 final class AppState: ObservableObject {
     @Published private(set) var usageData: UsageData?
     @Published private(set) var sessionData: SessionData?
-    @Published private(set) var contextWindow: ContextWindow?
+    @Published private(set) var contextWindowState: ContextWindowState?
     @Published private(set) var availableUpdate: AvailableUpdate?
     @Published private(set) var isLoading = false
     @Published private(set) var error: Error?
@@ -55,6 +55,7 @@ final class AppState: ObservableObject {
 
     var isAuthenticated: Bool { keychainService.hasCredentials }
     var credentials: ClaudeCredentials? { keychainService.getCredentials() }
+    var contextWindow: ContextWindow? { contextWindowState?.main }
 
     func startMonitoring() {
         guard isAuthenticated else {
@@ -175,7 +176,7 @@ final class AppState: ObservableObject {
     func refreshLocalData() async {
         do {
             let availableKeys = await PricingService.shared.availableModelKeys
-            contextWindow = try await jsonlParser.getCurrentContextWindow(availableModelKeys: availableKeys)
+            contextWindowState = try await jsonlParser.getContextWindowState(availableModelKeys: availableKeys)
             sessionData = try await jsonlParser.parseForPeriod(statisticsPeriod, availableModelKeys: availableKeys)
         } catch {
             logger.warning("Local data error: \(error.localizedDescription)")
@@ -200,7 +201,7 @@ final class AppState: ObservableObject {
         keychainService.deleteCredentials()
         usageData = nil
         sessionData = nil
-        contextWindow = nil
+        contextWindowState = nil
         showingAuth = true
     }
 }
