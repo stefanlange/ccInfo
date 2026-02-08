@@ -17,7 +17,7 @@ struct SettingsView: View {
                 .environmentObject(appState)
                 .tabItem { Label("About", systemImage: "info.circle") }
         }
-        .frame(width: 400, height: 250)
+        .frame(width: 400, height: 280)
     }
 }
 
@@ -25,6 +25,7 @@ struct GeneralTab: View {
     @EnvironmentObject var appState: AppState
     @AppStorage("launchAtLogin") private var launchAtLogin = false
     @AppStorage("refreshInterval") private var refreshInterval: Double = 30
+    @AppStorage("sessionActivityThreshold") private var sessionActivityThreshold: Double = 600
 
     private let logger = Logger(subsystem: "com.ccinfo.app", category: "Settings")
 
@@ -51,6 +52,17 @@ struct GeneralTab: View {
                 ForEach(StatisticsPeriod.allCases, id: \.self) { period in
                     Text(period.displayName).tag(period)
                 }
+            }
+
+            Picker(String(localized: "Session Activity"), selection: $sessionActivityThreshold) {
+                Text(String(localized: "5 minutes")).tag(300.0)
+                Text(String(localized: "10 minutes")).tag(600.0)
+                Text(String(localized: "30 minutes")).tag(1800.0)
+                Text(String(localized: "1 hour")).tag(3600.0)
+                Text(String(localized: "4 hours")).tag(14400.0)
+            }
+            .onChange(of: sessionActivityThreshold) { _, _ in
+                appState.updateSessionActivityThreshold()
             }
         }
         .formStyle(.grouped)

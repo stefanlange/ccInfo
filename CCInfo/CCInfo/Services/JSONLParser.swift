@@ -198,10 +198,10 @@ actor JSONLParser {
         return SessionData(sessionId: nil, tokens: tokens, models: models)
     }
 
-    func parseForPeriod(_ period: StatisticsPeriod, availableModelKeys: Set<String> = []) async throws -> SessionData? {
+    func parseForPeriod(_ period: StatisticsPeriod, sessionURL: URL? = nil, availableModelKeys: Set<String> = []) async throws -> SessionData? {
         switch period {
         case .session:
-            guard let url = findLatestSession() else { return nil }
+            guard let url = sessionURL ?? findLatestSession() else { return nil }
             return try await parseSession(at: url, availableModelKeys: availableModelKeys)
         case .today, .thisWeek, .thisMonth:
             guard let start = period.periodStart() else { return nil }
@@ -263,7 +263,10 @@ actor JSONLParser {
 
     func getContextWindowState(availableModelKeys: Set<String> = [], agentThreshold: TimeInterval = 30) throws -> ContextWindowState? {
         guard let sessionURL = findLatestSession() else { return nil }
+        return try getContextWindowState(for: sessionURL, availableModelKeys: availableModelKeys, agentThreshold: agentThreshold)
+    }
 
+    func getContextWindowState(for sessionURL: URL, availableModelKeys: Set<String> = [], agentThreshold: TimeInterval = 30) throws -> ContextWindowState {
         let mainContext = try getContextWindowForFile(at: sessionURL, availableModelKeys: availableModelKeys)
         let activeAgentFiles = findActiveAgents(for: sessionURL, threshold: agentThreshold)
 
@@ -280,5 +283,46 @@ actor JSONLParser {
 
         agentContexts.sort { $0.lastModified > $1.lastModified }
         return ContextWindowState(main: mainContext, activeAgents: agentContexts)
+    }
+
+    func findActiveSessions(threshold: TimeInterval) -> [ActiveSession] {
+        guard let enumerator = FileManager.default.enumerator(
+            at: claudeProjectsPath,
+            includingPropertiesForKeys: [.contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        ) else { return [] }
+
+        let cutoff = Date().addingTimeInterval(-threshold)
+        // Group by project directory, keeping only the newest session per project
+        var newestByProject: [String: (url: URL, date: Date)] = [:]
+
+        while let url = enumerator.nextObject() as? URL {
+            guard url.pathExtension == "jsonl",
+                  !url.pathComponents.contains("subagents"),
+                  let values = try? url.resourceValues(forKeys: [.contentModificationDateKey]),
+                  let modDate = values.contentModificationDate,
+                  modDate >= cutoff else { continue }
+
+            // Project directory is the parent of the JSONL file
+            let projectDir = url.deletingLastPathComponent().lastPathComponent
+
+            if let existing = newestByProject[projectDir] {
+                if modDate > existing.date {
+                    newestByProject[projectDir] = (url, modDate)
+                }
+            } else {
+                newestByProject[projectDir] = (url, modDate)
+            }
+        }
+
+        return newestByProject.map { (projectDir, entry) in
+            ActiveSession(
+                sessionURL: entry.url,
+                projectDirectory: projectDir,
+                projectName: ActiveSession.extractProjectName(from: projectDir),
+                lastModified: entry.date
+            )
+        }
+        .sorted { $0.lastModified > $1.lastModified }
     }
 }

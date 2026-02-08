@@ -30,6 +30,8 @@ final class AppState: ObservableObject {
     @Published var statisticsPeriod: StatisticsPeriod = .today
     @Published private(set) var pricingDataSource: PricingDataSource = .bundled
     @Published private(set) var pricingLastUpdate: Date?
+    @Published private(set) var activeSessions: [ActiveSession] = []
+    @Published var selectedSessionURL: URL?
 
     let keychainService = KeychainService()
     private let apiClient: ClaudeAPIClient
@@ -47,6 +49,7 @@ final class AppState: ObservableObject {
     private var fileWatcher: FileWatcher?
     private var refreshTask: Task<Void, Never>?
     private var updateCheckTask: Task<Void, Never>?
+    private var fileWatcherDebounceTask: Task<Void, Never>?
 
     private var refreshInterval: TimeInterval {
         let interval = UserDefaults.standard.double(forKey: "refreshInterval")
@@ -56,6 +59,11 @@ final class AppState: ObservableObject {
     var isAuthenticated: Bool { keychainService.hasCredentials }
     var credentials: ClaudeCredentials? { keychainService.getCredentials() }
     var contextWindow: ContextWindow? { contextWindowState?.main }
+
+    private var sessionActivityThreshold: TimeInterval {
+        let stored = UserDefaults.standard.double(forKey: "sessionActivityThreshold")
+        return stored > 0 ? stored : 600 // Default: 10 minutes
+    }
 
     func startMonitoring() {
         guard isAuthenticated else {
@@ -77,7 +85,12 @@ final class AppState: ObservableObject {
         fileWatcher = FileWatcher(path: claudePath) { [weak self] in
             guard let self else { return }
             Task { @MainActor in
-                await self.refreshLocalData()
+                self.fileWatcherDebounceTask?.cancel()
+                self.fileWatcherDebounceTask = Task {
+                    try? await Task.sleep(for: .milliseconds(500))
+                    guard !Task.isCancelled else { return }
+                    await self.refreshLocalData()
+                }
             }
         }
         fileWatcher?.start()
@@ -88,6 +101,8 @@ final class AppState: ObservableObject {
         refreshTask = nil
         updateCheckTask?.cancel()
         updateCheckTask = nil
+        fileWatcherDebounceTask?.cancel()
+        fileWatcherDebounceTask = nil
         fileWatcher?.stop()
         fileWatcher = nil
         Task {
@@ -176,11 +191,39 @@ final class AppState: ObservableObject {
     func refreshLocalData() async {
         do {
             let availableKeys = await PricingService.shared.availableModelKeys
-            contextWindowState = try await jsonlParser.getContextWindowState(availableModelKeys: availableKeys)
-            sessionData = try await jsonlParser.parseForPeriod(statisticsPeriod, availableModelKeys: availableKeys)
+
+            // Discover active sessions
+            let sessions = await jsonlParser.findActiveSessions(threshold: sessionActivityThreshold)
+            activeSessions = sessions
+
+            // Validate current selection — fall back to newest if invalid
+            if selectedSessionURL == nil || !sessions.contains(where: { $0.sessionURL == selectedSessionURL }) {
+                selectedSessionURL = sessions.first?.sessionURL
+            }
+
+            // Load context window and session data for selected session
+            if let url = selectedSessionURL {
+                contextWindowState = try await jsonlParser.getContextWindowState(for: url, availableModelKeys: availableKeys)
+                sessionData = try await jsonlParser.parseForPeriod(statisticsPeriod, sessionURL: url, availableModelKeys: availableKeys)
+            } else {
+                contextWindowState = nil
+                sessionData = try await jsonlParser.parseForPeriod(statisticsPeriod, availableModelKeys: availableKeys)
+            }
         } catch {
             logger.warning("Local data error: \(error.localizedDescription)")
         }
+    }
+
+    func selectSession(_ url: URL?) {
+        Task {
+            guard url != selectedSessionURL else { return }
+            selectedSessionURL = url
+            await refreshLocalData()
+        }
+    }
+
+    func updateSessionActivityThreshold() {
+        Task { await refreshLocalData() }
     }
 
     func updateStatisticsPeriod(_ period: StatisticsPeriod) {

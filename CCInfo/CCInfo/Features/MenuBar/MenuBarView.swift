@@ -25,6 +25,13 @@ struct MenuBarView: View {
                         Divider()
                     }
                 }
+                if appState.activeSessions.count > 1 {
+                    SessionSwitcher(
+                        sessions: appState.activeSessions,
+                        selectedURL: sessionURLBinding
+                    )
+                    Divider()
+                }
                 if let state = appState.contextWindowState {
                     ContextSection(context: state.main)
                     if !state.activeAgents.isEmpty {
@@ -65,6 +72,13 @@ struct MenuBarView: View {
         }
     }
     
+    private var sessionURLBinding: Binding<URL?> {
+        Binding(
+            get: { appState.selectedSessionURL },
+            set: { appState.selectSession($0) }
+        )
+    }
+
     private var footerButtons: some View {
         VStack(alignment: .leading, spacing: 10) {
             Button { Task { await appState.refreshAll() } } label: { footerLabel("Refresh", systemImage: "arrow.clockwise") }.buttonStyle(.borderless).disabled(appState.isLoading)
@@ -326,6 +340,38 @@ struct AgentContextRow: View {
                 .foregroundStyle(.tertiary)
                 .monospacedDigit()
                 .frame(width: 36, alignment: .trailing)
+        }
+    }
+}
+
+struct SessionSwitcher: View {
+    let sessions: [ActiveSession]
+    @Binding var selectedURL: URL?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(String(localized: "Active Sessions"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+
+            if sessions.count <= 4 {
+                Picker("", selection: $selectedURL) {
+                    ForEach(sessions) { session in
+                        Text(session.projectName).tag(Optional(session.sessionURL))
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+            } else {
+                Picker("", selection: $selectedURL) {
+                    ForEach(sessions) { session in
+                        Text(session.projectName).tag(Optional(session.sessionURL))
+                    }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+            }
         }
     }
 }
