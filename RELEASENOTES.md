@@ -1,5 +1,14 @@
 # Release Notes
 
+## 1.3.0 – 2026-02-08
+
+- Add multi-session switcher to toggle between active Claude Code sessions (configurable activity threshold in Settings)
+- Show active subagent context windows with model badge and utilization bar
+- Simplify update banner to single line with download icon
+- Add macOS notification when a new app update is available
+- Update privacy policy to reflect notification and pricing data usage
+- Fix MainActor isolation for KeychainService init
+
 ## 1.2.0 – 2026-02-07
 
 - Add dynamic pricing service that fetches live model prices from LiteLLM every 12 hours, with bundled JSON fallback
