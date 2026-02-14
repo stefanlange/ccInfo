@@ -25,26 +25,75 @@ actor JSONLParser {
 
     // MARK: - Private Methods
 
-    private func calculateCost(
-        tokensByModel: [String: TokenCounts],
-        availableModelKeys: Set<String>
-    ) async -> (cost: Double, models: Set<ModelIdentifier>) {
-        var totalCost = 0.0
-        var models: Set<ModelIdentifier> = []
-
-        for (rawModelId, counts) in tokensByModel {
-            let identifier = ModelIdentifier(rawId: rawModelId, availableModelKeys: availableModelKeys)
-            models.insert(identifier)
-            let pricing = await pricingService.pricing(for: identifier.pricingKey)
-
-            let modelCost = Double(counts.input) * pricing.inputCostPerToken
-                          + Double(counts.output) * pricing.outputCostPerToken
-                          + Double(counts.cacheCreation) * pricing.cacheCreationCostPerToken
-                          + Double(counts.cacheRead) * pricing.cacheReadCostPerToken
-            totalCost += modelCost
+    /// Calculate cost for a single entry, using costUSD if available, falling back to token-based pricing
+    private func costForEntry(
+        costUSD: Double?,
+        rawModelId: String?,
+        usage: JSONLEntry.TokenUsage,
+        availableModelKeys: Set<String>,
+        cumulativeInputTokens: Int
+    ) async -> (cost: Double, model: ModelIdentifier?) {
+        // costUSD takes priority (ccusage auto mode)
+        if let costUSD = costUSD {
+            let model = rawModelId.map { ModelIdentifier(rawId: $0, availableModelKeys: availableModelKeys) }
+            return (costUSD, model)
         }
+        // Calculate from tokens if model available
+        if let rawModelId = rawModelId {
+            let identifier = ModelIdentifier(rawId: rawModelId, availableModelKeys: availableModelKeys)
+            let tiered = await pricingService.tieredPricing(for: identifier.pricingKey)
 
-        return (totalCost, models)
+            // Extract token counts
+            let inputTokens = usage.inputTokens ?? 0
+            let outputTokens = usage.outputTokens ?? 0
+            let cacheCreationTokens = usage.cacheCreationInputTokens ?? 0
+            let cacheReadTokens = usage.cacheReadInputTokens ?? 0
+
+            // Calculate cost with tiered pricing
+            var cost = 0.0
+
+            // Output tokens use base rate always (no tiering)
+            cost += Double(outputTokens) * tiered.base.outputCostPerToken
+
+            // Input tokens: split if threshold exists
+            if let threshold = tiered.inputTokenThreshold,
+               let aboveRate = tiered.inputCostPerTokenAboveThreshold {
+                // Calculate below and above threshold portions
+                let belowThreshold = max(0, min(inputTokens, threshold - cumulativeInputTokens))
+                let aboveThreshold = inputTokens - belowThreshold
+                cost += Double(belowThreshold) * tiered.base.inputCostPerToken
+                cost += Double(aboveThreshold) * aboveRate
+            } else {
+                // No tiering: use base rate
+                cost += Double(inputTokens) * tiered.base.inputCostPerToken
+            }
+
+            // Cache creation tokens: split if threshold exists
+            if let threshold = tiered.inputTokenThreshold,
+               let aboveRate = tiered.cacheCreationCostPerTokenAboveThreshold {
+                let belowThreshold = max(0, min(cacheCreationTokens, threshold - (cumulativeInputTokens + inputTokens)))
+                let aboveThreshold = cacheCreationTokens - belowThreshold
+                cost += Double(belowThreshold) * tiered.base.cacheCreationCostPerToken
+                cost += Double(aboveThreshold) * aboveRate
+            } else {
+                cost += Double(cacheCreationTokens) * tiered.base.cacheCreationCostPerToken
+            }
+
+            // Cache read tokens: split if threshold exists
+            if let threshold = tiered.inputTokenThreshold,
+               let aboveRate = tiered.cacheReadCostPerTokenAboveThreshold {
+                let belowThreshold = max(0, min(cacheReadTokens, threshold - (cumulativeInputTokens + inputTokens + cacheCreationTokens)))
+                let aboveThreshold = cacheReadTokens - belowThreshold
+                cost += Double(belowThreshold) * tiered.base.cacheReadCostPerToken
+                cost += Double(aboveThreshold) * aboveRate
+            } else {
+                cost += Double(cacheReadTokens) * tiered.base.cacheReadCostPerToken
+            }
+
+            return (cost, identifier)
+        }
+        // No model, no costUSD = 0 cost
+        return (0, nil)
     }
 
     // MARK: - Public Methods
@@ -72,12 +121,16 @@ actor JSONLParser {
     func parseSession(at url: URL, availableModelKeys: Set<String> = []) async throws -> SessionData {
         let lines = try String(contentsOf: url, encoding: .utf8).components(separatedBy: .newlines)
         var sessionId = url.deletingPathExtension().lastPathComponent
-        var tokensByModel: [String: TokenCounts] = [:]
         var totalInput = 0
         var totalOutput = 0
         var totalCacheCreation = 0
         var totalCacheRead = 0
+        var totalCost = 0.0
+        var models: Set<ModelIdentifier> = []
+        var processedHashes: Set<String> = []
+        var cumulativeInputByModel: [String: Int] = [:]
 
+        // Process main session file
         for line in lines where !line.isEmpty {
             guard let data = line.data(using: .utf8) else {
                 logger.warning("Failed to convert line to UTF-8 data in \(url.lastPathComponent)")
@@ -91,55 +144,130 @@ actor JSONLParser {
 
             if let sid = entry.sessionId { sessionId = sid }
 
-            // Skip entries without usage or valid model ID
-            guard let usage = entry.message?.usage,
-                  let rawModelId = entry.rawModelId,
-                  rawModelId != "<synthetic>" else { continue }
+            // Deduplication check
+            if let hash = entry.uniqueHash {
+                if processedHashes.contains(hash) { continue }
+                processedHashes.insert(hash)
+            }
 
-            // Accumulate tokens per model
-            var counts = tokensByModel[rawModelId, default: TokenCounts()]
-            counts.input += usage.inputTokens ?? 0
-            counts.output += usage.outputTokens ?? 0
-            counts.cacheCreation += usage.cacheCreationInputTokens ?? 0
-            counts.cacheRead += usage.cacheReadInputTokens ?? 0
-            tokensByModel[rawModelId] = counts
+            // Skip entries without usage
+            guard let usage = entry.message?.usage else { continue }
 
-            // Also accumulate totals for TokenStats
+            let rawModelId = entry.rawModelId
+            // Skip synthetic entries
+            if rawModelId == "<synthetic>" { continue }
+
+            // Accumulate tokens (always, regardless of model ID)
             totalInput += usage.inputTokens ?? 0
             totalOutput += usage.outputTokens ?? 0
             totalCacheCreation += usage.cacheCreationInputTokens ?? 0
             totalCacheRead += usage.cacheReadInputTokens ?? 0
+
+            // Get cumulative input tokens for this model
+            let modelKey = rawModelId ?? ""
+            let cumulativeInput = cumulativeInputByModel[modelKey] ?? 0
+
+            // Calculate cost for this entry
+            let (entryCost, entryModel) = await costForEntry(
+                costUSD: entry.costUSD,
+                rawModelId: rawModelId,
+                usage: usage,
+                availableModelKeys: availableModelKeys,
+                cumulativeInputTokens: cumulativeInput
+            )
+            totalCost += entryCost
+            if let m = entryModel { models.insert(m) }
+
+            // Update cumulative input tokens for this model
+            let inputIncrement = (usage.inputTokens ?? 0) + (usage.cacheCreationInputTokens ?? 0) + (usage.cacheReadInputTokens ?? 0)
+            cumulativeInputByModel[modelKey] = cumulativeInput + inputIncrement
         }
 
-        // Calculate cost and models
-        let (cost, models) = tokensByModel.isEmpty
-            ? (0.0, Set([.unknown]))
-            : await calculateCost(tokensByModel: tokensByModel, availableModelKeys: availableModelKeys)
+        // Process subagent JSONL files
+        let sessionDir = url.deletingPathExtension()
+        let subagentsDir = sessionDir.appendingPathComponent("subagents")
+
+        if FileManager.default.fileExists(atPath: subagentsDir.path),
+           let subagentFiles = try? FileManager.default.contentsOfDirectory(
+               at: subagentsDir,
+               includingPropertiesForKeys: nil,
+               options: [.skipsHiddenFiles]
+           ) {
+            for subagentURL in subagentFiles where subagentURL.pathExtension == "jsonl" {
+                guard let content = try? String(contentsOf: subagentURL, encoding: .utf8) else { continue }
+
+                for line in content.components(separatedBy: .newlines) where !line.isEmpty {
+                    guard let data = line.data(using: .utf8),
+                          let entry = try? decoder.decode(JSONLEntry.self, from: data) else { continue }
+
+                    // Deduplication (shared with main file)
+                    if let hash = entry.uniqueHash {
+                        if processedHashes.contains(hash) { continue }
+                        processedHashes.insert(hash)
+                    }
+
+                    // Skip entries without usage
+                    guard let usage = entry.message?.usage else { continue }
+
+                    let rawModelId = entry.rawModelId
+                    // Skip synthetic entries
+                    if rawModelId == "<synthetic>" { continue }
+
+                    // Accumulate tokens
+                    totalInput += usage.inputTokens ?? 0
+                    totalOutput += usage.outputTokens ?? 0
+                    totalCacheCreation += usage.cacheCreationInputTokens ?? 0
+                    totalCacheRead += usage.cacheReadInputTokens ?? 0
+
+                    // Get cumulative input tokens for this model
+                    let modelKey = rawModelId ?? ""
+                    let cumulativeInput = cumulativeInputByModel[modelKey] ?? 0
+
+                    // Calculate cost for this entry
+                    let (entryCost, entryModel) = await costForEntry(
+                        costUSD: entry.costUSD,
+                        rawModelId: rawModelId,
+                        usage: usage,
+                        availableModelKeys: availableModelKeys,
+                        cumulativeInputTokens: cumulativeInput
+                    )
+                    totalCost += entryCost
+                    if let m = entryModel { models.insert(m) }
+
+                    // Update cumulative input tokens for this model
+                    let inputIncrement = (usage.inputTokens ?? 0) + (usage.cacheCreationInputTokens ?? 0) + (usage.cacheReadInputTokens ?? 0)
+                    cumulativeInputByModel[modelKey] = cumulativeInput + inputIncrement
+                }
+            }
+        }
 
         let tokens = SessionData.TokenStats(
             input: totalInput,
             output: totalOutput,
             cacheCreation: totalCacheCreation,
             cacheRead: totalCacheRead,
-            cost: cost
+            cost: totalCost
         )
 
         return SessionData(sessionId: sessionId, tokens: tokens, models: models)
     }
 
     func parseAggregate(since periodStart: Date, availableModelKeys: Set<String> = []) async -> SessionData {
-        var tokensByModel: [String: TokenCounts] = [:]
         var totalInput = 0
         var totalOutput = 0
         var totalCacheCreation = 0
         var totalCacheRead = 0
+        var totalCost = 0.0
+        var models: Set<ModelIdentifier> = []
+        var processedHashes: Set<String> = []
+        var cumulativeInputByModel: [String: Int] = [:]
 
         guard let enumerator = FileManager.default.enumerator(
             at: claudeProjectsPath,
             includingPropertiesForKeys: [.contentModificationDateKey],
             options: [.skipsHiddenFiles]
         ) else {
-            return SessionData(sessionId: nil, tokens: .zero, models: [.unknown])
+            return SessionData(sessionId: nil, tokens: .zero, models: [])
         }
 
         while let url = enumerator.nextObject() as? URL {
@@ -161,38 +289,52 @@ actor JSONLParser {
                 // Only include entries with timestamp >= periodStart
                 guard let timestamp = entry.timestamp, timestamp >= periodStart else { continue }
 
-                // Skip entries without usage or valid model ID
-                guard let usage = entry.message?.usage,
-                      let rawModelId = entry.rawModelId,
-                      rawModelId != "<synthetic>" else { continue }
+                // Deduplication check (cross-file)
+                if let hash = entry.uniqueHash {
+                    if processedHashes.contains(hash) { continue }
+                    processedHashes.insert(hash)
+                }
 
-                // Accumulate tokens per model
-                var counts = tokensByModel[rawModelId, default: TokenCounts()]
-                counts.input += usage.inputTokens ?? 0
-                counts.output += usage.outputTokens ?? 0
-                counts.cacheCreation += usage.cacheCreationInputTokens ?? 0
-                counts.cacheRead += usage.cacheReadInputTokens ?? 0
-                tokensByModel[rawModelId] = counts
+                // Skip entries without usage
+                guard let usage = entry.message?.usage else { continue }
 
-                // Also accumulate totals for TokenStats
+                let rawModelId = entry.rawModelId
+                // Skip synthetic entries
+                if rawModelId == "<synthetic>" { continue }
+
+                // Accumulate tokens (always, regardless of model ID)
                 totalInput += usage.inputTokens ?? 0
                 totalOutput += usage.outputTokens ?? 0
                 totalCacheCreation += usage.cacheCreationInputTokens ?? 0
                 totalCacheRead += usage.cacheReadInputTokens ?? 0
+
+                // Get cumulative input tokens for this model
+                let modelKey = rawModelId ?? ""
+                let cumulativeInput = cumulativeInputByModel[modelKey] ?? 0
+
+                // Calculate cost for this entry
+                let (entryCost, entryModel) = await costForEntry(
+                    costUSD: entry.costUSD,
+                    rawModelId: rawModelId,
+                    usage: usage,
+                    availableModelKeys: availableModelKeys,
+                    cumulativeInputTokens: cumulativeInput
+                )
+                totalCost += entryCost
+                if let m = entryModel { models.insert(m) }
+
+                // Update cumulative input tokens for this model
+                let inputIncrement = (usage.inputTokens ?? 0) + (usage.cacheCreationInputTokens ?? 0) + (usage.cacheReadInputTokens ?? 0)
+                cumulativeInputByModel[modelKey] = cumulativeInput + inputIncrement
             }
         }
-
-        // Calculate cost and models
-        let (cost, models) = tokensByModel.isEmpty
-            ? (0.0, Set([.unknown]))
-            : await calculateCost(tokensByModel: tokensByModel, availableModelKeys: availableModelKeys)
 
         let tokens = SessionData.TokenStats(
             input: totalInput,
             output: totalOutput,
             cacheCreation: totalCacheCreation,
             cacheRead: totalCacheRead,
-            cost: cost
+            cost: totalCost
         )
 
         return SessionData(sessionId: nil, tokens: tokens, models: models)

@@ -9,6 +9,7 @@ struct LiteLLMModel: Codable, Sendable {
     let cacheCreationInputTokenCost: Double?
     let cacheReadInputTokenCost: Double?
     let maxOutputTokens: Int?
+    let maxInputTokens: Int?
 
     enum CodingKeys: String, CodingKey {
         case inputCostPerToken = "input_cost_per_token"
@@ -16,6 +17,12 @@ struct LiteLLMModel: Codable, Sendable {
         case cacheCreationInputTokenCost = "cache_creation_input_token_cost"
         case cacheReadInputTokenCost = "cache_read_input_token_cost"
         case maxOutputTokens = "max_output_tokens"
+        case maxInputTokens = "max_input_tokens"
+    }
+
+    /// Models with 1M context window have special tiered pricing above 200k input tokens
+    var isExtendedContext: Bool {
+        (maxInputTokens ?? maxOutputTokens ?? 0) >= 500_000
     }
 }
 
@@ -31,6 +38,7 @@ struct ModelPricing: Codable, Sendable {
     /// Conservative Sonnet 4 fallback pricing (per-token, not per-MTok)
     /// Input: $3/MTok = 3e-06, Output: $15/MTok = 1.5e-05
     /// Cache write: $3.75/MTok = 3.75e-06, Cache read: $0.30/MTok = 3e-07
+    /// Note: This is standard context pricing (no tiering)
     static var sonnetDefault: ModelPricing {
         ModelPricing(
             inputCostPerToken: 3e-06,
@@ -54,6 +62,50 @@ struct ModelPricing: Codable, Sendable {
         self.outputCostPerToken = outputCostPerToken
         self.cacheCreationCostPerToken = cacheCreationCostPerToken
         self.cacheReadCostPerToken = cacheReadCostPerToken
+    }
+}
+
+// MARK: - Tiered Model Pricing
+
+/// Wraps ModelPricing with tiered rates for 1M-context models
+/// Models with 1M context windows (Opus 4.6, etc.) use higher input token rates above 200k tokens
+struct TieredModelPricing: Sendable {
+    let base: ModelPricing
+    let inputTokenThreshold: Int?          // nil = no tiering
+    let inputCostPerTokenAboveThreshold: Double?
+    let cacheCreationCostPerTokenAboveThreshold: Double?
+    let cacheReadCostPerTokenAboveThreshold: Double?
+
+    /// Create tiered pricing from base pricing
+    /// - Parameters:
+    ///   - base: Base ModelPricing for below-threshold tokens
+    ///   - isExtendedContext: true for 1M-context models (applies 1.25x rates above 200k tokens)
+    static func from(base: ModelPricing, isExtendedContext: Bool) -> TieredModelPricing {
+        if isExtendedContext {
+            // 1M-context models: 200k threshold, 1.25x rates above
+            // Output rate is NOT tiered (Anthropic only tiers input tokens)
+            return TieredModelPricing(
+                base: base,
+                inputTokenThreshold: 200_000,
+                inputCostPerTokenAboveThreshold: base.inputCostPerToken * 1.25,
+                cacheCreationCostPerTokenAboveThreshold: base.cacheCreationCostPerToken * 1.25,
+                cacheReadCostPerTokenAboveThreshold: base.cacheReadCostPerToken * 1.25
+            )
+        } else {
+            // Standard context: no tiering
+            return TieredModelPricing(
+                base: base,
+                inputTokenThreshold: nil,
+                inputCostPerTokenAboveThreshold: nil,
+                cacheCreationCostPerTokenAboveThreshold: nil,
+                cacheReadCostPerTokenAboveThreshold: nil
+            )
+        }
+    }
+
+    /// Sonnet default with no tiering (standard context)
+    static var sonnetDefault: TieredModelPricing {
+        TieredModelPricing.from(base: ModelPricing.sonnetDefault, isExtendedContext: false)
     }
 }
 

@@ -5,6 +5,7 @@ actor PricingService {
     static let shared = PricingService()
 
     private var pricingData: [String: ModelPricing]?
+    private var extendedContextModelKeys: Set<String> = []
     private(set) var dataSource: PricingDataSource = .bundled
     private(set) var lastUpdateTimestamp: Date?
     private let logger = Logger(subsystem: "com.ccinfo.app", category: "PricingService")
@@ -13,7 +14,9 @@ actor PricingService {
     private init() {
         // Non-blocking init: load bundled data synchronously (milliseconds, safe)
         // Uses static method to avoid actor-isolation warnings in nonisolated init
-        self.pricingData = Self.loadBundledData(logger: logger)
+        let (pricing, extendedKeys) = Self.loadBundledData(logger: logger)
+        self.pricingData = pricing
+        self.extendedContextModelKeys = extendedKeys
         // dataSource defaults to .bundled via property initializer
         if pricingData != nil {
             lastUpdateTimestamp = Date.now
@@ -50,6 +53,21 @@ actor PricingService {
         return pricing(for: identifier.pricingKey)
     }
 
+    /// Returns tiered pricing for the specified model ID
+    /// Models with 1M context windows use higher rates above 200k input tokens
+    func tieredPricing(for modelId: String) -> TieredModelPricing {
+        let base = pricing(for: modelId)
+        let isExtended = extendedContextModelKeys.contains(modelId) ||
+                        extendedContextModelKeys.contains(modelId.lowercased()) ||
+                        isKnownExtendedContextModel(modelId)
+        return TieredModelPricing.from(base: base, isExtendedContext: isExtended)
+    }
+
+    /// Returns tiered pricing for the specified ModelIdentifier
+    func tieredPricing(for identifier: ModelIdentifier) -> TieredModelPricing {
+        return tieredPricing(for: identifier.pricingKey)
+    }
+
     /// Start periodic monitoring: fetch immediately, then refresh every 12h
     func startMonitoring() {
         // Cancel any existing task
@@ -81,10 +99,10 @@ actor PricingService {
 
     /// Load bundled fallback JSON from app bundle
     /// Static + nonisolated to allow calling from actor init without isolation warnings
-    private nonisolated static func loadBundledData(logger: Logger) -> [String: ModelPricing]? {
+    private nonisolated static func loadBundledData(logger: Logger) -> ([String: ModelPricing]?, Set<String>) {
         guard let url = Bundle.main.url(forResource: "claude-pricing-fallback", withExtension: "json") else {
             logger.warning("No bundled pricing fallback found")
-            return nil
+            return (nil, [])
         }
 
         do {
@@ -93,11 +111,18 @@ actor PricingService {
             let rawData = try decoder.decode([String: LiteLLMModel].self, from: data)
             let claudeModels = rawData.filter { key, _ in key.lowercased().contains("claude") }
             let converted = claudeModels.mapValues { ModelPricing(from: $0) }
-            logger.info("Loaded \(converted.count) models from bundled fallback")
-            return converted
+
+            // Collect extended context model keys
+            var extendedKeys = Set<String>()
+            for (key, model) in claudeModels where model.isExtendedContext {
+                extendedKeys.insert(key)
+            }
+
+            logger.info("Loaded \(converted.count) models from bundled fallback (\(extendedKeys.count) extended context)")
+            return (converted, extendedKeys)
         } catch {
             logger.error("Failed to load bundled pricing data: \(error.localizedDescription)")
-            return nil
+            return (nil, [])
         }
     }
 
@@ -107,8 +132,9 @@ actor PricingService {
         let cacheStale = isCacheStale()
 
         // If cache exists and is fresh, load and use it
-        if !cacheStale, let cached = loadCachedData() {
+        if !cacheStale, let (cached, extendedKeys) = loadCachedData() {
             pricingData = cached
+            extendedContextModelKeys = extendedKeys
             dataSource = .cached
             lastUpdateTimestamp = Date.now
             logger.info("Loaded \(cached.count) models from fresh cache")
@@ -117,11 +143,12 @@ actor PricingService {
 
         // Step 2: Try network fetch
         do {
-            let fetched = try await fetchFromNetwork()
+            let (fetched, extendedKeys) = try await fetchFromNetwork()
             pricingData = fetched
+            extendedContextModelKeys = extendedKeys
             dataSource = .live
             lastUpdateTimestamp = Date.now
-            saveCachedData(fetched)
+            saveCachedData(fetched, extendedKeys: extendedKeys)
             logger.info("Fetched \(fetched.count) models from network, cache updated")
             return
         } catch {
@@ -129,8 +156,9 @@ actor PricingService {
         }
 
         // Step 3: Fall back to stale cache if available
-        if let cached = loadCachedData() {
+        if let (cached, extendedKeys) = loadCachedData() {
             pricingData = cached
+            extendedContextModelKeys = extendedKeys
             dataSource = .cached
             lastUpdateTimestamp = Date.now
             logger.warning("Using stale cache (\(cached.count) models) after network failure")
@@ -142,7 +170,7 @@ actor PricingService {
     }
 
     /// Fetch pricing data from LiteLLM GitHub with timeout and retry
-    private func fetchFromNetwork() async throws -> [String: ModelPricing] {
+    private func fetchFromNetwork() async throws -> ([String: ModelPricing], Set<String>) {
         let urlString = "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
 
         guard let url = URL(string: urlString) else {
@@ -197,7 +225,7 @@ actor PricingService {
     /// Parse raw LiteLLM JSON data, filtering to Claude models only.
     /// Uses JSONSerialization first to avoid all-or-nothing decoding failures
     /// from non-Claude entries with incompatible schemas (image/audio/embedding models).
-    private func parsePricingData(_ data: Data) throws -> [String: ModelPricing] {
+    private func parsePricingData(_ data: Data) throws -> ([String: ModelPricing], Set<String>) {
         do {
             guard let rawDict = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                 throw PricingError.parseError(URLError(.cannotParseResponse))
@@ -205,6 +233,7 @@ actor PricingService {
 
             let decoder = JSONDecoder()
             var result: [String: ModelPricing] = [:]
+            var extendedKeys = Set<String>()
 
             for (key, value) in rawDict where key.lowercased().contains("claude") {
                 guard let entryData = try? JSONSerialization.data(withJSONObject: value),
@@ -212,10 +241,13 @@ actor PricingService {
                     continue
                 }
                 result[key] = ModelPricing(from: model)
+                if model.isExtendedContext {
+                    extendedKeys.insert(key)
+                }
             }
 
             logger.info("Parsed \(result.count) Claude model prices from LiteLLM data (filtered from \(rawDict.count) total)")
-            return result
+            return (result, extendedKeys)
         } catch {
             logger.error("Failed to parse pricing data: \(error.localizedDescription)")
             throw PricingError.parseError(error)
@@ -223,7 +255,7 @@ actor PricingService {
     }
 
     /// Load cached pricing data from Application Support
-    private func loadCachedData() -> [String: ModelPricing]? {
+    private func loadCachedData() -> ([String: ModelPricing], Set<String>)? {
         do {
             let cacheURL = try cacheFileURL()
             guard FileManager.default.fileExists(atPath: cacheURL.path) else {
@@ -232,7 +264,14 @@ actor PricingService {
 
             let data = try Data(contentsOf: cacheURL)
             let decoded = try JSONDecoder().decode([String: ModelPricing].self, from: data)
-            return decoded
+
+            // Rebuild extended context keys from cached data using heuristic
+            var extendedKeys = Set<String>()
+            for key in decoded.keys where isKnownExtendedContextModel(key) {
+                extendedKeys.insert(key)
+            }
+
+            return (decoded, extendedKeys)
         } catch let error as DecodingError {
             // Corrupt cache - delete it
             logger.error("Cache file corrupt, deleting: \(error.localizedDescription)")
@@ -246,7 +285,7 @@ actor PricingService {
     }
 
     /// Save pricing data to Application Support cache
-    private func saveCachedData(_ data: [String: ModelPricing]) {
+    private func saveCachedData(_ data: [String: ModelPricing], extendedKeys: Set<String>) {
         do {
             let cacheURL = try cacheFileURL()
 
@@ -256,7 +295,7 @@ actor PricingService {
 
             let encoded = try JSONEncoder().encode(data)
             try encoded.write(to: cacheURL, options: .atomic)
-            logger.info("Saved \(data.count) models to cache")
+            logger.info("Saved \(data.count) models to cache (\(extendedKeys.count) extended context)")
         } catch {
             logger.error("Failed to save cache: \(error.localizedDescription)")
         }
@@ -315,5 +354,28 @@ actor PricingService {
                 break
             }
         }
+    }
+
+    /// Fallback detection for known extended context models
+    /// Used when LiteLLM data doesn't include max_input_tokens
+    private nonisolated func isKnownExtendedContextModel(_ key: String) -> Bool {
+        let lower = key.lowercased()
+        // Opus 4.x family always has 1M context
+        if lower.contains("opus-4") {
+            return true
+        }
+        // Sonnet 4.5+ has 1M context
+        if lower.contains("sonnet") {
+            if lower.contains("4.5") || lower.contains("4-5") {
+                return true
+            }
+            // Parse version number for future versions
+            if let versionMatch = lower.range(of: #"[45]\.\d+"#, options: .regularExpression),
+               let versionStr = Double(String(lower[versionMatch])),
+               versionStr >= 4.5 {
+                return true
+            }
+        }
+        return false
     }
 }

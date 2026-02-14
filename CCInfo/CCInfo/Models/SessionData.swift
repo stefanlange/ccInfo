@@ -53,11 +53,14 @@ struct JSONLEntry: Codable, Sendable {
     let timestamp: Date?
     let message: Message?
     let model: String?
+    let costUSD: Double?
+    let requestId: String?
 
     struct Message: Codable, Sendable {
         let role: String?
         let usage: TokenUsage?
         let model: String?
+        let id: String?
     }
 
     struct TokenUsage: Codable, Sendable {
@@ -81,6 +84,17 @@ struct JSONLEntry: Codable, Sendable {
     /// Extract raw model ID string from entry (checks both top-level and message-level)
     var rawModelId: String? {
         model ?? message?.model
+    }
+
+    /// Extract message ID from nested message structure
+    var messageId: String? {
+        message?.id
+    }
+
+    /// Unique hash for deduplication (messageId:requestId)
+    var uniqueHash: String? {
+        guard let mid = messageId, let rid = requestId else { return nil }
+        return "\(mid):\(rid)"
     }
 }
 

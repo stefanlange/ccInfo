@@ -1,5 +1,14 @@
 # Release Notes
 
+## 1.4.0 – 2026-02-14
+
+- Align token and cost calculations with ccusage for consistent values across all time periods
+- Use API-provided cost (costUSD) from JSONL entries as primary cost source instead of own calculation
+- Count tokens from all JSONL entries, including those without a model ID
+- Deduplicate entries across JSONL files using messageId and requestId to prevent double-counting
+- Include subagent session tokens and costs in all views (Session, Today, Week, Month)
+- Apply tiered pricing for 1M-context models (Opus 4.6, Sonnet 4.5+) with higher rates above 200k input tokens
+
 ## 1.3.0 – 2026-02-08
 
 - Add multi-session switcher to toggle between active Claude Code sessions (configurable activity threshold in Settings)
