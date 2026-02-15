@@ -18,7 +18,7 @@ struct SettingsView: View {
                 .tabItem { Label("About", systemImage: "info.circle") }
         }
         .background(SettingsWindowAccessor())
-        .frame(width: 400, height: 280)
+        .frame(width: 400, height: 330)
     }
 }
 
@@ -34,55 +34,57 @@ struct GeneralTab: View {
 
     var body: some View {
         Form {
-            Toggle("Launch at login", isOn: $launchAtLogin)
-                .onChange(of: launchAtLogin) { _, enabled in
-                    updateLaunchAtLogin(enabled: enabled)
+            Section {
+                Toggle("Launch at login", isOn: $launchAtLogin)
+                    .onChange(of: launchAtLogin) { _, enabled in
+                        updateLaunchAtLogin(enabled: enabled)
+                    }
+
+                Picker("Auto-refresh", selection: $refreshInterval) {
+                    Text("Manual").tag(0.0)
+                    Text("30 seconds").tag(30.0)
+                    Text("1 minute").tag(60.0)
+                    Text("2 minutes").tag(120.0)
+                    Text("5 minutes").tag(300.0)
+                    Text("10 minutes").tag(600.0)
+                }
+                .onChange(of: refreshInterval) { _, _ in
+                    appState.updateRefreshInterval()
                 }
 
-            Picker("Auto-refresh", selection: $refreshInterval) {
-                Text("Manual").tag(0.0)
-                Text("30 seconds").tag(30.0)
-                Text("1 minute").tag(60.0)
-                Text("2 minutes").tag(120.0)
-                Text("5 minutes").tag(300.0)
-                Text("10 minutes").tag(600.0)
-            }
-            .onChange(of: refreshInterval) { _, _ in
-                appState.updateRefreshInterval()
-            }
-
-            Picker(String(localized: "Session Activity"), selection: $sessionActivityThreshold) {
-                Text(String(localized: "5 minutes")).tag(300.0)
-                Text(String(localized: "10 minutes")).tag(600.0)
-                Text(String(localized: "30 minutes")).tag(1800.0)
-                Text(String(localized: "1 hour")).tag(3600.0)
-                Text(String(localized: "4 hours")).tag(14400.0)
-            }
-            .onChange(of: sessionActivityThreshold) { _, _ in
-                appState.updateSessionActivityThreshold()
-            }
-
-            Picker(String(localized: "MenuBar Slot 1"), selection: $menuBarSlot1) {
-                ForEach(MenuBarSlot.allCases, id: \.self) { slot in
-                    Text(slot.displayName).tag(slot)
+                Picker(String(localized: "Session Activity"), selection: $sessionActivityThreshold) {
+                    Text(String(localized: "5 minutes")).tag(300.0)
+                    Text(String(localized: "10 minutes")).tag(600.0)
+                    Text(String(localized: "30 minutes")).tag(1800.0)
+                    Text(String(localized: "1 hour")).tag(3600.0)
+                    Text(String(localized: "4 hours")).tag(14400.0)
                 }
-            }
-            .onChange(of: menuBarSlot1) { _, newValue in
-                // If both slots are the same, swap slot2 to a different option
-                if newValue == menuBarSlot2 {
-                    menuBarSlot2 = MenuBarSlot.allCases.first { $0 != newValue } ?? .contextWindow
+                .onChange(of: sessionActivityThreshold) { _, _ in
+                    appState.updateSessionActivityThreshold()
                 }
             }
 
-            Picker(String(localized: "MenuBar Slot 2"), selection: $menuBarSlot2) {
-                ForEach(MenuBarSlot.allCases, id: \.self) { slot in
-                    Text(slot.displayName).tag(slot)
+            Section(String(localized: "MenuBar Display")) {
+                Picker(String(localized: "Slot 1"), selection: $menuBarSlot1) {
+                    ForEach(MenuBarSlot.allCases, id: \.self) { slot in
+                        Text(slot.displayName).tag(slot)
+                    }
                 }
-            }
-            .onChange(of: menuBarSlot2) { _, newValue in
-                // If both slots are the same, swap slot1 to a different option
-                if newValue == menuBarSlot1 {
-                    menuBarSlot1 = MenuBarSlot.allCases.first { $0 != newValue } ?? .contextWindow
+                .onChange(of: menuBarSlot1) { _, newValue in
+                    if newValue == menuBarSlot2 {
+                        menuBarSlot2 = MenuBarSlot.allCases.first { $0 != newValue } ?? .contextWindow
+                    }
+                }
+
+                Picker(String(localized: "Slot 2"), selection: $menuBarSlot2) {
+                    ForEach(MenuBarSlot.allCases, id: \.self) { slot in
+                        Text(slot.displayName).tag(slot)
+                    }
+                }
+                .onChange(of: menuBarSlot2) { _, newValue in
+                    if newValue == menuBarSlot1 {
+                        menuBarSlot1 = MenuBarSlot.allCases.first { $0 != newValue } ?? .contextWindow
+                    }
                 }
             }
         }

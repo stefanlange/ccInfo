@@ -11,20 +11,6 @@ struct MenuBarView: View {
                     UpdateBanner(update: update)
                     Divider()
                 }
-                if let usage = appState.usageData {
-                    UsageSection(title: String(localized: "5-Hour Window"), utilization: usage.fiveHour.utilization, resetTime: usage.fiveHour.formattedTimeUntilReset)
-                    Divider()
-                    UsageSection(title: String(localized: "Weekly Limit"), utilization: usage.sevenDay.utilization, resetTime: usage.sevenDay.formattedTimeUntilReset, resetDate: usage.sevenDay.formattedResetDate)
-                    Divider()
-                    if let sonnet = usage.sevenDaySonnet {
-                        UsageSection(title: String(localized: "Sonnet Weekly"), utilization: sonnet.utilization, resetTime: sonnet.formattedTimeUntilReset, resetDate: sonnet.formattedResetDate)
-                        Divider()
-                    }
-                    if let opus = usage.sevenDayOpus {
-                        UsageSection(title: String(localized: "Opus Weekly"), utilization: opus.utilization, resetTime: opus.formattedTimeUntilReset, resetDate: opus.formattedResetDate)
-                        Divider()
-                    }
-                }
                 if appState.activeSessions.count > 1 {
                     SessionSwitcher(
                         sessions: appState.activeSessions,
@@ -39,11 +25,33 @@ struct MenuBarView: View {
                     }
                     Divider()
                 }
-                if let session = appState.sessionData {
-                    PeriodSwitcher(selectedPeriod: periodBinding)
-                    SessionSection(session: session, period: appState.statisticsPeriod)
+                if let usage = appState.usageData {
+                    UsageSection(title: String(localized: "5-Hour Window"), utilization: usage.fiveHour.utilization, resetTime: usage.fiveHour.formattedTimeUntilReset)
                     Divider()
+                    UsageSection(title: String(localized: "Weekly Limit"), utilization: usage.sevenDay.utilization, resetTime: usage.sevenDay.formattedTimeUntilReset, resetDate: usage.sevenDay.formattedResetDate)
+                    Divider()
+                    if let sonnet = usage.sevenDaySonnet {
+                        UsageSection(title: String(localized: "Sonnet Weekly"), utilization: sonnet.utilization, resetTime: sonnet.formattedTimeUntilReset, resetDate: sonnet.formattedResetDate)
+                        Divider()
+                    }
+                    if let opus = usage.sevenDayOpus {
+                        UsageSection(title: String(localized: "Opus Weekly"), utilization: opus.utilization, resetTime: opus.formattedTimeUntilReset, resetDate: opus.formattedResetDate)
+                        Divider()
+                    }
                 }
+                PeriodSwitcher(selectedPeriod: periodBinding)
+                if let session = appState.sessionData {
+                    SessionSection(session: session, period: appState.statisticsPeriod)
+                } else {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                            .controlSize(.small)
+                        Spacer()
+                    }
+                    .padding(.vertical, 4)
+                }
+                Divider()
                 footerButtons
             } else {
                 VStack(spacing: 16) {
@@ -152,14 +160,6 @@ struct ContextSection: View {
         }
     }
 
-    private var maxTokensFormatted: String {
-        if context.maxTokens >= 1_000_000 {
-            return "1M"
-        } else {
-            return "\(context.maxTokens / 1000)k"
-        }
-    }
-
     private func modelBadgeColor(for model: ModelIdentifier) -> Color {
         switch model.family {
         case .opus: return .purple
@@ -184,28 +184,22 @@ struct ContextSection: View {
             ProgressView(value: context.utilization, total: 100)
                 .tint(barColor)
                 .accessibilityLabel("Context window")
-                .accessibilityValue("\(Int(context.utilization)) %, \(context.currentTokens / 1000)k of \(maxTokensFormatted) tokens")
+                .accessibilityValue("\(Int(context.utilization)) %")
             HStack {
                 Text("\(Int(context.utilization))%")
                     .font(.system(.title2, design: .rounded, weight: .semibold))
                     .accessibilityHidden(true)
                 Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    if let model = context.activeModel {
-                        Text(model.displayName)
-                            .font(.caption2)
-                            .fontWeight(.medium)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1)
-                            .background(modelBadgeColor(for: model).opacity(0.2))
-                            .foregroundStyle(modelBadgeColor(for: model))
-                            .clipShape(Capsule())
-                            .accessibilityLabel("Model: \(model.displayName)")
-                    }
-                    Text("\(context.currentTokens / 1000)k / \(maxTokensFormatted)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .accessibilityHidden(true)
+                if let model = context.activeModel {
+                    Text(model.displayName)
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(modelBadgeColor(for: model).opacity(0.2))
+                        .foregroundStyle(modelBadgeColor(for: model))
+                        .clipShape(Capsule())
+                        .accessibilityLabel("Model: \(model.displayName)")
                 }
             }
         }
@@ -327,7 +321,7 @@ struct AgentContextRow: View {
 
     private var barColor: Color {
         let utilization = agent.contextWindow.utilization
-        if agent.contextWindow.isNearAutoCompact { return .red }
+        if utilization >= 90 { return .red }
         if utilization < 50 { return .green }
         if utilization < 75 { return .yellow }
         return .orange
@@ -461,6 +455,7 @@ struct PeriodSwitcher: View {
                         .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 4)
+                        .contentShape(Rectangle())
                         .background(isSelected ? Color.accentColor.opacity(0.2) : Color.clear)
                         .clipShape(RoundedRectangle(cornerRadius: 4))
                 }

@@ -35,14 +35,11 @@ struct MenuBarLabel: View {
         if appState.isAuthenticated, appState.usageData != nil {
             let slot1Value = appState.utilizationForSlot(appState.menuBarSlot1) ?? 0
             let slot2Value = appState.utilizationForSlot(appState.menuBarSlot2) ?? 0
-            let nearAutoCompact = appState.contextWindowState?.main.isNearAutoCompact ?? false
-
             Image(nsImage: MenuBarImageRenderer.render(
                 topRow: slot1Value,
                 bottomRow: slot2Value,
                 topSlot: appState.menuBarSlot1,
-                bottomSlot: appState.menuBarSlot2,
-                isNearAutoCompact: nearAutoCompact
+                bottomSlot: appState.menuBarSlot2
             ))
         } else {
             Image(systemName: "gauge.with.dots.needle.bottom.50percent")
@@ -63,13 +60,12 @@ enum MenuBarImageRenderer {
         static let fontSize: CGFloat = 9
     }
 
-    static func render(topRow: Double, bottomRow: Double, topSlot: MenuBarSlot = .fiveHour, bottomSlot: MenuBarSlot = .weeklyLimit, isNearAutoCompact: Bool = false) -> NSImage {
+    static func render(topRow: Double, bottomRow: Double, topSlot: MenuBarSlot = .fiveHour, bottomSlot: MenuBarSlot = .weeklyLimit) -> NSImage {
         let size = NSSize(width: Layout.width, height: Layout.height)
 
         let image = NSImage(size: size, flipped: false) { rect in
-            // Draw two rows — pass autocompact state only to the context window slot
-            drawRow(value: topRow, y: Layout.height - Layout.rowHeight, slot: topSlot, isNearAutoCompact: topSlot == .contextWindow && isNearAutoCompact)
-            drawRow(value: bottomRow, y: 0, slot: bottomSlot, isNearAutoCompact: bottomSlot == .contextWindow && isNearAutoCompact)
+            drawRow(value: topRow, y: Layout.height - Layout.rowHeight, slot: topSlot)
+            drawRow(value: bottomRow, y: 0, slot: bottomSlot)
             return true
         }
 
@@ -77,8 +73,8 @@ enum MenuBarImageRenderer {
         return image
     }
 
-    private static func drawRow(value: Double, y: CGFloat, slot: MenuBarSlot, isNearAutoCompact: Bool = false) {
-        let color = colorFor(value, slot: slot, isNearAutoCompact: isNearAutoCompact)
+    private static func drawRow(value: Double, y: CGFloat, slot: MenuBarSlot) {
+        let color = colorFor(value, slot: slot)
         let barY = y + 1.5
 
         // Background bar
@@ -110,20 +106,11 @@ enum MenuBarImageRenderer {
         text.draw(at: NSPoint(x: textX, y: textY), withAttributes: attributes)
     }
 
-    private static func colorFor(_ value: Double, slot: MenuBarSlot, isNearAutoCompact: Bool = false) -> NSColor {
-        if slot == .contextWindow {
-            // Near autocompact: bold red to signal urgency
-            if isNearAutoCompact { return .systemRed }
-            // Match ContextSection color logic in dropdown
-            switch value {
-            case ..<50: return .systemGreen
-            case ..<75: return .systemYellow
-            default: return .systemOrange
-            }
-        }
+    private static func colorFor(_ value: Double, slot: MenuBarSlot) -> NSColor {
         switch value {
         case ..<50: return .systemGreen
-        case ..<80: return .systemYellow
+        case ..<75: return .systemYellow
+        case ..<90: return .systemOrange
         default: return .systemRed
         }
     }

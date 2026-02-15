@@ -254,6 +254,7 @@ final class AppState: ObservableObject {
     func updateStatisticsPeriod(_ period: StatisticsPeriod) {
         statisticsPeriod = period
         UserDefaults.standard.set(period.rawValue, forKey: "statisticsPeriod")
+        sessionData = nil
         Task { await refreshLocalData() }
     }
 
