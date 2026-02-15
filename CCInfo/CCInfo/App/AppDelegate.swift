@@ -65,6 +65,35 @@ final class AppState: ObservableObject {
         return stored > 0 ? stored : 600 // Default: 10 minutes
     }
 
+    var menuBarSlot1: MenuBarSlot {
+        guard let raw = UserDefaults.standard.string(forKey: MenuBarConfiguration.StorageKeys.slot1),
+              let slot = MenuBarSlot(rawValue: raw) else {
+            return .fiveHour // fallback
+        }
+        return slot
+    }
+
+    var menuBarSlot2: MenuBarSlot {
+        guard let raw = UserDefaults.standard.string(forKey: MenuBarConfiguration.StorageKeys.slot2),
+              let slot = MenuBarSlot(rawValue: raw) else {
+            return .weeklyLimit // fallback
+        }
+        return slot
+    }
+
+    func utilizationForSlot(_ slot: MenuBarSlot) -> Double? {
+        switch slot {
+        case .contextWindow:
+            return contextWindowState?.main.utilization
+        case .fiveHour:
+            return usageData?.fiveHour.utilization
+        case .weeklyLimit:
+            return usageData?.sevenDay.utilization
+        case .sonnetWeekly:
+            return usageData?.sevenDaySonnet?.utilization
+        }
+    }
+
     func startMonitoring() {
         guard isAuthenticated else {
             showingAuth = true
@@ -83,13 +112,12 @@ final class AppState: ObservableObject {
         let home = FileManager.default.homeDirectoryForCurrentUser
         let claudePath = home.appendingPathComponent(".claude/projects").path
         fileWatcher = FileWatcher(path: claudePath) { [weak self] in
-            guard let self else { return }
-            Task { @MainActor in
-                self.fileWatcherDebounceTask?.cancel()
-                self.fileWatcherDebounceTask = Task {
+            Task { @MainActor [weak self] in
+                self?.fileWatcherDebounceTask?.cancel()
+                self?.fileWatcherDebounceTask = Task { [weak self] in
                     try? await Task.sleep(for: .milliseconds(500))
                     guard !Task.isCancelled else { return }
-                    await self.refreshLocalData()
+                    await self?.refreshLocalData()
                 }
             }
         }
@@ -120,7 +148,7 @@ final class AppState: ObservableObject {
         let interval = refreshInterval
         guard interval > 0 else { return } // Manual mode - no auto-refresh
 
-        refreshTask = Task { [weak self] in
+        refreshTask = Task { @MainActor [weak self] in
             while !Task.isCancelled {
                 do {
                     try await Task.sleep(for: .seconds(interval))
@@ -138,24 +166,15 @@ final class AppState: ObservableObject {
 
     private func startUpdateCheckTask() {
         updateCheckTask?.cancel()
-        updateCheckTask = Task { [weak self] in
-            // Initial check
-            let update = await UpdateChecker.checkForUpdate()
-            self?.availableUpdate = update
-            if let update {
-                NotificationService.shared.sendUpdateNotification(version: update.version)
-            }
-
-            // Repeat hourly
+        updateCheckTask = Task { @MainActor [weak self] in
             while !Task.isCancelled {
+                let update = await UpdateChecker.checkForUpdate()
+                self?.availableUpdate = update
+                if let update {
+                    NotificationService.shared.sendUpdateNotification(version: update.version)
+                }
                 do {
                     try await Task.sleep(for: .seconds(3600))
-                    guard !Task.isCancelled else { break }
-                    let update = await UpdateChecker.checkForUpdate()
-                    self?.availableUpdate = update
-                    if let update {
-                        NotificationService.shared.sendUpdateNotification(version: update.version)
-                    }
                 } catch is CancellationError {
                     break
                 } catch {

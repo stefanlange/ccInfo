@@ -14,13 +14,67 @@ actor JSONLParser {
         decoder.dateDecodingStrategy = .iso8601
     }
     
-    // MARK: - Private Types
+    // MARK: - Token Accumulator
 
-    private struct TokenCounts {
-        var input = 0
-        var output = 0
-        var cacheCreation = 0
-        var cacheRead = 0
+    /// Encapsulates token accumulation state to eliminate duplication across parsing methods
+    private struct TokenAccumulator {
+        var totalInput = 0
+        var totalOutput = 0
+        var totalCacheCreation = 0
+        var totalCacheRead = 0
+        var totalCost = 0.0
+        var models: Set<ModelIdentifier> = []
+        var processedHashes: Set<String> = []
+        var cumulativeInputByModel: [String: Int] = [:]
+
+        /// Check if an entry should be processed (dedup + usage filter + synthetic skip).
+        /// Registers the hash as a side effect if the entry passes.
+        mutating func shouldProcess(_ entry: JSONLEntry) -> JSONLEntry.TokenUsage? {
+            if let hash = entry.uniqueHash {
+                if processedHashes.contains(hash) { return nil }
+                processedHashes.insert(hash)
+            }
+            guard let usage = entry.message?.usage else { return nil }
+            if entry.rawModelId == "<synthetic>" { return nil }
+            return usage
+        }
+
+        /// Get cumulative input tokens for a model (needed for tiered pricing)
+        func cumulativeInput(for rawModelId: String?) -> Int {
+            cumulativeInputByModel[rawModelId ?? ""] ?? 0
+        }
+
+        /// Accumulate tokens and cost for a validated entry
+        mutating func accumulate(
+            usage: JSONLEntry.TokenUsage,
+            rawModelId: String?,
+            entryCost: Double,
+            entryModel: ModelIdentifier?
+        ) {
+            totalInput += usage.inputTokens ?? 0
+            totalOutput += usage.outputTokens ?? 0
+            totalCacheCreation += usage.cacheCreationInputTokens ?? 0
+            totalCacheRead += usage.cacheReadInputTokens ?? 0
+            totalCost += entryCost
+            if let m = entryModel { models.insert(m) }
+
+            let modelKey = rawModelId ?? ""
+            let inputIncrement = (usage.inputTokens ?? 0)
+                + (usage.cacheCreationInputTokens ?? 0)
+                + (usage.cacheReadInputTokens ?? 0)
+            cumulativeInputByModel[modelKey, default: 0] += inputIncrement
+        }
+
+        /// Build the final TokenStats from accumulated values
+        func buildTokenStats() -> SessionData.TokenStats {
+            SessionData.TokenStats(
+                input: totalInput,
+                output: totalOutput,
+                cacheCreation: totalCacheCreation,
+                cacheRead: totalCacheRead,
+                cost: totalCost
+            )
+        }
     }
 
     // MARK: - Private Methods
@@ -121,14 +175,7 @@ actor JSONLParser {
     func parseSession(at url: URL, availableModelKeys: Set<String> = []) async throws -> SessionData {
         let lines = try String(contentsOf: url, encoding: .utf8).components(separatedBy: .newlines)
         var sessionId = url.deletingPathExtension().lastPathComponent
-        var totalInput = 0
-        var totalOutput = 0
-        var totalCacheCreation = 0
-        var totalCacheRead = 0
-        var totalCost = 0.0
-        var models: Set<ModelIdentifier> = []
-        var processedHashes: Set<String> = []
-        var cumulativeInputByModel: [String: Int] = [:]
+        var accumulator = TokenAccumulator()
 
         // Process main session file
         for line in lines where !line.isEmpty {
@@ -144,43 +191,17 @@ actor JSONLParser {
 
             if let sid = entry.sessionId { sessionId = sid }
 
-            // Deduplication check
-            if let hash = entry.uniqueHash {
-                if processedHashes.contains(hash) { continue }
-                processedHashes.insert(hash)
+            if let usage = accumulator.shouldProcess(entry) {
+                let cumInput = accumulator.cumulativeInput(for: entry.rawModelId)
+                let (cost, model) = await costForEntry(
+                    costUSD: entry.costUSD,
+                    rawModelId: entry.rawModelId,
+                    usage: usage,
+                    availableModelKeys: availableModelKeys,
+                    cumulativeInputTokens: cumInput
+                )
+                accumulator.accumulate(usage: usage, rawModelId: entry.rawModelId, entryCost: cost, entryModel: model)
             }
-
-            // Skip entries without usage
-            guard let usage = entry.message?.usage else { continue }
-
-            let rawModelId = entry.rawModelId
-            // Skip synthetic entries
-            if rawModelId == "<synthetic>" { continue }
-
-            // Accumulate tokens (always, regardless of model ID)
-            totalInput += usage.inputTokens ?? 0
-            totalOutput += usage.outputTokens ?? 0
-            totalCacheCreation += usage.cacheCreationInputTokens ?? 0
-            totalCacheRead += usage.cacheReadInputTokens ?? 0
-
-            // Get cumulative input tokens for this model
-            let modelKey = rawModelId ?? ""
-            let cumulativeInput = cumulativeInputByModel[modelKey] ?? 0
-
-            // Calculate cost for this entry
-            let (entryCost, entryModel) = await costForEntry(
-                costUSD: entry.costUSD,
-                rawModelId: rawModelId,
-                usage: usage,
-                availableModelKeys: availableModelKeys,
-                cumulativeInputTokens: cumulativeInput
-            )
-            totalCost += entryCost
-            if let m = entryModel { models.insert(m) }
-
-            // Update cumulative input tokens for this model
-            let inputIncrement = (usage.inputTokens ?? 0) + (usage.cacheCreationInputTokens ?? 0) + (usage.cacheReadInputTokens ?? 0)
-            cumulativeInputByModel[modelKey] = cumulativeInput + inputIncrement
         }
 
         // Process subagent JSONL files
@@ -200,67 +221,26 @@ actor JSONLParser {
                     guard let data = line.data(using: .utf8),
                           let entry = try? decoder.decode(JSONLEntry.self, from: data) else { continue }
 
-                    // Deduplication (shared with main file)
-                    if let hash = entry.uniqueHash {
-                        if processedHashes.contains(hash) { continue }
-                        processedHashes.insert(hash)
+                    if let usage = accumulator.shouldProcess(entry) {
+                        let cumInput = accumulator.cumulativeInput(for: entry.rawModelId)
+                        let (cost, model) = await costForEntry(
+                            costUSD: entry.costUSD,
+                            rawModelId: entry.rawModelId,
+                            usage: usage,
+                            availableModelKeys: availableModelKeys,
+                            cumulativeInputTokens: cumInput
+                        )
+                        accumulator.accumulate(usage: usage, rawModelId: entry.rawModelId, entryCost: cost, entryModel: model)
                     }
-
-                    // Skip entries without usage
-                    guard let usage = entry.message?.usage else { continue }
-
-                    let rawModelId = entry.rawModelId
-                    // Skip synthetic entries
-                    if rawModelId == "<synthetic>" { continue }
-
-                    // Accumulate tokens
-                    totalInput += usage.inputTokens ?? 0
-                    totalOutput += usage.outputTokens ?? 0
-                    totalCacheCreation += usage.cacheCreationInputTokens ?? 0
-                    totalCacheRead += usage.cacheReadInputTokens ?? 0
-
-                    // Get cumulative input tokens for this model
-                    let modelKey = rawModelId ?? ""
-                    let cumulativeInput = cumulativeInputByModel[modelKey] ?? 0
-
-                    // Calculate cost for this entry
-                    let (entryCost, entryModel) = await costForEntry(
-                        costUSD: entry.costUSD,
-                        rawModelId: rawModelId,
-                        usage: usage,
-                        availableModelKeys: availableModelKeys,
-                        cumulativeInputTokens: cumulativeInput
-                    )
-                    totalCost += entryCost
-                    if let m = entryModel { models.insert(m) }
-
-                    // Update cumulative input tokens for this model
-                    let inputIncrement = (usage.inputTokens ?? 0) + (usage.cacheCreationInputTokens ?? 0) + (usage.cacheReadInputTokens ?? 0)
-                    cumulativeInputByModel[modelKey] = cumulativeInput + inputIncrement
                 }
             }
         }
 
-        let tokens = SessionData.TokenStats(
-            input: totalInput,
-            output: totalOutput,
-            cacheCreation: totalCacheCreation,
-            cacheRead: totalCacheRead,
-            cost: totalCost
-        )
-
-        return SessionData(sessionId: sessionId, tokens: tokens, models: models)
+        return SessionData(sessionId: sessionId, tokens: accumulator.buildTokenStats(), models: accumulator.models)
     }
 
     func parseAggregate(since periodStart: Date, availableModelKeys: Set<String> = []) async -> SessionData {
-        var totalInput = 0
-        var totalOutput = 0
-        var totalCacheCreation = 0
-        var totalCacheRead = 0
-        var totalCost = 0.0
-        var models: Set<ModelIdentifier> = []
-        var processedHashes: Set<String> = []
-        var cumulativeInputByModel: [String: Int] = [:]
+        var accumulator = TokenAccumulator()
 
         guard let enumerator = FileManager.default.enumerator(
             at: claudeProjectsPath,
@@ -289,55 +269,21 @@ actor JSONLParser {
                 // Only include entries with timestamp >= periodStart
                 guard let timestamp = entry.timestamp, timestamp >= periodStart else { continue }
 
-                // Deduplication check (cross-file)
-                if let hash = entry.uniqueHash {
-                    if processedHashes.contains(hash) { continue }
-                    processedHashes.insert(hash)
+                if let usage = accumulator.shouldProcess(entry) {
+                    let cumInput = accumulator.cumulativeInput(for: entry.rawModelId)
+                    let (cost, model) = await costForEntry(
+                        costUSD: entry.costUSD,
+                        rawModelId: entry.rawModelId,
+                        usage: usage,
+                        availableModelKeys: availableModelKeys,
+                        cumulativeInputTokens: cumInput
+                    )
+                    accumulator.accumulate(usage: usage, rawModelId: entry.rawModelId, entryCost: cost, entryModel: model)
                 }
-
-                // Skip entries without usage
-                guard let usage = entry.message?.usage else { continue }
-
-                let rawModelId = entry.rawModelId
-                // Skip synthetic entries
-                if rawModelId == "<synthetic>" { continue }
-
-                // Accumulate tokens (always, regardless of model ID)
-                totalInput += usage.inputTokens ?? 0
-                totalOutput += usage.outputTokens ?? 0
-                totalCacheCreation += usage.cacheCreationInputTokens ?? 0
-                totalCacheRead += usage.cacheReadInputTokens ?? 0
-
-                // Get cumulative input tokens for this model
-                let modelKey = rawModelId ?? ""
-                let cumulativeInput = cumulativeInputByModel[modelKey] ?? 0
-
-                // Calculate cost for this entry
-                let (entryCost, entryModel) = await costForEntry(
-                    costUSD: entry.costUSD,
-                    rawModelId: rawModelId,
-                    usage: usage,
-                    availableModelKeys: availableModelKeys,
-                    cumulativeInputTokens: cumulativeInput
-                )
-                totalCost += entryCost
-                if let m = entryModel { models.insert(m) }
-
-                // Update cumulative input tokens for this model
-                let inputIncrement = (usage.inputTokens ?? 0) + (usage.cacheCreationInputTokens ?? 0) + (usage.cacheReadInputTokens ?? 0)
-                cumulativeInputByModel[modelKey] = cumulativeInput + inputIncrement
             }
         }
 
-        let tokens = SessionData.TokenStats(
-            input: totalInput,
-            output: totalOutput,
-            cacheCreation: totalCacheCreation,
-            cacheRead: totalCacheRead,
-            cost: totalCost
-        )
-
-        return SessionData(sessionId: nil, tokens: tokens, models: models)
+        return SessionData(sessionId: nil, tokens: accumulator.buildTokenStats(), models: accumulator.models)
     }
 
     func parseForPeriod(_ period: StatisticsPeriod, sessionURL: URL? = nil, availableModelKeys: Set<String> = []) async throws -> SessionData? {

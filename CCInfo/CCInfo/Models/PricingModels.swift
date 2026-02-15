@@ -65,6 +65,21 @@ struct ModelPricing: Codable, Sendable {
     }
 }
 
+// MARK: - Cached Pricing Data
+
+/// Container for cached pricing data with extended context metadata
+struct CachedPricingData: Codable, Sendable {
+    let pricing: [String: ModelPricing]
+    let extendedContextKeys: Set<String>
+    let cacheVersion: Int
+
+    init(pricing: [String: ModelPricing], extendedContextKeys: Set<String>) {
+        self.pricing = pricing
+        self.extendedContextKeys = extendedContextKeys
+        self.cacheVersion = 1
+    }
+}
+
 // MARK: - Tiered Model Pricing
 
 /// Wraps ModelPricing with tiered rates for 1M-context models

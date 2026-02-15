@@ -9,9 +9,14 @@ enum StatisticsPeriod: String, CaseIterable, Sendable {
         switch self {
         case .session:   return String(localized: "Session")
         case .today:     return String(localized: "Today")
-        case .thisWeek:  return String(localized: "This Week")
-        case .thisMonth: return String(localized: "This Month")
+        case .thisWeek:  return String(localized: "Week")
+        case .thisMonth: return String(localized: "Month")
         }
+    }
+
+    /// First letter of displayName for compact segments
+    var shortLabel: String {
+        String(displayName.prefix(1))
     }
 
     /// Nil for .session (= no date filter, single file)
@@ -145,7 +150,10 @@ struct ContextWindow: Sendable {
     private enum Constants {
         static let standardMaxTokens = 200_000
         static let extendedMaxTokens = 1_000_000
-        static let autoCompactThreshold = 45_000
+        // Buffer reserved for autocompact summarization process
+        static let standardAutoCompactBuffer = 33_000
+        // Proportional buffer for extended context (~16.5% of max)
+        static let extendedAutoCompactBuffer = 165_000
         // Heuristic: if tokens exceed this, assume 1M context mode
         static let extendedContextThreshold = 180_000
     }
@@ -163,15 +171,20 @@ struct ContextWindow: Sendable {
         currentTokens > Constants.extendedContextThreshold
     }
 
+    /// Usable tokens before autocompact triggers
+    var effectiveMaxTokens: Int {
+        let buffer = isExtendedContext ? Constants.extendedAutoCompactBuffer : Constants.standardAutoCompactBuffer
+        return maxTokens - buffer
+    }
+
     var utilization: Double {
-        let maxValue = Swift.max(1, maxTokens) // Prevent division by zero
-        let currentValue = Swift.max(0, currentTokens) // Clamp negative values
-        return Double(currentValue) / Double(maxValue) * 100
+        let maxValue = Swift.max(1, effectiveMaxTokens)
+        let currentValue = Swift.max(0, currentTokens)
+        return Swift.min(Double(currentValue) / Double(maxValue) * 100, 100)
     }
 
     var isNearAutoCompact: Bool {
-        // Autocompact threshold applies relative to the detected max
-        currentTokens >= maxTokens - Constants.autoCompactThreshold
+        utilization >= 95
     }
 
     init(currentTokens: Int, activeModel: ModelIdentifier? = nil) {

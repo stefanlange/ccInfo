@@ -22,19 +22,7 @@ final class FileWatcher: @unchecked Sendable {
     }
 
     deinit {
-        // Ensure stream is stopped before deallocation to prevent use-after-free
-        lock.lock()
-        let hasActiveStream = stream != nil
-        lock.unlock()
-
-        if hasActiveStream {
-            stop()
-        }
-
-        // Verify we're not in activeWatchers anymore
-        Self.watchersLock.lock()
-        assert(!Self.activeWatchers.contains(self), "FileWatcher deallocated while still in activeWatchers")
-        Self.watchersLock.unlock()
+        stop()
     }
 
     func start() {

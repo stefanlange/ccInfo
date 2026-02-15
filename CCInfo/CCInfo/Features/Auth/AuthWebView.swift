@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import OSLog
 
 struct AuthWebView: View {
     @EnvironmentObject var appState: AppState
@@ -50,6 +51,7 @@ struct AuthWebViewRepresentable: NSViewRepresentable {
         private var credentialsExtracted = false
         private weak var webView: WKWebView?
         private var urlObservation: NSKeyValueObservation?
+        private let logger = Logger(subsystem: "com.ccinfo.app", category: "Auth")
 
         init(_ parent: AuthWebViewRepresentable) { self.parent = parent }
 
@@ -111,7 +113,7 @@ struct AuthWebViewRepresentable: NSViewRepresentable {
                         // Log failure but proceed with authentication
                         // Organization ID will be displayed as fallback
                         fetchedOrgName = nil
-                        print("Warning: Failed to fetch organization name: \(error.localizedDescription)")
+                        self.logger.warning("Failed to fetch organization name: \(error.localizedDescription)")
                     }
 
                     await MainActor.run {

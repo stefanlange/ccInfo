@@ -28,6 +28,8 @@
 		F0000011 /* PricingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000013 /* PricingService.swift */; };
 		F0000012 /* claude-pricing-fallback.json in Resources */ = {isa = PBXBuildFile; fileRef = F1000014 /* claude-pricing-fallback.json */; };
 	F0000013 /* CurrencyFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000015 /* CurrencyFormatter.swift */; };
+	F0000014 /* MenuBarConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000016 /* MenuBarConfiguration.swift */; };
+	F0000015 /* SettingsWindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000017 /* SettingsWindowManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -54,6 +56,8 @@
 		F1000013 /* PricingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PricingService.swift; sourceTree = "<group>"; };
 		F1000014 /* claude-pricing-fallback.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "claude-pricing-fallback.json"; sourceTree = "<group>"; };
 		F1000015 /* CurrencyFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencyFormatter.swift; sourceTree = "<group>"; };
+		F1000016 /* MenuBarConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarConfiguration.swift; sourceTree = "<group>"; };
+		F1000017 /* SettingsWindowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowManager.swift; sourceTree = "<group>"; };
 		F1000020 /* CCInfo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CCInfo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -104,7 +108,9 @@
 				F1000003 /* UsageData.swift */,
 				F1000004 /* SessionData.swift */,
 				F1000012 /* PricingModels.swift */,
-				D51C78C5173F4E4198388DE0 /* ModelIdentifier.swift */,);
+				D51C78C5173F4E4198388DE0 /* ModelIdentifier.swift */,
+				F1000016 /* MenuBarConfiguration.swift */,
+			);
 			path = Models;
 			sourceTree = "<group>";
 		};
@@ -180,6 +186,7 @@
 			isa = PBXGroup;
 			children = (
 				F1000015 /* CurrencyFormatter.swift */,
+				F1000017 /* SettingsWindowManager.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -272,7 +279,10 @@
 				F0000010 /* PricingModels.swift in Sources */,
 				F0000011 /* PricingService.swift in Sources */,
 				EF0F5FCBC4A348098818D6D0 /* ModelIdentifier.swift in Sources */,
-				F0000013 /* CurrencyFormatter.swift in Sources */,);
+				F0000013 /* CurrencyFormatter.swift in Sources */,
+				F0000014 /* MenuBarConfiguration.swift in Sources */,
+				F0000015 /* SettingsWindowManager.swift in Sources */,
+			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */

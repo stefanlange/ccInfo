@@ -33,7 +33,11 @@ actor ClaudeAPIClient {
             throw APIError.notAuthenticated
         }
 
-        guard let url = URL(string: "\(baseURL)/organizations/\(creds.organizationId)/usage") else {
+        guard let encodedOrgId = creds.organizationId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else {
+            throw APIError.invalidURL
+        }
+
+        guard let url = URL(string: "\(baseURL)/organizations/\(encodedOrgId)/usage") else {
             logger.error("Failed to construct usage URL for organization")
             throw APIError.invalidURL
         }
@@ -66,7 +70,11 @@ actor ClaudeAPIClient {
 
     /// Fetch organization name for display purposes
     func fetchOrganizationName(organizationId: String, sessionKey: String) async throws -> String {
-        guard let url = URL(string: "\(baseURL)/organizations/\(organizationId)/dust/org_shortname") else {
+        guard let encodedOrgId = organizationId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else {
+            throw APIError.invalidURL
+        }
+
+        guard let url = URL(string: "\(baseURL)/organizations/\(encodedOrgId)/dust/org_shortname") else {
             logger.error("Failed to construct organization name URL")
             throw APIError.invalidURL
         }

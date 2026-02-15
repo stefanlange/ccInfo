@@ -263,21 +263,27 @@ actor PricingService {
             }
 
             let data = try Data(contentsOf: cacheURL)
-            let decoded = try JSONDecoder().decode([String: ModelPricing].self, from: data)
+            let decoder = JSONDecoder()
 
-            // Rebuild extended context keys from cached data using heuristic
-            var extendedKeys = Set<String>()
-            for key in decoded.keys where isKnownExtendedContextModel(key) {
-                extendedKeys.insert(key)
+            // Try new container format first
+            if let container = try? decoder.decode(CachedPricingData.self, from: data) {
+                logger.debug("Loaded cache: \(container.pricing.count) models, \(container.extendedContextKeys.count) extended")
+                return (container.pricing, container.extendedContextKeys)
             }
 
-            return (decoded, extendedKeys)
-        } catch let error as DecodingError {
-            // Corrupt cache - delete it
-            logger.error("Cache file corrupt, deleting: \(error.localizedDescription)")
-            if let url = try? cacheFileURL() {
-                try? FileManager.default.removeItem(at: url)
+            // Fall back to legacy format (plain dictionary, no extended keys)
+            if let legacyPricing = try? decoder.decode([String: ModelPricing].self, from: data) {
+                logger.info("Loaded legacy cache, rebuilding extended keys from heuristic")
+                var extendedKeys = Set<String>()
+                for key in legacyPricing.keys where isKnownExtendedContextModel(key) {
+                    extendedKeys.insert(key)
+                }
+                return (legacyPricing, extendedKeys)
             }
+
+            // If both formats fail, delete corrupt cache
+            logger.error("Cache file corrupt (neither format valid), deleting")
+            try? FileManager.default.removeItem(at: cacheURL)
             return nil
         } catch {
             return nil
@@ -293,7 +299,8 @@ actor PricingService {
             let directory = cacheURL.deletingLastPathComponent()
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
-            let encoded = try JSONEncoder().encode(data)
+            let container = CachedPricingData(pricing: data, extendedContextKeys: extendedKeys)
+            let encoded = try JSONEncoder().encode(container)
             try encoded.write(to: cacheURL, options: .atomic)
             logger.info("Saved \(data.count) models to cache (\(extendedKeys.count) extended context)")
         } catch {

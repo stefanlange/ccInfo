@@ -40,6 +40,7 @@ struct MenuBarView: View {
                     Divider()
                 }
                 if let session = appState.sessionData {
+                    PeriodSwitcher(selectedPeriod: periodBinding)
                     SessionSection(session: session, period: appState.statisticsPeriod)
                     Divider()
                 }
@@ -79,12 +80,18 @@ struct MenuBarView: View {
         )
     }
 
+    private var periodBinding: Binding<StatisticsPeriod> {
+        Binding(
+            get: { appState.statisticsPeriod },
+            set: { appState.updateStatisticsPeriod($0) }
+        )
+    }
+
     private var footerButtons: some View {
         VStack(alignment: .leading, spacing: 10) {
             Button { Task { await appState.refreshAll() } } label: { footerLabel("Refresh", systemImage: "arrow.clockwise") }.buttonStyle(.borderless).disabled(appState.isLoading)
             SettingsLink { footerLabel("Settings", systemImage: "gear") }
                 .buttonStyle(.borderless)
-                .simultaneousGesture(TapGesture().onEnded { NSApp.activate(ignoringOtherApps: true) })
             Button { NSApplication.shared.terminate(nil) } label: { footerLabel("Quit", systemImage: "power") }.buttonStyle(.borderless)
         }.font(.callout)
     }
@@ -106,9 +113,14 @@ struct UsageSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title).font(.caption).foregroundStyle(.secondary).textCase(.uppercase)
-            ProgressView(value: utilization, total: 100).tint(utilization < 50 ? .green : utilization < 80 ? .yellow : .red)
+            ProgressView(value: utilization, total: 100)
+                .tint(utilization < 50 ? .green : utilization < 80 ? .yellow : .red)
+                .accessibilityLabel("\(title)")
+                .accessibilityValue("\(Int(utilization)) %")
             HStack {
-                Text("\(Int(utilization))%").font(.system(.title2, design: .rounded, weight: .semibold))
+                Text("\(Int(utilization))%")
+                    .font(.system(.title2, design: .rounded, weight: .semibold))
+                    .accessibilityHidden(true)
                 Spacer()
                 if let t = resetTime {
                     VStack(alignment: .trailing, spacing: 2) {
@@ -117,6 +129,7 @@ struct UsageSection: View {
                             Text(d).font(.caption2).foregroundStyle(.tertiary)
                         }
                     }
+                    .accessibilityElement(children: .combine)
                 }
             }
         }
@@ -127,11 +140,10 @@ struct ContextSection: View {
     let context: ContextWindow
 
     private var barColor: Color {
-        if context.isNearAutoCompact {
-            return .orange
-        }
         let utilization = context.utilization
-        if utilization < 50 {
+        if utilization >= 90 {
+            return .red
+        } else if utilization < 50 {
             return .green
         } else if utilization < 75 {
             return .yellow
@@ -162,23 +174,38 @@ struct ContextSection: View {
             HStack {
                 Text(String(localized: "Context Window")).font(.caption).foregroundStyle(.secondary).textCase(.uppercase)
                 Spacer()
-                if context.isNearAutoCompact { Label("Near autocompact", systemImage: "exclamationmark.triangle.fill").font(.caption2).foregroundStyle(.orange) }
-            }
-            ProgressView(value: context.utilization, total: 100).tint(barColor)
-            HStack {
-                Text("\(context.currentTokens / 1000)k / \(maxTokensFormatted)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                if let model = context.activeModel {
-                    Text(model.displayName)
+                if context.isNearAutoCompact {
+                    Label("Near autocompact", systemImage: "exclamationmark.triangle.fill")
                         .font(.caption2)
-                        .fontWeight(.medium)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(modelBadgeColor(for: model).opacity(0.2))
-                        .foregroundStyle(modelBadgeColor(for: model))
-                        .clipShape(Capsule())
+                        .foregroundStyle(barColor)
+                        .accessibilityLabel("Warning: Near autocompact threshold")
+                }
+            }
+            ProgressView(value: context.utilization, total: 100)
+                .tint(barColor)
+                .accessibilityLabel("Context window")
+                .accessibilityValue("\(Int(context.utilization)) %, \(context.currentTokens / 1000)k of \(maxTokensFormatted) tokens")
+            HStack {
+                Text("\(Int(context.utilization))%")
+                    .font(.system(.title2, design: .rounded, weight: .semibold))
+                    .accessibilityHidden(true)
+                Spacer()
+                VStack(alignment: .trailing, spacing: 2) {
+                    if let model = context.activeModel {
+                        Text(model.displayName)
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(modelBadgeColor(for: model).opacity(0.2))
+                            .foregroundStyle(modelBadgeColor(for: model))
+                            .clipShape(Capsule())
+                            .accessibilityLabel("Model: \(model.displayName)")
+                    }
+                    Text("\(context.currentTokens / 1000)k / \(maxTokensFormatted)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
                 }
             }
         }
@@ -208,11 +235,6 @@ struct SessionSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(period.displayName)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 3) {
                 GridRow {
                     Text(String(localized: "Models:")).foregroundStyle(.secondary)
@@ -220,6 +242,7 @@ struct SessionSection: View {
                         .gridColumnAlignment(.trailing)
                         .monospacedDigit()
                 }
+                .accessibilityElement(children: .combine)
                 Divider()
                 GridRow {
                     Text(String(localized: "Input:")).foregroundStyle(.secondary)
@@ -227,24 +250,28 @@ struct SessionSection: View {
                         .gridColumnAlignment(.trailing)
                         .monospacedDigit()
                 }
+                .accessibilityElement(children: .combine)
                 GridRow {
                     Text(String(localized: "Output:")).foregroundStyle(.secondary)
                     Text(formatTokens(session.tokens.output))
                         .gridColumnAlignment(.trailing)
                         .monospacedDigit()
                 }
+                .accessibilityElement(children: .combine)
                 GridRow {
                     Text(String(localized: "Cache Write:")).foregroundStyle(.secondary)
                     Text(formatTokens(session.tokens.cacheCreation))
                         .gridColumnAlignment(.trailing)
                         .monospacedDigit()
                 }
+                .accessibilityElement(children: .combine)
                 GridRow {
                     Text(String(localized: "Cache Read:")).foregroundStyle(.secondary)
                     Text(formatTokens(session.tokens.cacheRead))
                         .gridColumnAlignment(.trailing)
                         .monospacedDigit()
                 }
+                .accessibilityElement(children: .combine)
                 Divider()
                 GridRow {
                     Text(String(localized: "Total:")).foregroundStyle(.secondary).fontWeight(.medium)
@@ -253,6 +280,7 @@ struct SessionSection: View {
                         .monospacedDigit()
                         .fontWeight(.medium)
                 }
+                .accessibilityElement(children: .combine)
                 GridRow {
                     Text(String(localized: "Cost (API eq.):")).foregroundStyle(.secondary)
                     HStack(spacing: 2) {
@@ -269,6 +297,8 @@ struct SessionSection: View {
                         ? String(localized: "Estimated (Sonnet 4 Pricing) \u{2014} model not in pricing database")
                         : "")
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityHint(session.isCostEstimated && session.estimatedCost > 0 ? "Estimated based on Sonnet 4 pricing" : "")
             }.font(.caption)
         }
     }
@@ -288,6 +318,7 @@ struct AgentContextList: View {
             }
         }
         .padding(.top, 4)
+        .accessibilityLabel("Active agents: \(agents.count)")
     }
 }
 
@@ -296,7 +327,7 @@ struct AgentContextRow: View {
 
     private var barColor: Color {
         let utilization = agent.contextWindow.utilization
-        if agent.contextWindow.isNearAutoCompact { return .orange }
+        if agent.contextWindow.isNearAutoCompact { return .red }
         if utilization < 50 { return .green }
         if utilization < 75 { return .yellow }
         return .orange
@@ -317,6 +348,7 @@ struct AgentContextRow: View {
                 Image(systemName: "arrow.turn.down.right")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
 
                 if let model = agent.contextWindow.activeModel {
                     let color = badgeColor(for: model)
@@ -328,18 +360,22 @@ struct AgentContextRow: View {
                         .background(color.opacity(0.2))
                         .foregroundStyle(color)
                         .clipShape(Capsule())
+                        .accessibilityHidden(true)
                 }
             }
             .frame(width: 80, alignment: .leading)
 
             ProgressView(value: agent.contextWindow.utilization, total: 100)
                 .tint(barColor)
+                .accessibilityLabel("Agent \(agent.contextWindow.activeModel?.displayName ?? "")")
+                .accessibilityValue("\(Int(agent.contextWindow.utilization)) %, \(agent.contextWindow.currentTokens / 1000)k tokens")
 
             Text("\(agent.contextWindow.currentTokens / 1000)k")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
                 .monospacedDigit()
                 .frame(width: 36, alignment: .trailing)
+                .accessibilityHidden(true)
         }
     }
 }
@@ -363,6 +399,7 @@ struct SessionSwitcher: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
+                .accessibilityLabel("Select active session")
             } else {
                 Picker("", selection: $selectedURL) {
                     ForEach(sessions) { session in
@@ -371,6 +408,7 @@ struct SessionSwitcher: View {
                 }
                 .pickerStyle(.menu)
                 .labelsHidden()
+                .accessibilityLabel("Select active session")
             }
         }
     }
@@ -387,6 +425,7 @@ struct UpdateBanner: View {
                 Image(systemName: "arrow.down.circle.fill")
                     .font(.title3)
                     .foregroundStyle(.blue)
+                    .accessibilityHidden(true)
 
                 Text("update.availableShort \(update.version)")
                     .font(.caption)
@@ -398,5 +437,42 @@ struct UpdateBanner: View {
             .clipShape(RoundedRectangle(cornerRadius: 6))
         }
         .buttonStyle(.plain)
+        .accessibilityHint("Opens download page")
+    }
+}
+
+struct PeriodSwitcher: View {
+    @Binding var selectedPeriod: StatisticsPeriod
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(String(localized: "Statistics"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+
+        HStack(spacing: 2) {
+            ForEach(StatisticsPeriod.allCases, id: \.self) { period in
+                let isSelected = period == selectedPeriod
+                Button {
+                    selectedPeriod = period
+                } label: {
+                    Text(isSelected ? period.displayName : period.shortLabel)
+                        .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 4)
+                        .background(isSelected ? Color.accentColor.opacity(0.2) : Color.clear)
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(period.displayName)
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
+            }
+        }
+        .padding(2)
+        .background(Color.primary.opacity(0.06))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .frame(maxWidth: .infinity)
+        }
     }
 }
