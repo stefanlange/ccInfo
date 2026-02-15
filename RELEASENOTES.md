@@ -1,5 +1,22 @@
 # Release Notes
 
+## 1.5.0 – 2026-02-15
+
+- Add configurable MenuBar display slots to choose which two metrics appear in the menu bar (5-hour, weekly, sonnet weekly, or context window)
+- Add statistics period switcher with session, today, week, and month aggregation including loading spinner on period change
+- Move context window section to the top of the dropdown for immediate visibility
+- Unify bar color thresholds across all views to a consistent green/yellow/orange/red scale at 50/75/90%
+- Show autocompact warning at 95% context utilization with percentage display matching usage sections
+- Add VoiceOver accessibility labels and traits across all MenuBar components
+- Separate MenuBar slot settings into dedicated section in Settings dialog
+- Open Settings dialog on the active display and bring it above all windows
+- Refactor JSONLParser with TokenAccumulator to reduce code duplication
+- Fix PricingService cache round-trip to persist extended context keys
+- Add @MainActor isolation and weak self in async closures for thread safety
+- Complete German localization for all UI strings
+- Replace print() with OSLog Logger in authentication flow
+- Percent-encode organization ID in API URL construction
+
 ## 1.4.0 – 2026-02-14
 
 - Align token and cost calculations with ccusage for consistent values across all time periods
