@@ -14,12 +14,13 @@ A native macOS MenuBar app for real-time monitoring of your Claude usage.
 
 - **5-Hour Window Tracking** – Current session utilization with reset countdown
 - **Weekly Limit Monitoring** – 7-day quota with separate Sonnet and Opus breakdowns (real data from claude.ai)
-- **Context Window Status** – Monitor your main context and active subagent context windows with model badge and utilization bar
+- **Context Window Status** – Monitor your main context and active subagent context windows with model badge, utilization bar, and autocompact warning
+- **Configurable MenuBar Slots** – Choose which two metrics to display in the MenuBar (5-hour, weekly, sonnet weekly, or context window)
 
 ### Session Intelligence
 
 - **Multi-Session Switcher** – Toggle between active Claude Code sessions (with configurable activity threshold)
-- **Token Statistics** – Input/output token counts aggregated by today, week, or month
+- **Token Statistics** – Input/output token counts aggregated by session, today, week, or month
 - **Dynamic Cost Estimation** – Live model pricing via LiteLLM with per-model cost calculation
 - **Burn Rate Calculation** – Understand your token consumption velocity
 
@@ -29,6 +30,7 @@ A native macOS MenuBar app for real-time monitoring of your Claude usage.
 - **Configurable Refresh Interval** – Manual or automatic polling from 30 seconds to 10 minutes
 - **Launch at Login** – Start ccInfo automatically with macOS
 - **Secure Authentication** – Session tokens stored in macOS Keychain
+- **VoiceOver Accessible** – Full VoiceOver support across all MenuBar components
 
 ## Installation
 

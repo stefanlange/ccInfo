@@ -7,7 +7,7 @@
 | Data | Storage | Purpose |
 |------|---------|---------|
 | Session key, organization ID | macOS Keychain | API authentication |
-| Statistics period, refresh interval | UserDefaults | User preferences |
+| User preferences (refresh interval, statistics period, MenuBar slots, session activity threshold) | UserDefaults | App configuration |
 | Model pricing cache | Application Support | Offline pricing fallback (refreshed every 12h) |
 
 Keychain entries use `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` — they are only accessible when your Mac is unlocked and are excluded from iCloud backup.
