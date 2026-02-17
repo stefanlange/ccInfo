@@ -1,5 +1,15 @@
 # Release Notes
 
+## 1.6.0 – 2026-02-17
+
+- Replace 5-hour progress bar with interactive area chart showing usage timeline across the full window
+- Color-code chart fill and line by usage zone with smooth interpolation (green → yellow → orange → red)
+- Show glowing indicator at the current position within the 5-hour window relative to reset time
+- Display Y-axis labels (0%, 50%, 100%) and X-axis labels (0h–5h) with dashed threshold lines
+- Persist usage history to Application Support for continuity across app restarts
+- Detect 5-hour window resets and clear history automatically
+- Desaturate chart colors slightly in Dark Mode for comfortable viewing
+
 ## 1.5.0 – 2026-02-15
 
 - Add configurable MenuBar display slots to choose which two metrics appear in the menu bar (5-hour, weekly, sonnet weekly, or context window)
@@ -12,7 +22,7 @@
 - Open Settings dialog on the active display and bring it above all windows
 - Refactor JSONLParser with TokenAccumulator to reduce code duplication
 - Fix PricingService cache round-trip to persist extended context keys
-- Add @MainActor isolation and weak self in async closures for thread safety
+- Add `@MainActor` isolation and weak self in async closures for thread safety
 - Complete German localization for all UI strings
 - Replace print() with OSLog Logger in authentication flow
 - Percent-encode organization ID in API URL construction
