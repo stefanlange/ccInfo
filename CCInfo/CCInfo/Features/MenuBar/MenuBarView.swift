@@ -26,7 +26,24 @@ struct MenuBarView: View {
                     Divider()
                 }
                 if let usage = appState.usageData {
-                    UsageSection(title: String(localized: "5-Hour Window"), utilization: usage.fiveHour.utilization, resetTime: usage.fiveHour.formattedTimeUntilReset)
+                    // 5-Hour Window with chart
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(String(localized: "5-Hour Window"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .textCase(.uppercase)
+                        UsageChartView(dataPoints: appState.usageHistory, resetsAt: usage.fiveHour.resetsAt)
+                        HStack {
+                            Text("\(Int(usage.fiveHour.utilization))%")
+                                .font(.system(.title2, design: .rounded, weight: .semibold))
+                            Spacer()
+                            if let t = usage.fiveHour.formattedTimeUntilReset {
+                                Label(t, systemImage: "clock")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
                     Divider()
                     UsageSection(title: String(localized: "Weekly Limit"), utilization: usage.sevenDay.utilization, resetTime: usage.sevenDay.formattedTimeUntilReset, resetDate: usage.sevenDay.formattedResetDate)
                     Divider()

@@ -30,6 +30,9 @@
 	F0000013 /* CurrencyFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000015 /* CurrencyFormatter.swift */; };
 	F0000014 /* MenuBarConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000016 /* MenuBarConfiguration.swift */; };
 	F0000015 /* SettingsWindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000017 /* SettingsWindowManager.swift */; };
+	F0000016 /* UsageDataPoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000018 /* UsageDataPoint.swift */; };
+	F0000017 /* UsageHistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000019 /* UsageHistoryService.swift */; };
+	F0000018 /* UsageChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001A /* UsageChartView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -58,6 +61,9 @@
 		F1000015 /* CurrencyFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencyFormatter.swift; sourceTree = "<group>"; };
 		F1000016 /* MenuBarConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarConfiguration.swift; sourceTree = "<group>"; };
 		F1000017 /* SettingsWindowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowManager.swift; sourceTree = "<group>"; };
+		F1000018 /* UsageDataPoint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageDataPoint.swift; sourceTree = "<group>"; };
+		F1000019 /* UsageHistoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageHistoryService.swift; sourceTree = "<group>"; };
+		F100001A /* UsageChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageChartView.swift; sourceTree = "<group>"; };
 		F1000020 /* CCInfo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CCInfo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -110,6 +116,7 @@
 				F1000012 /* PricingModels.swift */,
 				D51C78C5173F4E4198388DE0 /* ModelIdentifier.swift */,
 				F1000016 /* MenuBarConfiguration.swift */,
+				F1000018 /* UsageDataPoint.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -124,6 +131,7 @@
 				F1000010 /* NotificationService.swift */,
 				F1000011 /* UpdateChecker.swift */,
 				F1000013 /* PricingService.swift */,
+				F1000019 /* UsageHistoryService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -142,6 +150,7 @@
 			isa = PBXGroup;
 			children = (
 				F1000009 /* MenuBarView.swift */,
+				F100001A /* UsageChartView.swift */,
 			);
 			path = MenuBar;
 			sourceTree = "<group>";
@@ -282,6 +291,9 @@
 				F0000013 /* CurrencyFormatter.swift in Sources */,
 				F0000014 /* MenuBarConfiguration.swift in Sources */,
 				F0000015 /* SettingsWindowManager.swift in Sources */,
+				F0000016 /* UsageDataPoint.swift in Sources */,
+				F0000017 /* UsageHistoryService.swift in Sources */,
+				F0000018 /* UsageChartView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

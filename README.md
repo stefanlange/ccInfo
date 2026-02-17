@@ -12,7 +12,7 @@ A native macOS MenuBar app for real-time monitoring of your Claude usage.
 
 ### Usage Monitoring
 
-- **5-Hour Window Tracking** – Current session utilization with reset countdown
+- **5-Hour Window Tracking** – Current session utilization with color-coded area chart and reset countdown
 - **Weekly Limit Monitoring** – 7-day quota with separate Sonnet and Opus breakdowns (real data from claude.ai)
 - **Context Window Status** – Monitor your main context and active subagent context windows with model badge, utilization bar, and autocompact warning
 - **Configurable MenuBar Slots** – Choose which two metrics to display in the MenuBar (5-hour, weekly, sonnet weekly, or context window)

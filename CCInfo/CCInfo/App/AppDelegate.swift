@@ -32,8 +32,10 @@ final class AppState: ObservableObject {
     @Published private(set) var pricingLastUpdate: Date?
     @Published private(set) var activeSessions: [ActiveSession] = []
     @Published var selectedSessionURL: URL?
+    @Published private(set) var usageHistory: [UsageDataPoint] = []
 
     let keychainService = KeychainService()
+    let usageHistoryService = UsageHistoryService()
     private let apiClient: ClaudeAPIClient
     private let jsonlParser = JSONLParser()
     private let logger = Logger(subsystem: "com.ccinfo.app", category: "AppState")
@@ -100,6 +102,10 @@ final class AppState: ObservableObject {
             return
         }
 
+        // Load persisted usage history
+        usageHistoryService.loadFromDisk()
+        usageHistory = usageHistoryService.history
+
         // Start pricing data monitoring (fetch + 12h refresh cycle)
         Task {
             await PricingService.shared.startMonitoring()
@@ -125,6 +131,9 @@ final class AppState: ObservableObject {
     }
 
     func stopMonitoring() {
+        // Save usage history before stopping
+        usageHistoryService.saveToDisk()
+
         refreshTask?.cancel()
         refreshTask = nil
         updateCheckTask?.cancel()
@@ -199,9 +208,26 @@ final class AppState: ObservableObject {
         isLoading = true
         error = nil
         do {
+            let previousUsage = usageData
             let usage = try await apiClient.fetchUsage()
             usageData = usage
             NotificationService.shared.checkThresholds(usage: usage)
+
+            // Record usage data point
+            let percent = Int(usage.fiveHour.utilization)
+            usageHistoryService.record(usagePercent: percent)
+            usageHistory = usageHistoryService.history
+
+            // Detect window reset: utilization dropped to near-zero from a meaningful level
+            if let previous = previousUsage {
+                let previousUtil = previous.fiveHour.utilization
+                let newUtil = usage.fiveHour.utilization
+                if newUtil < 5 && previousUtil > 20 {
+                    logger.info("Window reset detected (prev: \(previousUtil), new: \(newUtil))")
+                    usageHistoryService.handleWindowReset()
+                    usageHistory = usageHistoryService.history
+                }
+            }
         } catch let apiError as ClaudeAPIClient.APIError {
             error = apiError
             logger.error("API error: \(apiError.localizedDescription)")
@@ -271,6 +297,8 @@ final class AppState: ObservableObject {
         usageData = nil
         sessionData = nil
         contextWindowState = nil
+        usageHistoryService.handleWindowReset()
+        usageHistory = usageHistoryService.history
         showingAuth = true
     }
 }
