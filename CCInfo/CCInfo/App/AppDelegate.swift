@@ -243,9 +243,13 @@ final class AppState: ObservableObject {
         do {
             let availableKeys = await PricingService.shared.availableModelKeys
 
-            // Discover active sessions
+            // Discover active sessions, falling back to the most recent session
             let sessions = await jsonlParser.findActiveSessions(threshold: sessionActivityThreshold)
-            activeSessions = sessions
+            if sessions.isEmpty, let mostRecent = await jsonlParser.findMostRecentSession() {
+                activeSessions = [mostRecent]
+            } else {
+                activeSessions = sessions
+            }
 
             // Validate current selection — fall back to newest if invalid
             if selectedSessionURL == nil || !sessions.contains(where: { $0.sessionURL == selectedSessionURL }) {

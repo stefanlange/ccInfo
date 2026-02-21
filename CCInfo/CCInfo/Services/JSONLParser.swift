@@ -413,4 +413,35 @@ actor JSONLParser {
         }
         .sorted { $0.lastModified > $1.lastModified }
     }
+
+    /// Returns the single most recently modified session across all projects, ignoring any activity threshold.
+    func findMostRecentSession() -> ActiveSession? {
+        guard let enumerator = FileManager.default.enumerator(
+            at: claudeProjectsPath,
+            includingPropertiesForKeys: [.contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        ) else { return nil }
+
+        var newest: (url: URL, date: Date)?
+
+        while let url = enumerator.nextObject() as? URL {
+            guard url.pathExtension == "jsonl",
+                  !url.pathComponents.contains("subagents"),
+                  let values = try? url.resourceValues(forKeys: [.contentModificationDateKey]),
+                  let modDate = values.contentModificationDate else { continue }
+
+            if newest == nil || modDate > newest!.date {
+                newest = (url, modDate)
+            }
+        }
+
+        guard let result = newest else { return nil }
+        let projectDir = result.url.deletingLastPathComponent().lastPathComponent
+        return ActiveSession(
+            sessionURL: result.url,
+            projectDirectory: projectDir,
+            projectName: ActiveSession.extractProjectName(from: projectDir),
+            lastModified: result.date
+        )
+    }
 }
