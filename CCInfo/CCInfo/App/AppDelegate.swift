@@ -52,7 +52,7 @@ final class AppState: ObservableObject {
     private var refreshTask: Task<Void, Never>?
     private var updateCheckTask: Task<Void, Never>?
     private var fileWatcherDebounceTask: Task<Void, Never>?
-    private var statisticsPeriodTask: Task<Void, Never>?
+    private var localDataTask: Task<Void, Never>?
 
     private var refreshInterval: TimeInterval {
         let interval = UserDefaults.standard.double(forKey: "refreshInterval")
@@ -66,6 +66,11 @@ final class AppState: ObservableObject {
     private var sessionActivityThreshold: TimeInterval {
         let stored = UserDefaults.standard.double(forKey: "sessionActivityThreshold")
         return stored > 0 ? stored : 600 // Default: 10 minutes
+    }
+
+    private func scheduleLocalDataRefresh() {
+        localDataTask?.cancel()
+        localDataTask = Task { await refreshLocalData() }
     }
 
     var menuBarSlot1: MenuBarSlot {
@@ -124,7 +129,7 @@ final class AppState: ObservableObject {
                 self?.fileWatcherDebounceTask = Task { [weak self] in
                     try? await Task.sleep(for: .milliseconds(500))
                     guard !Task.isCancelled else { return }
-                    await self?.refreshLocalData()
+                    self?.scheduleLocalDataRefresh()
                 }
             }
         }
@@ -141,8 +146,8 @@ final class AppState: ObservableObject {
         updateCheckTask = nil
         fileWatcherDebounceTask?.cancel()
         fileWatcherDebounceTask = nil
-        statisticsPeriodTask?.cancel()
-        statisticsPeriodTask = nil
+        localDataTask?.cancel()
+        localDataTask = nil
         fileWatcher?.stop()
         fileWatcher = nil
         Task {
@@ -197,6 +202,7 @@ final class AppState: ObservableObject {
     }
 
     func refreshAll() async {
+        localDataTask?.cancel()
         await refreshUsage()
         await refreshLocalData()
         await refreshPricingStatus()
@@ -243,53 +249,68 @@ final class AppState: ObservableObject {
     }
 
     func refreshLocalData() async {
+        let snapshotPeriod = statisticsPeriod
+        let snapshotURL = selectedSessionURL
+
         do {
             let availableKeys = await PricingService.shared.availableModelKeys
 
             // Discover active sessions, falling back to the most recent session
             let sessions = await jsonlParser.findActiveSessions(threshold: sessionActivityThreshold)
+            var resolvedSessions: [ActiveSession]
             if sessions.isEmpty, let mostRecent = await jsonlParser.findMostRecentSession() {
-                activeSessions = [mostRecent]
+                resolvedSessions = [mostRecent]
             } else {
-                activeSessions = sessions
+                resolvedSessions = sessions
             }
 
             // Validate current selection — fall back to newest if invalid
-            if selectedSessionURL == nil || !sessions.contains(where: { $0.sessionURL == selectedSessionURL }) {
-                selectedSessionURL = sessions.first?.sessionURL
+            var resolvedURL = snapshotURL
+            if resolvedURL == nil || !sessions.contains(where: { $0.sessionURL == resolvedURL }) {
+                resolvedURL = sessions.first?.sessionURL
             }
 
             // Load context window and session data for selected session
-            if let url = selectedSessionURL {
-                contextWindowState = try await jsonlParser.getContextWindowState(for: url, availableModelKeys: availableKeys)
-                sessionData = try await jsonlParser.parseForPeriod(statisticsPeriod, sessionURL: url, availableModelKeys: availableKeys)
+            var newContextState: ContextWindowState?
+            var newSessionData: SessionData?
+            if let url = resolvedURL {
+                newContextState = try await jsonlParser.getContextWindowState(for: url, availableModelKeys: availableKeys)
+                newSessionData = try await jsonlParser.parseForPeriod(snapshotPeriod, sessionURL: url, availableModelKeys: availableKeys)
             } else {
-                contextWindowState = nil
-                sessionData = try await jsonlParser.parseForPeriod(statisticsPeriod, availableModelKeys: availableKeys)
+                newContextState = nil
+                newSessionData = try await jsonlParser.parseForPeriod(snapshotPeriod, availableModelKeys: availableKeys)
             }
+
+            // Only apply results if snapshot is still current
+            guard !Task.isCancelled,
+                  snapshotPeriod == statisticsPeriod,
+                  snapshotURL == selectedSessionURL else { return }
+
+            activeSessions = resolvedSessions
+            selectedSessionURL = resolvedURL
+            contextWindowState = newContextState
+            sessionData = newSessionData
         } catch {
             logger.warning("Local data error: \(error.localizedDescription)")
         }
     }
 
     func selectSession(_ url: URL?) {
-        Task {
-            guard url != selectedSessionURL else { return }
-            selectedSessionURL = url
-            await refreshLocalData()
-        }
+        guard url != selectedSessionURL else { return }
+        selectedSessionURL = url
+        sessionData = nil
+        scheduleLocalDataRefresh()
     }
 
     func updateSessionActivityThreshold() {
-        Task { await refreshLocalData() }
+        scheduleLocalDataRefresh()
     }
 
     func updateStatisticsPeriod(_ period: StatisticsPeriod) {
         statisticsPeriod = period
         UserDefaults.standard.set(period.rawValue, forKey: "statisticsPeriod")
         sessionData = nil
-        statisticsPeriodTask?.cancel()
-        statisticsPeriodTask = Task { await refreshLocalData() }
+        scheduleLocalDataRefresh()
     }
 
     func signIn(credentials: ClaudeCredentials) {
