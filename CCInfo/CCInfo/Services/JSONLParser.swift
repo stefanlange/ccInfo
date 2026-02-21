@@ -150,6 +150,25 @@ actor JSONLParser {
         return (0, nil)
     }
 
+    /// Extracts the full `cwd` path from the first few lines of a JSONL file.
+    /// Only reads the first 16 KB chunk — `cwd` appears in the initial session entries.
+    private func extractProjectPath(from url: URL) -> String? {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? handle.close() }
+
+        let chunk = handle.readData(ofLength: 16384)
+        guard let text = String(data: chunk, encoding: .utf8) else { return nil }
+
+        for line in text.components(separatedBy: .newlines) where line.contains("\"cwd\"") {
+            guard let data = line.data(using: .utf8),
+                  let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let cwd = obj["cwd"] as? String,
+                  !cwd.isEmpty else { continue }
+            return cwd
+        }
+        return nil
+    }
+
     // MARK: - Public Methods
 
     func findLatestSession() -> URL? {
@@ -388,14 +407,16 @@ actor JSONLParser {
         }
 
         return newestByProject.map { (projectDir, entry) in
-            ActiveSession(
+            let path = extractProjectPath(from: entry.url)
+            return ActiveSession(
                 sessionURL: entry.url,
                 projectDirectory: projectDir,
-                projectName: ActiveSession.extractProjectName(from: projectDir),
+                projectName: path.map { URL(fileURLWithPath: $0).lastPathComponent } ?? projectDir,
+                projectPath: path,
                 lastModified: entry.date
             )
         }
-        .sorted { $0.lastModified > $1.lastModified }
+        .sorted { $0.projectName.localizedStandardCompare($1.projectName) == .orderedAscending }
     }
 
     /// Returns the single most recently modified session across all projects, ignoring any activity threshold.
@@ -421,10 +442,12 @@ actor JSONLParser {
 
         guard let result = newest else { return nil }
         let projectDir = result.url.deletingLastPathComponent().lastPathComponent
+        let path = extractProjectPath(from: result.url)
         return ActiveSession(
             sessionURL: result.url,
             projectDirectory: projectDir,
-            projectName: ActiveSession.extractProjectName(from: projectDir),
+            projectName: path.map { URL(fileURLWithPath: $0).lastPathComponent } ?? projectDir,
+            projectPath: path,
             lastModified: result.date
         )
     }

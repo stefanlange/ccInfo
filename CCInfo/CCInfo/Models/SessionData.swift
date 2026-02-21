@@ -211,51 +211,16 @@ struct ActiveSession: Sendable, Identifiable, Hashable {
     let sessionURL: URL
     let projectDirectory: String
     let projectName: String
+    let projectPath: String?
     let lastModified: Date
 
     var id: URL { sessionURL }
 
-    /// Resolves an encoded directory name (e.g. "-Users-stefan-dev-ccInfo") back to the
-    /// real filesystem path's last component using greedy left-to-right resolution.
-    static func extractProjectName(from encodedDirectory: String) -> String {
-        // Strip leading dash to get segments
-        let stripped = encodedDirectory.hasPrefix("-") ? String(encodedDirectory.dropFirst()) : encodedDirectory
-        let segments = stripped.components(separatedBy: "-").filter { !$0.isEmpty }
-        guard !segments.isEmpty else { return encodedDirectory }
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(sessionURL)
+    }
 
-        let fm = FileManager.default
-        var currentPath = "/"
-
-        for i in 0..<segments.count {
-            let candidate: String
-            if i == 0 {
-                candidate = "/" + segments[i]
-            } else {
-                candidate = currentPath + "/" + segments[i]
-            }
-
-            if fm.fileExists(atPath: candidate) {
-                currentPath = candidate
-            } else {
-                // Try accumulating with dash (directory name contains dashes)
-                let accumulated = currentPath + "-" + segments[i]
-                if fm.fileExists(atPath: accumulated) {
-                    currentPath = accumulated
-                } else {
-                    // No valid path found from here — break
-                    break
-                }
-            }
-        }
-
-        // Return the last path component of the resolved path
-        let resolvedURL = URL(fileURLWithPath: currentPath)
-        let name = resolvedURL.lastPathComponent
-        if !name.isEmpty && name != "/" {
-            return name
-        }
-
-        // Fallback: last segment after dash split
-        return segments.last ?? encodedDirectory
+    static func == (lhs: ActiveSession, rhs: ActiveSession) -> Bool {
+        lhs.sessionURL == rhs.sessionURL
     }
 }

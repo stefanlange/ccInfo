@@ -376,6 +376,18 @@ struct SessionSwitcher: View {
     let sessions: [ActiveSession]
     @Binding var selectedURL: URL?
 
+    private var sessionPicker: some View {
+        Picker("", selection: $selectedURL) {
+            ForEach(sessions) { session in
+                Text(session.projectName)
+                    .help(session.projectPath ?? session.projectDirectory)
+                    .tag(Optional(session.sessionURL))
+            }
+        }
+        .labelsHidden()
+        .accessibilityLabel("Select active session")
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(String(localized: "Active Sessions"))
@@ -384,23 +396,9 @@ struct SessionSwitcher: View {
                 .textCase(.uppercase)
 
             if sessions.count <= 4 {
-                Picker("", selection: $selectedURL) {
-                    ForEach(sessions) { session in
-                        Text(session.projectName).tag(Optional(session.sessionURL))
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .accessibilityLabel("Select active session")
+                sessionPicker.pickerStyle(.segmented)
             } else {
-                Picker("", selection: $selectedURL) {
-                    ForEach(sessions) { session in
-                        Text(session.projectName).tag(Optional(session.sessionURL))
-                    }
-                }
-                .pickerStyle(.menu)
-                .labelsHidden()
-                .accessibilityLabel("Select active session")
+                sessionPicker.pickerStyle(.menu)
             }
         }
     }
