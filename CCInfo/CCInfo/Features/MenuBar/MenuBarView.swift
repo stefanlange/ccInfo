@@ -379,9 +379,9 @@ struct AgentContextRow: View {
             ProgressView(value: agent.contextWindow.utilization, total: 100)
                 .tint(barColor)
                 .accessibilityLabel("Agent \(agent.contextWindow.activeModel?.displayName ?? "")")
-                .accessibilityValue("\(Int(agent.contextWindow.utilization)) %, \(agent.contextWindow.currentTokens / 1000)k tokens")
+                .accessibilityValue("\(Int(agent.contextWindow.utilization)) %")
 
-            Text("\(agent.contextWindow.currentTokens / 1000)k")
+            Text("\(Int(agent.contextWindow.utilization))%")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
                 .monospacedDigit()
