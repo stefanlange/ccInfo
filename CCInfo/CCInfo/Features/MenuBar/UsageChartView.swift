@@ -62,7 +62,7 @@ struct UsageChartView: View {
                         .font(.system(size: 8))
                         .foregroundStyle(.secondary)
                 }
-                .frame(width: leftMargin - 2, height: chartHeight, alignment: .trailing)
+                .frame(width: leftMargin - 6, height: chartHeight, alignment: .trailing)
             }
             .frame(height: chartHeight)
 
@@ -80,10 +80,11 @@ struct UsageChartView: View {
                 }
             }
             .frame(height: bottomMargin)
+            .offset(y: 2)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
-        .background(Color.primary.opacity(0.04))
+        .background(Color.primary.opacity(0.10))
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .accessibilityLabel("5-Hour Window usage chart")
         .accessibilityValue(accessibilityValue)
@@ -245,6 +246,8 @@ struct UsageChartView: View {
     private func drawGlowIndicator(context: GraphicsContext, points: [UsageDataPoint], width: CGFloat, height: CGFloat, colors: [Color]) {
         guard points.count >= 2 else { return }
         guard let last = points.last, !last.isGap else { return }
+        // No glow when there's no real usage in the window
+        guard points.contains(where: { !$0.isGap && $0.usage > 0 }) else { return }
 
         let x = xPosition(for: last.timestamp, width: width)
         let y = yPosition(for: Double(last.usage), height: height)
@@ -252,11 +255,11 @@ struct UsageChartView: View {
         let color = colorAt(Double(last.usage), from: colors)
 
         var glowPath = Path()
-        glowPath.addEllipse(in: CGRect(x: x - 5, y: y - 5, width: 10, height: 10))
+        glowPath.addEllipse(in: CGRect(x: x - 4, y: y - 4, width: 8, height: 8))
         context.fill(glowPath, with: .color(color.opacity(0.4)))
 
         var dotPath = Path()
-        dotPath.addEllipse(in: CGRect(x: x - 3, y: y - 3, width: 6, height: 6))
+        dotPath.addEllipse(in: CGRect(x: x - 2, y: y - 2, width: 4, height: 4))
         context.fill(dotPath, with: .color(color))
     }
 
