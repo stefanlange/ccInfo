@@ -52,6 +52,7 @@ final class AppState: ObservableObject {
     private var refreshTask: Task<Void, Never>?
     private var updateCheckTask: Task<Void, Never>?
     private var fileWatcherDebounceTask: Task<Void, Never>?
+    private var statisticsPeriodTask: Task<Void, Never>?
 
     private var refreshInterval: TimeInterval {
         let interval = UserDefaults.standard.double(forKey: "refreshInterval")
@@ -140,6 +141,8 @@ final class AppState: ObservableObject {
         updateCheckTask = nil
         fileWatcherDebounceTask?.cancel()
         fileWatcherDebounceTask = nil
+        statisticsPeriodTask?.cancel()
+        statisticsPeriodTask = nil
         fileWatcher?.stop()
         fileWatcher = nil
         Task {
@@ -285,7 +288,8 @@ final class AppState: ObservableObject {
         statisticsPeriod = period
         UserDefaults.standard.set(period.rawValue, forKey: "statisticsPeriod")
         sessionData = nil
-        Task { await refreshLocalData() }
+        statisticsPeriodTask?.cancel()
+        statisticsPeriodTask = Task { await refreshLocalData() }
     }
 
     func signIn(credentials: ClaudeCredentials) {
