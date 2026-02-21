@@ -153,23 +153,7 @@ actor JSONLParser {
     // MARK: - Public Methods
 
     func findLatestSession() -> URL? {
-        guard let enumerator = FileManager.default.enumerator(at: claudeProjectsPath, includingPropertiesForKeys: [.contentModificationDateKey], options: [.skipsHiddenFiles]) else { return nil }
-        var latest: (URL, Date)?
-        while let url = enumerator.nextObject() as? URL {
-            guard url.pathExtension == "jsonl",
-                  !url.pathComponents.contains("subagents"),
-                  let values = try? url.resourceValues(forKeys: [.contentModificationDateKey]),
-                  let modDate = values.contentModificationDate else { continue }
-
-            if let current = latest {
-                if modDate > current.1 {
-                    latest = (url, modDate)
-                }
-            } else {
-                latest = (url, modDate)
-            }
-        }
-        return latest?.0
+        findMostRecentSession()?.sessionURL
     }
     
     func parseSession(at url: URL, availableModelKeys: Set<String> = []) async throws -> SessionData {

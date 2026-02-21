@@ -15,9 +15,9 @@ struct UsageChartView: View {
     private let bottomMargin: CGFloat = 12
 
     // Color zone thresholds
-    private let greenYellowThreshold: Double = 50
-    private let yellowOrangeThreshold: Double = 75
-    private let orangeRedThreshold: Double = 90
+    private var greenYellowThreshold: Double { UtilizationThresholds.greenYellowThreshold }
+    private var yellowOrangeThreshold: Double { UtilizationThresholds.yellowOrangeThreshold }
+    private var orangeRedThreshold: Double { UtilizationThresholds.orangeRedThreshold }
 
     /// Pre-computed color lookup table (0-100), rebuilt when colorScheme changes.
     private var colorLookup: [Color] {

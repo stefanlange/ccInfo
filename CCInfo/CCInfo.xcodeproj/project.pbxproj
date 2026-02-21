@@ -33,6 +33,7 @@
 	F0000016 /* UsageDataPoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000018 /* UsageDataPoint.swift */; };
 	F0000017 /* UsageHistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000019 /* UsageHistoryService.swift */; };
 	F0000018 /* UsageChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001A /* UsageChartView.swift */; };
+	F0000019 /* UtilizationThresholds.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001B /* UtilizationThresholds.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -64,6 +65,7 @@
 		F1000018 /* UsageDataPoint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageDataPoint.swift; sourceTree = "<group>"; };
 		F1000019 /* UsageHistoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageHistoryService.swift; sourceTree = "<group>"; };
 		F100001A /* UsageChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageChartView.swift; sourceTree = "<group>"; };
+		F100001B /* UtilizationThresholds.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtilizationThresholds.swift; sourceTree = "<group>"; };
 		F1000020 /* CCInfo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CCInfo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -196,6 +198,7 @@
 			children = (
 				F1000015 /* CurrencyFormatter.swift */,
 				F1000017 /* SettingsWindowManager.swift */,
+				F100001B /* UtilizationThresholds.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -294,6 +297,7 @@
 				F0000016 /* UsageDataPoint.swift in Sources */,
 				F0000017 /* UsageHistoryService.swift in Sources */,
 				F0000018 /* UsageChartView.swift in Sources */,
+				F0000019 /* UtilizationThresholds.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

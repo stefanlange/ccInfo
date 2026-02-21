@@ -139,7 +139,7 @@ struct UsageSection: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title).font(.caption).foregroundStyle(.secondary).textCase(.uppercase)
             ProgressView(value: utilization, total: 100)
-                .tint(utilization < 50 ? .green : utilization < 80 ? .yellow : .red)
+                .progressViewStyle(ColoredBarProgressStyle(color: UtilizationThresholds.color(for: utilization)))
                 .accessibilityLabel("\(title)")
                 .accessibilityValue("\(Int(utilization)) %")
             HStack {
@@ -164,19 +164,6 @@ struct UsageSection: View {
 struct ContextSection: View {
     let context: ContextWindow
 
-    private var barColor: Color {
-        let utilization = context.utilization
-        if utilization >= 90 {
-            return .red
-        } else if utilization < 50 {
-            return .green
-        } else if utilization < 75 {
-            return .yellow
-        } else {
-            return .orange
-        }
-    }
-
     private func modelBadgeColor(for model: ModelIdentifier) -> Color {
         switch model.family {
         case .opus: return .purple
@@ -187,6 +174,7 @@ struct ContextSection: View {
     }
 
     var body: some View {
+        let progressColor = UtilizationThresholds.color(for: context.utilization)
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(String(localized: "Context Window")).font(.caption).foregroundStyle(.secondary).textCase(.uppercase)
@@ -194,12 +182,12 @@ struct ContextSection: View {
                 if context.isNearAutoCompact {
                     Label("Near autocompact", systemImage: "exclamationmark.triangle.fill")
                         .font(.caption2)
-                        .foregroundStyle(barColor)
+                        .foregroundStyle(progressColor)
                         .accessibilityLabel("Warning: Near autocompact threshold")
                 }
             }
             ProgressView(value: context.utilization, total: 100)
-                .tint(barColor)
+                .progressViewStyle(ColoredBarProgressStyle(color: progressColor))
                 .accessibilityLabel("Context window")
                 .accessibilityValue("\(Int(context.utilization)) %")
             HStack {
@@ -336,14 +324,6 @@ struct AgentContextList: View {
 struct AgentContextRow: View {
     let agent: AgentContext
 
-    private var barColor: Color {
-        let utilization = agent.contextWindow.utilization
-        if utilization >= 90 { return .red }
-        if utilization < 50 { return .green }
-        if utilization < 75 { return .yellow }
-        return .orange
-    }
-
     private func badgeColor(for model: ModelIdentifier) -> Color {
         switch model.family {
         case .opus: return .purple
@@ -377,7 +357,8 @@ struct AgentContextRow: View {
             .frame(width: 80, alignment: .leading)
 
             ProgressView(value: agent.contextWindow.utilization, total: 100)
-                .tint(barColor)
+                .progressViewStyle(ColoredBarProgressStyle(
+                    color: UtilizationThresholds.color(for: agent.contextWindow.utilization)))
                 .accessibilityLabel("Agent \(agent.contextWindow.activeModel?.displayName ?? "")")
                 .accessibilityValue("\(Int(agent.contextWindow.utilization)) %")
 

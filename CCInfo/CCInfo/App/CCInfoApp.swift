@@ -107,12 +107,7 @@ enum MenuBarImageRenderer {
     }
 
     private static func colorFor(_ value: Double, slot: MenuBarSlot) -> NSColor {
-        switch value {
-        case ..<50: return .systemGreen
-        case ..<75: return .systemYellow
-        case ..<90: return .systemOrange
-        default: return .systemRed
-        }
+        UtilizationThresholds.nsColor(for: value)
     }
 }
 
