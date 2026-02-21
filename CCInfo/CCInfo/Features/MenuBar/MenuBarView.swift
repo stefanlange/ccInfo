@@ -213,8 +213,8 @@ struct ContextSection: View {
                         .fontWeight(.medium)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 1)
-                        .background(modelBadgeColor(for: model).opacity(0.2))
-                        .foregroundStyle(modelBadgeColor(for: model))
+                        .background(modelBadgeColor(for: model))
+                        .foregroundStyle(.white)
                         .clipShape(Capsule())
                         .accessibilityLabel("Model: \(model.displayName)")
                 }
@@ -368,8 +368,8 @@ struct AgentContextRow: View {
                         .fontWeight(.medium)
                         .padding(.horizontal, 4)
                         .padding(.vertical, 1)
-                        .background(color.opacity(0.2))
-                        .foregroundStyle(color)
+                        .background(color)
+                        .foregroundStyle(.white)
                         .clipShape(Capsule())
                         .accessibilityHidden(true)
                 }
