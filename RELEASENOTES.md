@@ -1,5 +1,16 @@
 # Release Notes
 
+## 1.6.1 – 2026-02-21
+
+- Fix stale data appearing when switching periods or sessions quickly
+- Show project path from JSONL working directory instead of guessing from folder names, with tooltip in session picker
+- Keep showing the last active session after the activity threshold expires
+- Show percentage instead of token count for subagent context windows
+- Improve model badge contrast with solid backgrounds
+- Fix SwiftUI accent color fallback by replacing .tint() with custom ProgressViewStyle
+- Polish usage chart spacing, background, and glow indicator
+- Drop sub-second precision from persisted usage timestamps
+
 ## 1.6.0 – 2026-02-17
 
 - Replace 5-hour progress bar with interactive area chart showing usage timeline across the full window
