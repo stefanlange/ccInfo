@@ -35,7 +35,7 @@ struct UsageDataPoint: Codable, Sendable {
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(timestamp.timeIntervalSince1970, forKey: .timestamp)
+        try container.encode(Int(timestamp.timeIntervalSince1970), forKey: .timestamp)
         try container.encode(usage, forKey: .usage)
         try container.encode(isGap, forKey: .isGap)
     }
