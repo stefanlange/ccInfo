@@ -1,5 +1,14 @@
 # Release Notes
 
+## 1.6.2 – 2026-02-22
+
+- Show a 0% context bar with "No active session" instead of hiding the section when no session is selected
+- Replace segmented session picker with a dropdown showing full project names
+- Stream JSONL files via FileHandle with defer-based cleanup and limit context window reads to the last 1 MB
+- Lower autocompact warning threshold to 90% for 200K-context models
+- Fix concurrency bugs in AuthWebView cookie callback, FileWatcher FSEvents bridge, and KeychainService
+- Fill in missing German translations
+
 ## 1.6.1 – 2026-02-21
 
 - Fix stale data appearing when switching periods or sessions quickly
