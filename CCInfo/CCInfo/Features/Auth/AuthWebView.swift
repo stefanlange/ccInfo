@@ -106,7 +106,7 @@ struct AuthWebViewRepresentable: NSViewRepresentable {
                     // Fetch organization name (best-effort)
                     let fetchedOrgName: String?
                     do {
-                        fetchedOrgName = try await self.fetchOrganizationName(organizationId: oi, sessionKey: sk)
+                        fetchedOrgName = try await ClaudeAPIClient.fetchOrganizationName(organizationId: oi, sessionKey: sk)
                     } catch {
                         fetchedOrgName = nil
                         self.logger.warning("Failed to fetch organization name: \(error.localizedDescription)")
@@ -120,28 +120,6 @@ struct AuthWebViewRepresentable: NSViewRepresentable {
                     ))
                 }
             }
-        }
-
-        private func fetchOrganizationName(organizationId: String, sessionKey: String) async throws -> String {
-            guard let encodedOrgId = organizationId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
-                  let url = URL(string: "https://claude.ai/api/organizations/\(encodedOrgId)/dust/org_shortname")
-            else {
-                throw URLError(.badURL)
-            }
-
-            var request = URLRequest(url: url)
-            request.setValue("sessionKey=\(sessionKey)", forHTTPHeaderField: "Cookie")
-            request.setValue("web_claude_ai", forHTTPHeaderField: "anthropic-client-platform")
-            request.timeoutInterval = 10
-
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-                throw URLError(.badServerResponse)
-            }
-
-            struct OrgNameResponse: Decodable { let shortname: String }
-            return try JSONDecoder().decode(OrgNameResponse.self, from: data).shortname
         }
 
     }

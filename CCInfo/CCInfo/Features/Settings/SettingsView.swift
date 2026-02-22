@@ -24,11 +24,11 @@ struct SettingsView: View {
 
 struct GeneralTab: View {
     @EnvironmentObject var appState: AppState
-    @AppStorage("launchAtLogin") private var launchAtLogin = false
-    @AppStorage("refreshInterval") private var refreshInterval: Double = 30
-    @AppStorage("sessionActivityThreshold") private var sessionActivityThreshold: Double = 600
-    @AppStorage("menuBarSlot1") private var menuBarSlot1: MenuBarSlot = .fiveHour
-    @AppStorage("menuBarSlot2") private var menuBarSlot2: MenuBarSlot = .weeklyLimit
+    @AppStorage(AppStorageKeys.launchAtLogin) private var launchAtLogin = AppStorageKeys.Defaults.launchAtLogin
+    @AppStorage(AppStorageKeys.refreshInterval) private var refreshInterval: Double = AppStorageKeys.Defaults.refreshInterval
+    @AppStorage(AppStorageKeys.sessionActivityThreshold) private var sessionActivityThreshold: Double = AppStorageKeys.Defaults.sessionActivityThreshold
+    @AppStorage(AppStorageKeys.menuBarSlot1) private var menuBarSlot1: MenuBarSlot = AppStorageKeys.Defaults.menuBarSlot1
+    @AppStorage(AppStorageKeys.menuBarSlot2) private var menuBarSlot2: MenuBarSlot = AppStorageKeys.Defaults.menuBarSlot2
 
     private let logger = Logger(subsystem: "com.ccinfo.app", category: "Settings")
 

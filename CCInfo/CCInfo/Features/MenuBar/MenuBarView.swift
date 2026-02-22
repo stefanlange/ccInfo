@@ -167,15 +167,6 @@ struct UsageSection: View {
 struct ContextSection: View {
     let context: ContextWindow
 
-    private func modelBadgeColor(for model: ModelIdentifier) -> Color {
-        switch model.family {
-        case .opus: return .purple
-        case .sonnet: return context.isExtendedContext ? .red : .orange
-        case .haiku: return .cyan
-        case .unknown: return .secondary
-        }
-    }
-
     var body: some View {
         let progressColor = UtilizationThresholds.color(for: context.utilization)
         VStack(alignment: .leading, spacing: 6) {
@@ -204,7 +195,7 @@ struct ContextSection: View {
                         .fontWeight(.medium)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 1)
-                        .background(modelBadgeColor(for: model))
+                        .background(context.badgeColor(for: model))
                         .foregroundStyle(.white)
                         .clipShape(Capsule())
                         .accessibilityLabel("Model: \(model.displayName)")
@@ -327,15 +318,6 @@ struct AgentContextList: View {
 struct AgentContextRow: View {
     let agent: AgentContext
 
-    private func badgeColor(for model: ModelIdentifier) -> Color {
-        switch model.family {
-        case .opus: return .purple
-        case .sonnet: return agent.contextWindow.isExtendedContext ? .red : .orange
-        case .haiku: return .cyan
-        case .unknown: return .secondary
-        }
-    }
-
     var body: some View {
         HStack(spacing: 6) {
             HStack(spacing: 4) {
@@ -345,7 +327,7 @@ struct AgentContextRow: View {
                     .accessibilityHidden(true)
 
                 if let model = agent.contextWindow.activeModel {
-                    let color = badgeColor(for: model)
+                    let color = agent.contextWindow.badgeColor(for: model)
                     Text(model.displayName)
                         .font(.caption2)
                         .fontWeight(.medium)

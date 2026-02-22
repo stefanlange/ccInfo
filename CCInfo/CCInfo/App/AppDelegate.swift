@@ -42,7 +42,7 @@ final class AppState: ObservableObject {
 
     init() {
         self.apiClient = ClaudeAPIClient(keychainService: keychainService)
-        if let raw = UserDefaults.standard.string(forKey: "statisticsPeriod"),
+        if let raw = UserDefaults.standard.string(forKey: AppStorageKeys.statisticsPeriod),
            let period = StatisticsPeriod(rawValue: raw) {
             self.statisticsPeriod = period
         }
@@ -55,8 +55,8 @@ final class AppState: ObservableObject {
     private var localDataTask: Task<Void, Never>?
 
     private var refreshInterval: TimeInterval {
-        let interval = UserDefaults.standard.double(forKey: "refreshInterval")
-        return interval > 0 ? interval : 30 // Default: 30 seconds
+        let interval = UserDefaults.standard.double(forKey: AppStorageKeys.refreshInterval)
+        return interval > 0 ? interval : AppStorageKeys.Defaults.refreshInterval
     }
 
     var isAuthenticated: Bool { keychainService.hasCredentials }
@@ -64,8 +64,8 @@ final class AppState: ObservableObject {
     var contextWindow: ContextWindow? { contextWindowState?.main }
 
     private var sessionActivityThreshold: TimeInterval {
-        let stored = UserDefaults.standard.double(forKey: "sessionActivityThreshold")
-        return stored > 0 ? stored : 600 // Default: 10 minutes
+        let stored = UserDefaults.standard.double(forKey: AppStorageKeys.sessionActivityThreshold)
+        return stored > 0 ? stored : AppStorageKeys.Defaults.sessionActivityThreshold
     }
 
     private func scheduleLocalDataRefresh() {
@@ -74,17 +74,17 @@ final class AppState: ObservableObject {
     }
 
     var menuBarSlot1: MenuBarSlot {
-        guard let raw = UserDefaults.standard.string(forKey: MenuBarConfiguration.StorageKeys.slot1),
+        guard let raw = UserDefaults.standard.string(forKey: AppStorageKeys.menuBarSlot1),
               let slot = MenuBarSlot(rawValue: raw) else {
-            return .fiveHour // fallback
+            return AppStorageKeys.Defaults.menuBarSlot1
         }
         return slot
     }
 
     var menuBarSlot2: MenuBarSlot {
-        guard let raw = UserDefaults.standard.string(forKey: MenuBarConfiguration.StorageKeys.slot2),
+        guard let raw = UserDefaults.standard.string(forKey: AppStorageKeys.menuBarSlot2),
               let slot = MenuBarSlot(rawValue: raw) else {
-            return .weeklyLimit // fallback
+            return AppStorageKeys.Defaults.menuBarSlot2
         }
         return slot
     }
@@ -308,7 +308,7 @@ final class AppState: ObservableObject {
 
     func updateStatisticsPeriod(_ period: StatisticsPeriod) {
         statisticsPeriod = period
-        UserDefaults.standard.set(period.rawValue, forKey: "statisticsPeriod")
+        UserDefaults.standard.set(period.rawValue, forKey: AppStorageKeys.statisticsPeriod)
         sessionData = nil
         scheduleLocalDataRefresh()
     }

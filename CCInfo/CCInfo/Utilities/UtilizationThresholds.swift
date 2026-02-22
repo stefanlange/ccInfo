@@ -6,12 +6,7 @@ enum UtilizationThresholds {
     static let orangeRedThreshold: Double = 90
 
     static func color(for utilization: Double) -> Color {
-        switch utilization {
-        case ..<greenYellowThreshold:  return .green
-        case ..<yellowOrangeThreshold: return .yellow
-        case ..<orangeRedThreshold:    return .orange
-        default:                       return .red
-        }
+        Color(nsColor: nsColor(for: utilization))
     }
 
     static func nsColor(for utilization: Double) -> NSColor {

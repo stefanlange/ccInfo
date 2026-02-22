@@ -2,7 +2,7 @@ import Foundation
 import OSLog
 
 actor ClaudeAPIClient {
-    private let baseURL = "https://claude.ai/api"
+    private static let baseURL = "https://claude.ai/api"
     private let keychainService: KeychainService
     private let logger = Logger(subsystem: "com.ccinfo.app", category: "API")
 
@@ -37,7 +37,7 @@ actor ClaudeAPIClient {
             throw APIError.invalidURL
         }
 
-        guard let url = URL(string: "\(baseURL)/organizations/\(encodedOrgId)/usage") else {
+        guard let url = URL(string: "\(Self.baseURL)/organizations/\(encodedOrgId)/usage") else {
             logger.error("Failed to construct usage URL for organization")
             throw APIError.invalidURL
         }
@@ -69,13 +69,12 @@ actor ClaudeAPIClient {
     }
 
     /// Fetch organization name for display purposes
-    func fetchOrganizationName(organizationId: String, sessionKey: String) async throws -> String {
+    static func fetchOrganizationName(organizationId: String, sessionKey: String) async throws -> String {
         guard let encodedOrgId = organizationId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else {
             throw APIError.invalidURL
         }
 
-        guard let url = URL(string: "\(baseURL)/organizations/\(encodedOrgId)/dust/org_shortname") else {
-            logger.error("Failed to construct organization name URL")
+        guard let url = URL(string: "\(Self.baseURL)/organizations/\(encodedOrgId)/dust/org_shortname") else {
             throw APIError.invalidURL
         }
 
@@ -91,7 +90,6 @@ actor ClaudeAPIClient {
         }
 
         guard http.statusCode == 200 else {
-            logger.warning("Organization name API returned status: \(http.statusCode)")
             throw APIError.httpError(http.statusCode)
         }
 
