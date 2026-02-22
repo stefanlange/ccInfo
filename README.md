@@ -4,6 +4,10 @@
 
 A native macOS MenuBar app for real-time monitoring of your Claude usage.
 
+<p align="center">
+  <img src="ccInfo.png" width="300" alt="ccInfo MenuBar screenshot showing usage monitoring, context window status, and token statistics">
+</p>
+
 ![macOS](https://img.shields.io/badge/macOS-14.0%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Swift](https://img.shields.io/badge/Swift-5.9-orange)
