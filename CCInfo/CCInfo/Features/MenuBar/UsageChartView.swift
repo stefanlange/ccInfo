@@ -40,8 +40,8 @@ struct UsageChartView: View {
                     // Draw dashed threshold lines
                     drawThresholdLines(context: context, width: plotWidth, height: plotHeight)
 
-                    // Draw area fill and line if we have data
-                    if points.count > 0 {
+                    // Draw area fill and line if we have data and colors are ready
+                    if points.count > 0, colors.count == 101 {
                         drawAreaFill(context: context, points: points, width: plotWidth, height: plotHeight, colors: colors)
                         drawLine(context: context, points: points, width: plotWidth, height: plotHeight, colors: colors)
                         drawGlowIndicator(context: context, points: points, width: plotWidth, height: plotHeight, colors: colors)

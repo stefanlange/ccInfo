@@ -8,6 +8,7 @@
 - Lower autocompact warning threshold to 90% for 200K-context models
 - Fix concurrency bugs in AuthWebView cookie callback, FileWatcher FSEvents bridge, and KeychainService
 - Fill in missing German translations
+- Fix crash on first menu bar click when color lookup table is not yet initialized
 
 ## 1.6.1 – 2026-02-21
 
