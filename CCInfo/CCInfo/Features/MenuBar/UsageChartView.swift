@@ -19,8 +19,10 @@ struct UsageChartView: View {
     private var yellowOrangeThreshold: Double { UtilizationThresholds.yellowOrangeThreshold }
     private var orangeRedThreshold: Double { UtilizationThresholds.orangeRedThreshold }
 
-    /// Pre-computed color lookup table (0-100), rebuilt when colorScheme changes.
-    private var colorLookup: [Color] {
+    /// Cached color lookup table (0-100). Rebuilt only when colorScheme changes.
+    @State private var colorLookup: [Color] = []
+
+    private func buildColorLookup() -> [Color] {
         (0...100).map { colorForUsageRaw(Double($0)) }
     }
 
@@ -88,6 +90,12 @@ struct UsageChartView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .accessibilityLabel("5-Hour Window usage chart")
         .accessibilityValue(accessibilityValue)
+        .onAppear {
+            colorLookup = buildColorLookup()
+        }
+        .onChange(of: colorScheme) { _, _ in
+            colorLookup = buildColorLookup()
+        }
     }
 
     private var accessibilityValue: String {

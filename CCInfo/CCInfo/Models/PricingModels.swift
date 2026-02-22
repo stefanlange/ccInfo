@@ -137,18 +137,18 @@ enum PricingDataSource: Sendable {
 
 enum PricingError: Error, LocalizedError {
     case httpError(Int)
-    case networkError(Error)
-    case parseError(Error)
+    case networkError(String)
+    case parseError(String)
     case noBundledData
 
     var errorDescription: String? {
         switch self {
         case .httpError(let code):
             return String(localized: "HTTP error: \(code)")
-        case .networkError(let error):
-            return String(localized: "Network error: \(error.localizedDescription)")
-        case .parseError(let error):
-            return String(localized: "Parse error: \(error.localizedDescription)")
+        case .networkError(let message):
+            return String(localized: "Network error: \(message)")
+        case .parseError(let message):
+            return String(localized: "Parse error: \(message)")
         case .noBundledData:
             return String(localized: "No bundled pricing data available")
         }

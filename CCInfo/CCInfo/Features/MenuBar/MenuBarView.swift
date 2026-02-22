@@ -24,6 +24,9 @@ struct MenuBarView: View {
                         AgentContextList(agents: state.activeAgents)
                     }
                     Divider()
+                } else {
+                    EmptyContextSection()
+                    Divider()
                 }
                 if let usage = appState.usageData {
                     // 5-Hour Window with chart
@@ -372,21 +375,34 @@ struct AgentContextRow: View {
     }
 }
 
+struct EmptyContextSection: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(String(localized: "Context Window"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+            ProgressView(value: 0, total: 100)
+                .progressViewStyle(ColoredBarProgressStyle(
+                    color: UtilizationThresholds.color(for: 0)))
+                .accessibilityLabel("Context window")
+                .accessibilityValue("0 %")
+            HStack {
+                Text("0%")
+                    .font(.system(.title2, design: .rounded, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Text(String(localized: "No active session"))
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                Spacer()
+            }
+        }
+    }
+}
+
 struct SessionSwitcher: View {
     let sessions: [ActiveSession]
     @Binding var selectedURL: URL?
-
-    private var sessionPicker: some View {
-        Picker("", selection: $selectedURL) {
-            ForEach(sessions) { session in
-                Text(session.projectName)
-                    .help(session.projectPath ?? session.projectDirectory)
-                    .tag(Optional(session.sessionURL))
-            }
-        }
-        .labelsHidden()
-        .accessibilityLabel("Select active session")
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -395,11 +411,16 @@ struct SessionSwitcher: View {
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
 
-            if sessions.count <= 4 {
-                sessionPicker.pickerStyle(.segmented)
-            } else {
-                sessionPicker.pickerStyle(.menu)
+            Picker("", selection: $selectedURL) {
+                ForEach(sessions) { session in
+                    Text(session.projectName)
+                        .help(session.projectPath ?? session.projectDirectory)
+                        .tag(Optional(session.sessionURL))
+                }
             }
+            .pickerStyle(.menu)
+            .labelsHidden()
+            .accessibilityLabel("Select active session")
         }
     }
 }

@@ -166,7 +166,9 @@ struct ContextWindow: Sendable {
         isExtendedContext ? Constants.extendedMaxTokens : Constants.standardMaxTokens
     }
 
-    /// True if we detect extended (1M) context mode via heuristic
+    /// True if we detect extended (1M) context mode via token count heuristic.
+    /// Only tokens exceeding the standard 200K threshold prove extended context is active,
+    /// since models like Opus 4 can run in both standard and extended mode.
     var isExtendedContext: Bool {
         currentTokens > Constants.extendedContextThreshold
     }
@@ -184,7 +186,8 @@ struct ContextWindow: Sendable {
     }
 
     var isNearAutoCompact: Bool {
-        utilization >= 95
+        let threshold: Double = isExtendedContext ? 95 : 90
+        return utilization >= threshold
     }
 
     init(currentTokens: Int, activeModel: ModelIdentifier? = nil) {

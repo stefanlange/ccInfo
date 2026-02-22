@@ -176,12 +176,14 @@ actor JSONLParser {
     }
     
     func parseSession(at url: URL, availableModelKeys: Set<String> = []) async throws -> SessionData {
-        let lines = try String(contentsOf: url, encoding: .utf8).components(separatedBy: .newlines)
         var sessionId = url.deletingPathExtension().lastPathComponent
         var accumulator = TokenAccumulator()
 
-        // Process main session file
-        for line in lines where !line.isEmpty {
+        // Process main session file (streaming to avoid loading entire file into memory)
+        let mainHandle = try FileHandle(forReadingFrom: url)
+        defer { try? mainHandle.close() }
+        for try await line in mainHandle.bytes.lines {
+            guard !line.isEmpty else { continue }
             guard let data = line.data(using: .utf8) else {
                 logger.warning("Failed to convert line to UTF-8 data in \(url.lastPathComponent)")
                 continue
@@ -218,9 +220,11 @@ actor JSONLParser {
                options: [.skipsHiddenFiles]
            ) {
             for subagentURL in subagentFiles where subagentURL.pathExtension == "jsonl" {
-                guard let content = try? String(contentsOf: subagentURL, encoding: .utf8) else { continue }
+                guard let subHandle = try? FileHandle(forReadingFrom: subagentURL) else { continue }
+                defer { try? subHandle.close() }
 
-                for line in content.components(separatedBy: .newlines) where !line.isEmpty {
+                for try await line in subHandle.bytes.lines {
+                    guard !line.isEmpty else { continue }
                     guard let data = line.data(using: .utf8),
                           let entry = try? decoder.decode(JSONLEntry.self, from: data) else { continue }
 
@@ -254,6 +258,7 @@ actor JSONLParser {
         }
 
         while let url = enumerator.nextObject() as? URL {
+            guard !Task.isCancelled else { break }
             guard url.pathExtension == "jsonl" else { continue }
 
             // Skip files not modified since period start
@@ -263,26 +268,32 @@ actor JSONLParser {
                 continue
             }
 
-            guard let content = try? String(contentsOf: url, encoding: .utf8) else { continue }
+            guard let fileHandle = try? FileHandle(forReadingFrom: url) else { continue }
+            defer { try? fileHandle.close() }
 
-            for line in content.components(separatedBy: .newlines) where !line.isEmpty {
-                guard let data = line.data(using: .utf8),
-                      let entry = try? decoder.decode(JSONLEntry.self, from: data) else { continue }
+            do {
+                for try await line in fileHandle.bytes.lines {
+                    guard !line.isEmpty else { continue }
+                    guard let data = line.data(using: .utf8),
+                          let entry = try? decoder.decode(JSONLEntry.self, from: data) else { continue }
 
-                // Only include entries with timestamp >= periodStart
-                guard let timestamp = entry.timestamp, timestamp >= periodStart else { continue }
+                    // Only include entries with timestamp >= periodStart
+                    guard let timestamp = entry.timestamp, timestamp >= periodStart else { continue }
 
-                if let usage = accumulator.shouldProcess(entry) {
-                    let cumInput = accumulator.cumulativeInput(for: entry.rawModelId)
-                    let (cost, model) = await costForEntry(
-                        costUSD: entry.costUSD,
-                        rawModelId: entry.rawModelId,
-                        usage: usage,
-                        availableModelKeys: availableModelKeys,
-                        cumulativeInputTokens: cumInput
-                    )
-                    accumulator.accumulate(usage: usage, rawModelId: entry.rawModelId, entryCost: cost, entryModel: model)
+                    if let usage = accumulator.shouldProcess(entry) {
+                        let cumInput = accumulator.cumulativeInput(for: entry.rawModelId)
+                        let (cost, model) = await costForEntry(
+                            costUSD: entry.costUSD,
+                            rawModelId: entry.rawModelId,
+                            usage: usage,
+                            availableModelKeys: availableModelKeys,
+                            cumulativeInputTokens: cumInput
+                        )
+                        accumulator.accumulate(usage: usage, rawModelId: entry.rawModelId, entryCost: cost, entryModel: model)
+                    }
                 }
+            } catch {
+                logger.debug("Error reading \(url.lastPathComponent): \(error.localizedDescription)")
             }
         }
 
@@ -301,7 +312,21 @@ actor JSONLParser {
     }
     
     func getContextWindowForFile(at url: URL, availableModelKeys: Set<String> = []) throws -> ContextWindow {
-        for line in try String(contentsOf: url, encoding: .utf8).components(separatedBy: .newlines).reversed() {
+        // Read the last 1MB to find the most recent usage entry.
+        // Individual JSONL entries can be 100KB+ so a generous tail avoids missing them.
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+
+        let fileSize = handle.seekToEndOfFile()
+        let tailSize: UInt64 = 1_048_576
+        handle.seek(toFileOffset: fileSize > tailSize ? fileSize - tailSize : 0)
+        let tailData = handle.readDataToEndOfFile()
+
+        guard let text = String(data: tailData, encoding: .utf8) else {
+            return ContextWindow(currentTokens: 0, activeModel: nil)
+        }
+
+        for line in text.components(separatedBy: .newlines).reversed() {
             guard !line.isEmpty,
                   let data = line.data(using: .utf8),
                   let entry = try? decoder.decode(JSONLEntry.self, from: data),

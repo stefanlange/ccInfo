@@ -83,49 +83,65 @@ struct AuthWebViewRepresentable: NSViewRepresentable {
 
         private func extractCredentials(from webView: WKWebView) {
             webView.configuration.websiteDataStore.httpCookieStore.getAllCookies { [weak self] cookies in
-                guard let self, !self.credentialsExtracted else { return }
+                Task { @MainActor [weak self] in
+                    guard let self, !self.credentialsExtracted else { return }
 
-                var sessionKey: String?
-                var orgId: String?
+                    var sessionKey: String?
+                    var orgId: String?
 
-                // Only accept cookies from official Claude.ai domain (exact match for security)
-                let validDomains = ["claude.ai", ".claude.ai"]
-                for cookie in cookies where validDomains.contains(cookie.domain) {
-                    if cookie.name == "sessionKey" {
-                        sessionKey = cookie.value
-                    } else if cookie.name == "lastActiveOrg" {
-                        orgId = cookie.value
+                    // Only accept cookies from official Claude.ai domain (exact match for security)
+                    let validDomains = ["claude.ai", ".claude.ai"]
+                    for cookie in cookies where validDomains.contains(cookie.domain) {
+                        if cookie.name == "sessionKey" {
+                            sessionKey = cookie.value
+                        } else if cookie.name == "lastActiveOrg" {
+                            orgId = cookie.value
+                        }
                     }
-                }
 
-                guard let sk = sessionKey, let oi = orgId else { return }
+                    guard let sk = sessionKey, let oi = orgId else { return }
 
-                self.credentialsExtracted = true
+                    self.credentialsExtracted = true
 
-                // Fetch organization name in background (best-effort)
-                Task {
-                    let apiClient = await ClaudeAPIClient(keychainService: KeychainService())
-
+                    // Fetch organization name (best-effort)
                     let fetchedOrgName: String?
                     do {
-                        fetchedOrgName = try await apiClient.fetchOrganizationName(organizationId: oi, sessionKey: sk)
+                        fetchedOrgName = try await self.fetchOrganizationName(organizationId: oi, sessionKey: sk)
                     } catch {
-                        // Log failure but proceed with authentication
-                        // Organization ID will be displayed as fallback
                         fetchedOrgName = nil
                         self.logger.warning("Failed to fetch organization name: \(error.localizedDescription)")
                     }
 
-                    await MainActor.run {
-                        self.parent.onCredentials(ClaudeCredentials(
-                            sessionKey: sk,
-                            organizationId: oi,
-                            organizationName: fetchedOrgName,
-                            createdAt: Date()
-                        ))
-                    }
+                    self.parent.onCredentials(ClaudeCredentials(
+                        sessionKey: sk,
+                        organizationId: oi,
+                        organizationName: fetchedOrgName,
+                        createdAt: Date()
+                    ))
                 }
             }
+        }
+
+        private func fetchOrganizationName(organizationId: String, sessionKey: String) async throws -> String {
+            guard let encodedOrgId = organizationId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+                  let url = URL(string: "https://claude.ai/api/organizations/\(encodedOrgId)/dust/org_shortname")
+            else {
+                throw URLError(.badURL)
+            }
+
+            var request = URLRequest(url: url)
+            request.setValue("sessionKey=\(sessionKey)", forHTTPHeaderField: "Cookie")
+            request.setValue("web_claude_ai", forHTTPHeaderField: "anthropic-client-platform")
+            request.timeoutInterval = 10
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                throw URLError(.badServerResponse)
+            }
+
+            struct OrgNameResponse: Decodable { let shortname: String }
+            return try JSONDecoder().decode(OrgNameResponse.self, from: data).shortname
         }
 
     }

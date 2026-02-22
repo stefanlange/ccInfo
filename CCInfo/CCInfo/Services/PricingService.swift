@@ -174,7 +174,7 @@ actor PricingService {
         let urlString = "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
 
         guard let url = URL(string: urlString) else {
-            throw PricingError.networkError(URLError(.badURL))
+            throw PricingError.networkError(URLError(.badURL).localizedDescription)
         }
 
         var request = URLRequest(url: url)
@@ -184,7 +184,7 @@ actor PricingService {
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let http = response as? HTTPURLResponse else {
-                throw PricingError.networkError(URLError(.badServerResponse))
+                throw PricingError.networkError(URLError(.badServerResponse).localizedDescription)
             }
 
             guard http.statusCode == 200 else {
@@ -211,7 +211,7 @@ actor PricingService {
             // Second attempt
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let http = response as? HTTPURLResponse else {
-                throw PricingError.networkError(URLError(.badServerResponse))
+                throw PricingError.networkError(URLError(.badServerResponse).localizedDescription)
             }
 
             guard http.statusCode == 200 else {
@@ -228,7 +228,7 @@ actor PricingService {
     private func parsePricingData(_ data: Data) throws -> ([String: ModelPricing], Set<String>) {
         do {
             guard let rawDict = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                throw PricingError.parseError(URLError(.cannotParseResponse))
+                throw PricingError.parseError(URLError(.cannotParseResponse).localizedDescription)
             }
 
             let decoder = JSONDecoder()
@@ -250,7 +250,7 @@ actor PricingService {
             return (result, extendedKeys)
         } catch {
             logger.error("Failed to parse pricing data: \(error.localizedDescription)")
-            throw PricingError.parseError(error)
+            throw PricingError.parseError(error.localizedDescription)
         }
     }
 

@@ -19,7 +19,7 @@ A native macOS MenuBar app for real-time monitoring of your Claude usage.
 
 ### Session Intelligence
 
-- **Multi-Session Switcher** – Toggle between active Claude Code sessions (with configurable activity threshold)
+- **Multi-Session Switcher** – Switch between active Claude Code sessions via dropdown menu (with configurable activity threshold)
 - **Token Statistics** – Input/output token counts aggregated by session, today, week, or month
 - **Dynamic Cost Estimation** – Live model pricing via LiteLLM with per-model cost calculation
 - **Burn Rate Calculation** – Understand your token consumption velocity

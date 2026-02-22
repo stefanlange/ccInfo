@@ -1,20 +1,13 @@
 import Foundation
 
 /// Watches a file system path for changes using FSEvents
-/// @unchecked Sendable is safe here because all mutable state (stream) is protected by NSLock
+/// @unchecked Sendable is safe here because all mutable state (stream, retainedSelf) is protected by NSLock
 final class FileWatcher: @unchecked Sendable {
     private var stream: FSEventStreamRef?
+    private var retainedSelf: Unmanaged<FileWatcher>?
     private let path: String
     private let callback: @Sendable () -> Void
     private let lock = NSLock()
-
-    // Strong references to prevent deallocation while stream is active
-    // Using NSHashTable with objectPointerPersonality for strong references
-    private static var activeWatchers: NSHashTable<FileWatcher> = {
-        let hashTable = NSHashTable<FileWatcher>(options: .strongMemory)
-        return hashTable
-    }()
-    private static let watchersLock = NSLock()
 
     init(path: String, callback: @escaping @Sendable () -> Void) {
         self.path = path
@@ -22,7 +15,12 @@ final class FileWatcher: @unchecked Sendable {
     }
 
     deinit {
-        stop()
+        // stop() is always called explicitly via stopMonitoring() before release.
+        // This guard handles unexpected deinit paths without risking a deadlock
+        // from DispatchQueue.main.sync during app termination.
+        if Thread.isMainThread {
+            stop()
+        }
     }
 
     func start() {
@@ -31,13 +29,12 @@ final class FileWatcher: @unchecked Sendable {
 
         guard stream == nil else { return }
 
-        Self.watchersLock.lock()
-        Self.activeWatchers.add(self)
-        Self.watchersLock.unlock()
+        let retained = Unmanaged.passRetained(self)
+        retainedSelf = retained
 
         var context = FSEventStreamContext(
             version: 0,
-            info: Unmanaged.passUnretained(self).toOpaque(),
+            info: retained.toOpaque(),
             retain: nil,
             release: nil,
             copyDescription: nil
@@ -46,9 +43,7 @@ final class FileWatcher: @unchecked Sendable {
         let streamCallback: FSEventStreamCallback = { _, info, _, _, _, _ in
             guard let info else { return }
             let watcher = Unmanaged<FileWatcher>.fromOpaque(info).takeUnretainedValue()
-            DispatchQueue.main.async {
-                watcher.callback()
-            }
+            watcher.callback()
         }
 
         stream = FSEventStreamCreate(
@@ -61,7 +56,12 @@ final class FileWatcher: @unchecked Sendable {
             UInt32(kFSEventStreamCreateFlagUseCFTypes | kFSEventStreamCreateFlagFileEvents)
         )
 
-        guard let stream else { return }
+        guard let stream else {
+            retained.release()
+            retainedSelf = nil
+            return
+        }
+
         FSEventStreamSetDispatchQueue(stream, DispatchQueue.main)
         FSEventStreamStart(stream)
     }
@@ -77,8 +77,9 @@ final class FileWatcher: @unchecked Sendable {
         FSEventStreamRelease(stream)
         self.stream = nil
 
-        Self.watchersLock.lock()
-        Self.activeWatchers.remove(self)
-        Self.watchersLock.unlock()
+        if let retained = retainedSelf {
+            retained.release()
+            retainedSelf = nil
+        }
     }
 }
