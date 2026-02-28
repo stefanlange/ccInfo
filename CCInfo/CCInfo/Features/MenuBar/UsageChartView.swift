@@ -194,7 +194,7 @@ struct UsageChartView: View {
             let current = points[i]
             let next = points[i + 1]
 
-            if current.isGap || next.isGap {
+            if current.isGap || next.isGap || (current.usage == 0 && next.usage == 0) {
                 i += 1
                 continue
             }
@@ -228,7 +228,7 @@ struct UsageChartView: View {
             let current = points[i]
             let next = points[i + 1]
 
-            if current.isGap || next.isGap {
+            if current.isGap || next.isGap || (current.usage == 0 && next.usage == 0) {
                 i += 1
                 continue
             }
