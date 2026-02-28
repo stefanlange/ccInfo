@@ -270,8 +270,13 @@ final class AppState: ObservableObject {
                 sessions = [mostRecent]
             }
 
-            // Only auto-select on first launch (selectedSessionURL is nil)
+            // Resolve session URL: keep current if still in list, otherwise find successor
             var resolvedURL = snapshotURL
+            if let url = resolvedURL, !sessions.contains(where: { $0.sessionURL == url }) {
+                // Selected session no longer in list — find newest session for the same project
+                let oldProjectDir = url.deletingLastPathComponent().lastPathComponent
+                resolvedURL = sessions.first(where: { $0.projectDirectory == oldProjectDir })?.sessionURL
+            }
             if resolvedURL == nil {
                 resolvedURL = sessions.first(where: { $0.isActive })?.sessionURL
                     ?? sessions.first?.sessionURL
