@@ -1,5 +1,13 @@
 # Release Notes
 
+## 1.6.3 – 2026-02-28
+
+- Fix empty session picker when the active session file is replaced by a newer one
+- Fix phantom green line in burn chart when usage is zero
+- Preserve statistics when switching sessions for Today, Week, and Month periods
+- Stop auto-switching to other sessions when the current one goes inactive
+- Clean up duplicated logic and scattered defaults
+
 ## 1.6.2 – 2026-02-22
 
 - Show a 0% context bar with "No active session" instead of hiding the section when no session is selected
