@@ -255,19 +255,17 @@ final class AppState: ObservableObject {
         do {
             let availableKeys = await PricingService.shared.availableModelKeys
 
-            // Discover active sessions, falling back to the most recent session
-            let sessions = await jsonlParser.findActiveSessions(threshold: sessionActivityThreshold)
-            var resolvedSessions: [ActiveSession]
+            // Discover active and recently inactive sessions
+            var sessions = await jsonlParser.findActiveSessions(threshold: sessionActivityThreshold)
             if sessions.isEmpty, let mostRecent = await jsonlParser.findMostRecentSession() {
-                resolvedSessions = [mostRecent]
-            } else {
-                resolvedSessions = sessions
+                sessions = [mostRecent]
             }
 
-            // Validate current selection — fall back to newest if invalid
+            // Only auto-select on first launch (selectedSessionURL is nil)
             var resolvedURL = snapshotURL
-            if resolvedURL == nil || !sessions.contains(where: { $0.sessionURL == resolvedURL }) {
-                resolvedURL = sessions.first?.sessionURL
+            if resolvedURL == nil {
+                resolvedURL = sessions.first(where: { $0.isActive })?.sessionURL
+                    ?? sessions.first?.sessionURL
             }
 
             // Load context window and session data for selected session
@@ -286,7 +284,7 @@ final class AppState: ObservableObject {
                   snapshotPeriod == statisticsPeriod,
                   snapshotURL == selectedSessionURL else { return }
 
-            activeSessions = resolvedSessions
+            activeSessions = sessions
             selectedSessionURL = resolvedURL
             contextWindowState = newContextState
             sessionData = newSessionData

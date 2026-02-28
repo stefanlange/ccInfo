@@ -395,9 +395,15 @@ struct SessionSwitcher: View {
 
             Picker("", selection: $selectedURL) {
                 ForEach(sessions) { session in
-                    Text(session.projectName)
-                        .help(session.projectPath ?? session.projectDirectory)
-                        .tag(Optional(session.sessionURL))
+                    Group {
+                        if session.isActive {
+                            Text(session.projectName)
+                        } else {
+                            Text("\(session.projectName) (\(String(localized: "Inactive")))")
+                        }
+                    }
+                    .help(session.projectPath ?? session.projectDirectory)
+                    .tag(Optional(session.sessionURL))
                 }
             }
             .pickerStyle(.menu)

@@ -408,7 +408,9 @@ actor JSONLParser {
             options: [.skipsHiddenFiles]
         ) else { return [] }
 
-        let cutoff = Date().addingTimeInterval(-threshold)
+        let now = Date()
+        let activeCutoff = now.addingTimeInterval(-threshold)
+        let inactiveCutoff = now.addingTimeInterval(-86400) // 24 hours
         // Group by project directory, keeping only the newest session per project
         var newestByProject: [String: (url: URL, date: Date)] = [:]
 
@@ -417,7 +419,7 @@ actor JSONLParser {
                   !url.pathComponents.contains("subagents"),
                   let values = try? url.resourceValues(forKeys: [.contentModificationDateKey]),
                   let modDate = values.contentModificationDate,
-                  modDate >= cutoff else { continue }
+                  modDate >= inactiveCutoff else { continue }
 
             // Project directory is the parent of the JSONL file
             let projectDir = url.deletingLastPathComponent().lastPathComponent
@@ -431,17 +433,26 @@ actor JSONLParser {
             }
         }
 
-        return newestByProject.map { (projectDir, entry) in
+        let sessions = newestByProject.map { (projectDir, entry) in
             let path = extractProjectPath(from: entry.url)
             return ActiveSession(
                 sessionURL: entry.url,
                 projectDirectory: projectDir,
                 projectName: path.map { URL(fileURLWithPath: $0).lastPathComponent } ?? projectDir,
                 projectPath: path,
-                lastModified: entry.date
+                lastModified: entry.date,
+                isActive: entry.date >= activeCutoff
             )
         }
-        .sorted { $0.projectName.localizedStandardCompare($1.projectName) == .orderedAscending }
+
+        // Active first (alphabetical), then inactive (most recent first)
+        return sessions.sorted { a, b in
+            if a.isActive != b.isActive { return a.isActive }
+            if a.isActive {
+                return a.projectName.localizedStandardCompare(b.projectName) == .orderedAscending
+            }
+            return a.lastModified > b.lastModified
+        }
     }
 
     /// Returns the single most recently modified session across all projects, ignoring any activity threshold.
@@ -473,7 +484,8 @@ actor JSONLParser {
             projectDirectory: projectDir,
             projectName: path.map { URL(fileURLWithPath: $0).lastPathComponent } ?? projectDir,
             projectPath: path,
-            lastModified: result.date
+            lastModified: result.date,
+            isActive: false
         )
     }
 }

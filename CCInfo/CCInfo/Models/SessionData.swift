@@ -216,6 +216,7 @@ struct ActiveSession: Sendable, Identifiable, Hashable {
     let projectName: String
     let projectPath: String?
     let lastModified: Date
+    let isActive: Bool
 
     var id: URL { sessionURL }
 
