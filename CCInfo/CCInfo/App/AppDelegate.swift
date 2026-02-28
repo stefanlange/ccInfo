@@ -52,6 +52,7 @@ final class AppState: ObservableObject {
     private var refreshTask: Task<Void, Never>?
     private var updateCheckTask: Task<Void, Never>?
     private var fileWatcherDebounceTask: Task<Void, Never>?
+    private var contextWindowTask: Task<Void, Never>?
     private var localDataTask: Task<Void, Never>?
 
     private var refreshInterval: TimeInterval {
@@ -71,6 +72,11 @@ final class AppState: ObservableObject {
     private func scheduleLocalDataRefresh() {
         localDataTask?.cancel()
         localDataTask = Task { await refreshLocalData() }
+    }
+
+    private func scheduleContextWindowRefresh() {
+        contextWindowTask?.cancel()
+        contextWindowTask = Task { await refreshContextWindow() }
     }
 
     var menuBarSlot1: MenuBarSlot {
@@ -148,6 +154,8 @@ final class AppState: ObservableObject {
         fileWatcherDebounceTask = nil
         localDataTask?.cancel()
         localDataTask = nil
+        contextWindowTask?.cancel()
+        contextWindowTask = nil
         fileWatcher?.stop()
         fileWatcher = nil
         Task {
@@ -203,6 +211,7 @@ final class AppState: ObservableObject {
 
     func refreshAll() async {
         localDataTask?.cancel()
+        contextWindowTask?.cancel()
         await refreshUsage()
         await refreshLocalData()
         await refreshPricingStatus()
@@ -293,11 +302,31 @@ final class AppState: ObservableObject {
         }
     }
 
+    private func refreshContextWindow() async {
+        guard let url = selectedSessionURL else {
+            contextWindowState = nil
+            return
+        }
+        do {
+            let availableKeys = await PricingService.shared.availableModelKeys
+            let newContextState = try await jsonlParser.getContextWindowState(for: url, availableModelKeys: availableKeys)
+            guard !Task.isCancelled, url == selectedSessionURL else { return }
+            contextWindowState = newContextState
+        } catch {
+            logger.warning("Context window refresh error: \(error.localizedDescription)")
+        }
+    }
+
     func selectSession(_ url: URL?) {
         guard url != selectedSessionURL else { return }
         selectedSessionURL = url
-        sessionData = nil
-        scheduleLocalDataRefresh()
+
+        if statisticsPeriod == .session {
+            sessionData = nil
+            scheduleLocalDataRefresh()
+        } else {
+            scheduleContextWindowRefresh()
+        }
     }
 
     func updateSessionActivityThreshold() {
