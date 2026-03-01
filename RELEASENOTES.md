@@ -1,5 +1,9 @@
 # Release Notes
 
+## 1.7.1 – 2026-03-01
+
+- Add copy-to-clipboard option in the chart share sheet (missing in ad-hoc signed builds)
+
 ## 1.7.0 – 2026-03-01
 
 - Share the 5-hour usage chart as a dark-themed PNG via the macOS share sheet, with thumbnail preview in the picker
