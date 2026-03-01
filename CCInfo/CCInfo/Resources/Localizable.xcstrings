@@ -484,6 +484,22 @@
         }
       }
     },
+    "Copy to Clipboard" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In Zwischenablage kopieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy to Clipboard"
+          }
+        }
+      }
+    },
     "Cost (API eq.):" : {
       "localizations" : {
         "de" : {
