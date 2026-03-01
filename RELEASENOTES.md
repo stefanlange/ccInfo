@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.7.0 – 2026-03-01
+
+- Share the 5-hour usage chart as a dark-themed PNG via the macOS share sheet, with thumbnail preview in the picker
+- Show readable session names for Claude-internal projects instead of encoded directory paths
+- Move chart drawing into a shared helper so the live chart and export use the same code
+
 ## 1.6.3 – 2026-02-28
 
 - Fix empty session picker when the active session file is replaced by a newer one
