@@ -31,10 +31,20 @@ struct MenuBarView: View {
                 if let usage = appState.usageData {
                     // 5-Hour Window with chart
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(String(localized: "5-Hour Window"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .textCase(.uppercase)
+                        HStack {
+                            Text(String(localized: "5-Hour Window"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .textCase(.uppercase)
+                            Spacer()
+                            ShareChartButton(
+                                dataPoints: appState.usageHistory,
+                                utilization: usage.fiveHour.utilization,
+                                resetsAt: usage.fiveHour.resetsAt,
+                                resetTimeFormatted: usage.fiveHour.formattedTimeUntilReset
+                            )
+                            .frame(width: 20, height: 16)
+                        }
                         UsageChartView(dataPoints: appState.usageHistory, resetsAt: usage.fiveHour.resetsAt)
                         HStack {
                             Text("\(Int(usage.fiveHour.utilization))%")
