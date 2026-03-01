@@ -150,6 +150,17 @@ actor JSONLParser {
         return (0, nil)
     }
 
+    /// Returns a display name from the resolved `cwd` path or the encoded directory name.
+    private func projectDisplayName(path: String?, fallback: String) -> String {
+        if let path {
+            return URL(fileURLWithPath: path).lastPathComponent
+        }
+        if let range = fallback.range(of: "--") {
+            return String(fallback[range.upperBound...])
+        }
+        return fallback
+    }
+
     /// Extracts the full `cwd` path from the first few lines of a JSONL file.
     /// Only reads the first 16 KB chunk — `cwd` appears in the initial session entries.
     private func extractProjectPath(from url: URL) -> String? {
@@ -438,7 +449,7 @@ actor JSONLParser {
             return ActiveSession(
                 sessionURL: entry.url,
                 projectDirectory: projectDir,
-                projectName: path.map { URL(fileURLWithPath: $0).lastPathComponent } ?? projectDir,
+                projectName: projectDisplayName(path: path, fallback: projectDir),
                 projectPath: path,
                 lastModified: entry.date,
                 isActive: entry.date >= activeCutoff
@@ -482,7 +493,7 @@ actor JSONLParser {
         return ActiveSession(
             sessionURL: result.url,
             projectDirectory: projectDir,
-            projectName: path.map { URL(fileURLWithPath: $0).lastPathComponent } ?? projectDir,
+            projectName: projectDisplayName(path: path, fallback: projectDir),
             projectPath: path,
             lastModified: result.date,
             isActive: false
