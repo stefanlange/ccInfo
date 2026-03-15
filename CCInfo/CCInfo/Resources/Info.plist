@@ -19,7 +19,7 @@
     <key>CFBundleShortVersionString</key>
     <string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>$(MARKETING_VERSION)</string>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.developer-tools</string>
     <key>LSMinimumSystemVersion</key>
@@ -28,5 +28,9 @@
     <true/>
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 ccInfo Contributors</string>
+    <key>SUFeedURL</key>
+    <string>https://stefanlange.github.io/ccInfo/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>U+6Q1P4ICGPmFPXdwcIFpQORA59dOwI7ylNw2yWEO88=</string>
 </dict>
 </plist>
