@@ -44,7 +44,12 @@ jobs:
         run: chmod +x build/Build/Products/Release/CCInfo.app/Contents/MacOS/CCInfo
 
       - name: Ad-hoc code sign
-        run: codesign --force --sign - --entitlements CCInfo/CCInfo/Resources/CCInfo.entitlements build/Build/Products/Release/CCInfo.app
+        run: |
+          # Re-sign Sparkle.framework first — xcodebuild strips headers that the
+          # original signature references, so the framework needs a fresh signature
+          codesign --force --sign - build/Build/Products/Release/CCInfo.app/Contents/Frameworks/Sparkle.framework
+          # Then sign the app itself with entitlements
+          codesign --force --sign - --entitlements CCInfo/CCInfo/Resources/CCInfo.entitlements build/Build/Products/Release/CCInfo.app
 
       - name: Create DMG
         run: |
