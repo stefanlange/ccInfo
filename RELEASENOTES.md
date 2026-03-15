@@ -1,5 +1,15 @@
 # Release Notes
 
+## 1.8.1 – 2026-03-15
+
+- Recognize the new 1M context window for Sonnet and Opus instead of relying on a token-count heuristic (Haiku stays at 200k)
+- Use a flat 33k autocompact buffer for all context sizes and warn at 20k tokens remaining instead of a fixed percentage
+- Sign Sparkle's nested XPC services individually to fix auto-update install failures on ad-hoc signed builds
+- Defer Sparkle startup to after app launch so it no longer blocks the menu bar icon from appearing
+- Reset usage notification thresholds on sign-out to avoid missed alerts after re-authentication
+- Stop subagent context windows from swapping positions in the list while multiple agents are active
+- Fail the release workflow early when the signing key is missing or release notes are empty
+
 ## 1.8.0 – 2026-03-15
 
 - Replace the manual update checker with Sparkle for automatic in-app updates, including EdDSA signature verification
