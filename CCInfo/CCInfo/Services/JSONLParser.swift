@@ -408,7 +408,7 @@ actor JSONLParser {
             ))
         }
 
-        agentContexts.sort { $0.lastModified > $1.lastModified }
+        agentContexts.sort { $0.agentId < $1.agentId }
         return ContextWindowState(main: mainContext, activeAgents: agentContexts)
     }
 
