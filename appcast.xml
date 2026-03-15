@@ -3,6 +3,30 @@
     <channel>
         <title>CCInfo</title>
         <item>
+            <title>1.8.1</title>
+            <pubDate>Sun, 15 Mar 2026 16:24:15 +0000</pubDate>
+            <link>https://github.com/stefanlange/ccInfo</link>
+            <sparkle:version>1.8.1</sparkle:version>
+            <sparkle:shortVersionString>1.8.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<ul>
+<li>Recognize the new 1M context window for Sonnet and Opus instead of relying on a token-count heuristic (Haiku stays at 200k)</li>
+<li>Use a flat 33k autocompact buffer for all context sizes and warn at 20k tokens remaining instead of a fixed percentage</li>
+<li>Sign Sparkle&#39;s nested XPC services individually to fix auto-update install failures on ad-hoc signed builds</li>
+<li>Defer Sparkle startup to after app launch so it no longer blocks the menu bar icon from appearing</li>
+<li>Reset usage notification thresholds on sign-out to avoid missed alerts after re-authentication</li>
+<li>Stop subagent context windows from swapping positions in the list while multiple agents are active</li>
+<li>Fail the release workflow early when the signing key is missing or release notes are empty</li>
+</ul>
+
+]]></description>
+            <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo-v1.8.1.dmg" length="3158075" type="application/octet-stream" sparkle:edSignature="sRvkBIJUSl2c8nKumZrSQuaCa4Bp0NiN3R+nJWXkVKUaUudmxoxgSm0KbHhSI5ik9Zu3Xz81ikhB8hFX22mtBw=="/>
+            <sparkle:deltas>
+                <enclosure url="https://stefanlange.github.io/ccInfo/CCInfo1.8.1-1.8.0.delta" sparkle:deltaFrom="1.8.0" length="76542" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="PsqvRGRIdWZR9KN+GKNPGcenGhB4pax26xm2BZ0f09hfdS6BNv+PleDi+BkY6x6tkgej86ggH8L4l3KXkL/8AQ=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>1.8.0</title>
             <pubDate>Sun, 15 Mar 2026 15:32:47 +0000</pubDate>
             <link>https://github.com/stefanlange/ccInfo</link>
