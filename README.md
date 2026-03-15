@@ -30,7 +30,7 @@ A native macOS MenuBar app for real-time monitoring of your Claude usage.
 
 ### Auto-Updates & Configuration
 
-- **Update Checker** – Automatic hourly checks with macOS notification when a new version is available
+- **Sparkle Auto-Updates** – Automatic update checks every 4 hours with in-app install via Sparkle, configurable in Settings
 - **Configurable Refresh Interval** – Manual or automatic polling from 30 seconds to 10 minutes
 - **Launch at Login** – Start ccInfo automatically with macOS
 - **Secure Authentication** – Session tokens stored in macOS Keychain

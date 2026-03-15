@@ -20,10 +20,10 @@ The app connects to exactly three external domains:
 | Domain | Purpose |
 |--------|---------|
 | `claude.ai` | Fetching your usage data (5-hour and 7-day windows, organization name) |
-| `api.github.com` | Checking for app updates (reads the latest release tag) |
+| `stefanlange.github.io` | Checking for app updates via Sparkle appcast feed |
 | `raw.githubusercontent.com` | Fetching model pricing data from the LiteLLM open-source repository |
 
-No authentication tokens, device identifiers, or personal data are sent to GitHub. The update check and pricing fetch are simple anonymous GET requests.
+No authentication tokens, device identifiers, or personal data are sent to GitHub. The update check fetches a static XML file (appcast) and the pricing fetch is a simple anonymous GET request.
 
 ## Local File Access
 
@@ -40,12 +40,16 @@ The app reads Claude Code session files at `~/.claude/projects/**/*.jsonl` to ca
 
 ## App Permissions
 
-The app requests no special entitlements. It uses:
+The app uses one entitlement:
 
-- **Network access** for API calls to claude.ai, update checks via GitHub, and pricing data from LiteLLM
+- **`disable-library-validation`** – Required for Sparkle's auto-update XPC services to load under ad-hoc code signing
+
+It also uses:
+
+- **Network access** for API calls to claude.ai, update checks via Sparkle appcast, and pricing data from LiteLLM
 - **Keychain access** for secure credential storage
 - **File system read access** to `~/.claude/projects/` for session data
-- **Notification permission** (optional) for usage threshold alerts (80%/95%) and update availability
+- **Notification permission** (optional) for usage threshold alerts (80%/95%)
 
 ## Open Source
 
