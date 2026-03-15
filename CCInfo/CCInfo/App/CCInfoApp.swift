@@ -18,6 +18,7 @@ struct CCInfoApp: App {
         Settings {
             SettingsView()
                 .environmentObject(appDelegate.appState)
+                .environmentObject(appDelegate.updateService)
         }
 
         Window(String(localized: "Sign in to Claude"), id: "auth") {

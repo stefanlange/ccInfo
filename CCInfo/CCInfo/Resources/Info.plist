@@ -32,5 +32,7 @@
     <string>https://stefanlange.github.io/ccInfo/appcast.xml</string>
     <key>SUPublicEDKey</key>
     <string>U+6Q1P4ICGPmFPXdwcIFpQORA59dOwI7ylNw2yWEO88=</string>
+    <key>SUScheduledCheckInterval</key>
+    <integer>14400</integer>
 </dict>
 </plist>
