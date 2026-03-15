@@ -146,37 +146,28 @@ struct SessionData: Sendable {
 }
 
 struct ContextWindow: Sendable {
-    // Context window constants
     private enum Constants {
         static let standardMaxTokens = 200_000
         static let extendedMaxTokens = 1_000_000
-        // Buffer reserved for autocompact summarization process
-        static let standardAutoCompactBuffer = 33_000
-        // Proportional buffer for extended context (~16.5% of max)
-        static let extendedAutoCompactBuffer = 165_000
-        // Heuristic: if tokens exceed this, assume 1M context mode
-        static let extendedContextThreshold = 180_000
+        static let autoCompactBuffer = 33_000
+        static let autoCompactWarningBuffer = 20_000
     }
 
     let currentTokens: Int
     let activeModel: ModelIdentifier?
 
-    /// Detected maximum tokens (200k standard or 1M extended)
     var maxTokens: Int {
         isExtendedContext ? Constants.extendedMaxTokens : Constants.standardMaxTokens
     }
 
-    /// True if we detect extended (1M) context mode via token count heuristic.
-    /// Only tokens exceeding the standard 200K threshold prove extended context is active,
-    /// since models like Opus 4 can run in both standard and extended mode.
+    /// Haiku → 200k, Sonnet/Opus/new families → 1M, nil/unknown → 200k
     var isExtendedContext: Bool {
-        currentTokens > Constants.extendedContextThreshold
+        guard let model = activeModel else { return false }
+        return model.family != .haiku && model.family != .unknown
     }
 
-    /// Usable tokens before autocompact triggers
     var effectiveMaxTokens: Int {
-        let buffer = isExtendedContext ? Constants.extendedAutoCompactBuffer : Constants.standardAutoCompactBuffer
-        return maxTokens - buffer
+        maxTokens - Constants.autoCompactBuffer
     }
 
     var utilization: Double {
@@ -186,8 +177,7 @@ struct ContextWindow: Sendable {
     }
 
     var isNearAutoCompact: Bool {
-        let threshold: Double = isExtendedContext ? 95 : 90
-        return utilization >= threshold
+        currentTokens >= effectiveMaxTokens - Constants.autoCompactWarningBuffer
     }
 
     init(currentTokens: Int, activeModel: ModelIdentifier? = nil) {
