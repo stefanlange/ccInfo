@@ -1,0 +1,9 @@
+<ul>
+<li>Replace the manual update checker with Sparkle for automatic in-app updates, including EdDSA signature verification</li>
+<li>Add an Updates tab in Settings with a toggle for automatic checks (every 4 hours, enabled by default) and a manual check button</li>
+<li>Sign releases with EdDSA and publish a Sparkle appcast to GitHub Pages as part of the release pipeline</li>
+<li>Fix ad-hoc codesigning to preserve Sparkle XPC service entitlements (drop <code>--deep</code>, apply <code>disable-library-validation</code>)</li>
+<li>Remove the old UpdateChecker, update banner, and update notification in favor of Sparkle&#39;s native update dialog</li>
+<li>Add German translations for the new update settings</li>
+</ul>
+
