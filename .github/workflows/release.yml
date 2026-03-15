@@ -16,6 +16,8 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Validate tag does not exist
         run: |
@@ -42,7 +44,7 @@ jobs:
         run: chmod +x build/Build/Products/Release/CCInfo.app/Contents/MacOS/CCInfo
 
       - name: Ad-hoc code sign
-        run: codesign --force --deep --sign - build/Build/Products/Release/CCInfo.app
+        run: codesign --force --sign - --entitlements CCInfo/CCInfo/Resources/CCInfo.entitlements build/Build/Products/Release/CCInfo.app
 
       - name: Create DMG
         run: |
@@ -58,6 +60,72 @@ jobs:
           echo "body<<EOF" >> "$GITHUB_OUTPUT"
           echo "$body" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Convert release notes to HTML sidecar
+        run: |
+          cat > /tmp/relnotes.md << 'ENDOFNOTES'
+          ${{ steps.notes.outputs.body }}
+          ENDOFNOTES
+          npx --yes marked /tmp/relnotes.md > "ccInfo-v${{ inputs.version }}.html"
+
+      - name: Download Sparkle tools
+        run: |
+          curl -L \
+            "https://github.com/sparkle-project/Sparkle/releases/download/2.9.0/Sparkle-2.9.0.tar.xz" \
+            -o /tmp/Sparkle.tar.xz
+          tar -xf /tmp/Sparkle.tar.xz -C /tmp bin/generate_appcast
+          chmod +x /tmp/bin/generate_appcast
+
+      - name: Checkout gh-pages branch
+        run: |
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          if git ls-remote --heads origin gh-pages | grep -q gh-pages; then
+            git worktree add ./gh-pages origin/gh-pages
+          else
+            git worktree add --orphan -b gh-pages ./gh-pages
+            touch ./gh-pages/.nojekyll
+            git -C ./gh-pages add .nojekyll
+            git -C ./gh-pages commit -m "Initialize gh-pages branch"
+          fi
+
+      - name: Copy release artifacts to gh-pages
+        run: |
+          cp "ccInfo-v${{ inputs.version }}.dmg" ./gh-pages/
+          cp "ccInfo-v${{ inputs.version }}.html" ./gh-pages/
+
+      - name: Generate and sign appcast
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          echo "$SPARKLE_PRIVATE_KEY" | /tmp/bin/generate_appcast \
+            --ed-key-file - \
+            --download-url-prefix "https://stefanlange.github.io/ccInfo/" \
+            --link "https://github.com/stefanlange/ccInfo" \
+            --maximum-versions 5 \
+            --embed-release-notes \
+            ./gh-pages
+
+      - name: Verify appcast signature
+        run: |
+          if ! grep -q 'sparkle:edSignature' ./gh-pages/appcast.xml; then
+            echo "::error::appcast.xml missing EdDSA signature -- check SPARKLE_PRIVATE_KEY secret"
+            exit 1
+          fi
+          echo "appcast.xml contains EdDSA signature -- OK"
+
+      - name: Deploy appcast to gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd ./gh-pages
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "Release v${{ inputs.version }}"
+            git push "https://x-access-token:${GITHUB_TOKEN}@github.com/stefanlange/ccInfo.git" gh-pages
+          else
+            echo "No changes to push to gh-pages"
+          fi
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
