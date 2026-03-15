@@ -6,6 +6,7 @@ import Sparkle
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let appState = AppState()
     let updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+    lazy var updateService = UpdateService(updaterController: updaterController)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -25,7 +26,6 @@ final class AppState: ObservableObject {
     @Published private(set) var usageData: UsageData?
     @Published private(set) var sessionData: SessionData?
     @Published private(set) var contextWindowState: ContextWindowState?
-    @Published private(set) var availableUpdate: AvailableUpdate?
     @Published private(set) var isLoading = false
     @Published private(set) var error: Error?
     @Published var showingAuth = false
@@ -52,7 +52,6 @@ final class AppState: ObservableObject {
 
     private var fileWatcher: FileWatcher?
     private var refreshTask: Task<Void, Never>?
-    private var updateCheckTask: Task<Void, Never>?
     private var fileWatcherDebounceTask: Task<Void, Never>?
     private var contextWindowTask: Task<Void, Never>?
     private var localDataTask: Task<Void, Never>?
@@ -127,7 +126,6 @@ final class AppState: ObservableObject {
 
         Task { @MainActor in await refreshAll() }
         startRefreshTask()
-        startUpdateCheckTask()
 
         let home = FileManager.default.homeDirectoryForCurrentUser
         let claudePath = home.appendingPathComponent(".claude/projects").path
@@ -150,8 +148,6 @@ final class AppState: ObservableObject {
 
         refreshTask?.cancel()
         refreshTask = nil
-        updateCheckTask?.cancel()
-        updateCheckTask = nil
         fileWatcherDebounceTask?.cancel()
         fileWatcherDebounceTask = nil
         localDataTask?.cancel()
@@ -185,26 +181,6 @@ final class AppState: ObservableObject {
                     break
                 } catch {
                     // Unexpected error - should not happen with Task.sleep
-                    break
-                }
-            }
-        }
-    }
-
-    private func startUpdateCheckTask() {
-        updateCheckTask?.cancel()
-        updateCheckTask = Task { @MainActor [weak self] in
-            while !Task.isCancelled {
-                let update = await UpdateChecker.checkForUpdate()
-                self?.availableUpdate = update
-                if let update {
-                    NotificationService.shared.sendUpdateNotification(version: update.version)
-                }
-                do {
-                    try await Task.sleep(for: .seconds(3600))
-                } catch is CancellationError {
-                    break
-                } catch {
                     break
                 }
             }

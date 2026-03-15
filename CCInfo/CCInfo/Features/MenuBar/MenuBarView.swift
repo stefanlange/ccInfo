@@ -7,10 +7,6 @@ struct MenuBarView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if appState.isAuthenticated {
-                if let update = appState.availableUpdate {
-                    UpdateBanner(update: update)
-                    Divider()
-                }
                 if appState.activeSessions.count > 1 {
                     SessionSwitcher(
                         sessions: appState.activeSessions,
@@ -420,33 +416,6 @@ struct SessionSwitcher: View {
             .labelsHidden()
             .accessibilityLabel("Select active session")
         }
-    }
-}
-
-struct UpdateBanner: View {
-    let update: AvailableUpdate
-
-    var body: some View {
-        Button {
-            NSWorkspace.shared.open(update.url)
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "arrow.down.circle.fill")
-                    .font(.title3)
-                    .foregroundStyle(.blue)
-                    .accessibilityHidden(true)
-
-                Text("update.availableShort \(update.version)")
-                    .font(.caption)
-                    .foregroundStyle(.primary)
-            }
-            .padding(8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.blue.opacity(0.1))
-            .clipShape(RoundedRectangle(cornerRadius: 6))
-        }
-        .buttonStyle(.plain)
-        .accessibilityHint("Opens download page")
     }
 }
 

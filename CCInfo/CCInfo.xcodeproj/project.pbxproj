@@ -22,7 +22,7 @@
 		F000000C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F100000C /* Assets.xcassets */; };
 		F000000D /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = F100000F /* Localizable.xcstrings */; };
 		F000000E /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000010 /* NotificationService.swift */; };
-		F000000F /* UpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000011 /* UpdateChecker.swift */; };
+		F000000F /* UpdateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000011 /* UpdateService.swift */; };
 		F0000010 /* PricingModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000012 /* PricingModels.swift */; };
 		F0000011 /* PricingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000013 /* PricingService.swift */; };
 		F0000012 /* claude-pricing-fallback.json in Resources */ = {isa = PBXBuildFile; fileRef = F1000014 /* claude-pricing-fallback.json */; };
@@ -58,7 +58,7 @@
 		F100000E /* CCInfo.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CCInfo.entitlements; sourceTree = "<group>"; };
 		F100000F /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		F1000010 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
-		F1000011 /* UpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateChecker.swift; sourceTree = "<group>"; };
+		F1000011 /* UpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateService.swift; sourceTree = "<group>"; };
 		F1000012 /* PricingModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PricingModels.swift; sourceTree = "<group>"; };
 		F1000013 /* PricingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PricingService.swift; sourceTree = "<group>"; };
 		F1000014 /* claude-pricing-fallback.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "claude-pricing-fallback.json"; sourceTree = "<group>"; };
@@ -140,7 +140,7 @@
 				F1000007 /* JSONLParser.swift */,
 				F1000008 /* FileWatcher.swift */,
 				F1000010 /* NotificationService.swift */,
-				F1000011 /* UpdateChecker.swift */,
+				F1000011 /* UpdateService.swift */,
 				F1000013 /* PricingService.swift */,
 				F1000019 /* UsageHistoryService.swift */,
 				F100001F /* ChartShareService.swift */,
@@ -302,7 +302,7 @@
 				F000000A /* AuthWebView.swift in Sources */,
 				F000000B /* SettingsView.swift in Sources */,
 				F000000E /* NotificationService.swift in Sources */,
-				F000000F /* UpdateChecker.swift in Sources */,
+				F000000F /* UpdateService.swift in Sources */,
 				F0000010 /* PricingModels.swift in Sources */,
 				F0000011 /* PricingService.swift in Sources */,
 				EF0F5FCBC4A348098818D6D0 /* ModelIdentifier.swift in Sources */,
