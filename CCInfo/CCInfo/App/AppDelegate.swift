@@ -10,6 +10,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        // Enable automatic update checks by default (opt-out, not opt-in)
+        UserDefaults.standard.register(defaults: ["SUEnableAutomaticChecks": true])
         Task {
             await NotificationService.shared.requestAuthorization()
         }
