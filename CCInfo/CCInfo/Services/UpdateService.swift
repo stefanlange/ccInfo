@@ -1,6 +1,7 @@
 import Sparkle
 import Combine
 
+@MainActor
 final class UpdateService: ObservableObject {
     @Published private(set) var canCheckForUpdates = false
 

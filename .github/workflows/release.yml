@@ -45,11 +45,16 @@ jobs:
 
       - name: Ad-hoc code sign
         run: |
-          # Re-sign Sparkle.framework first — xcodebuild strips headers that the
-          # original signature references, so the framework needs a fresh signature
-          codesign --force --sign - build/Build/Products/Release/CCInfo.app/Contents/Frameworks/Sparkle.framework
+          APP="build/Build/Products/Release/CCInfo.app"
+          FRAMEWORKS="$APP/Contents/Frameworks/Sparkle.framework/Versions/B"
+          # Sign nested Sparkle executables individually (--deep corrupts XPC entitlements,
+          # and signing only the framework misses nested bundles)
+          codesign --force --sign - "$FRAMEWORKS/XPCServices/Installer.xpc"
+          codesign --force --sign - "$FRAMEWORKS/Autoupdate.app"
+          codesign --force --sign - "$FRAMEWORKS/Updater.app"
+          codesign --force --sign - "$APP/Contents/Frameworks/Sparkle.framework"
           # Then sign the app itself with entitlements
-          codesign --force --sign - --entitlements CCInfo/CCInfo/Resources/CCInfo.entitlements build/Build/Products/Release/CCInfo.app
+          codesign --force --sign - --entitlements CCInfo/CCInfo/Resources/CCInfo.entitlements "$APP"
 
       - name: Create DMG
         run: |
@@ -82,6 +87,8 @@ jobs:
           chmod +x /tmp/bin/generate_appcast
 
       - name: Checkout gh-pages branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
@@ -92,6 +99,7 @@ jobs:
             touch ./gh-pages/.nojekyll
             git -C ./gh-pages add .nojekyll
             git -C ./gh-pages commit -m "Initialize gh-pages branch"
+            git -C ./gh-pages push "https://x-access-token:${GITHUB_TOKEN}@github.com/stefanlange/ccInfo.git" gh-pages
           fi
 
       - name: Copy release artifacts to gh-pages
@@ -103,6 +111,10 @@ jobs:
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
+          if [ -z "$SPARKLE_PRIVATE_KEY" ]; then
+            echo "::error::SPARKLE_PRIVATE_KEY secret is not set"
+            exit 1
+          fi
           echo "$SPARKLE_PRIVATE_KEY" | /tmp/bin/generate_appcast \
             --ed-key-file - \
             --download-url-prefix "https://stefanlange.github.io/ccInfo/" \
