@@ -49,8 +49,8 @@ jobs:
           FRAMEWORKS="$APP/Contents/Frameworks/Sparkle.framework/Versions/B"
           # Sign nested Sparkle executables individually (--deep corrupts XPC entitlements,
           # and signing only the framework misses nested bundles)
+          codesign --force --sign - "$FRAMEWORKS/XPCServices/Downloader.xpc"
           codesign --force --sign - "$FRAMEWORKS/XPCServices/Installer.xpc"
-          codesign --force --sign - "$FRAMEWORKS/Autoupdate.app"
           codesign --force --sign - "$FRAMEWORKS/Updater.app"
           codesign --force --sign - "$APP/Contents/Frameworks/Sparkle.framework"
           # Then sign the app itself with entitlements
