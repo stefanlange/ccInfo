@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		EF0F5FCBC4A348098818D6D0 /* ModelIdentifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = D51C78C5173F4E4198388DE0 /* ModelIdentifier.swift */; };
-
 		F0000001 /* CCInfoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000001 /* CCInfoApp.swift */; };
 		F0000002 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000002 /* AppDelegate.swift */; };
 		F0000003 /* UsageData.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000003 /* UsageData.swift */; };
@@ -27,22 +26,22 @@
 		F0000010 /* PricingModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000012 /* PricingModels.swift */; };
 		F0000011 /* PricingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000013 /* PricingService.swift */; };
 		F0000012 /* claude-pricing-fallback.json in Resources */ = {isa = PBXBuildFile; fileRef = F1000014 /* claude-pricing-fallback.json */; };
-	F0000013 /* CurrencyFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000015 /* CurrencyFormatter.swift */; };
-	F0000014 /* MenuBarConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000016 /* MenuBarConfiguration.swift */; };
-	F0000015 /* SettingsWindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000017 /* SettingsWindowManager.swift */; };
-	F0000016 /* UsageDataPoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000018 /* UsageDataPoint.swift */; };
-	F0000017 /* UsageHistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000019 /* UsageHistoryService.swift */; };
-	F0000018 /* UsageChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001A /* UsageChartView.swift */; };
-	F0000019 /* UtilizationThresholds.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001B /* UtilizationThresholds.swift */; };
-	F000001C /* ContextWindow+UI.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001C /* ContextWindow+UI.swift */; };
-	F000001D /* ChartDrawingHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001D /* ChartDrawingHelper.swift */; };
-	F000001E /* ShareableChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001E /* ShareableChartView.swift */; };
-	F000001F /* ChartShareService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001F /* ChartShareService.swift */; };
+		F0000013 /* CurrencyFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000015 /* CurrencyFormatter.swift */; };
+		F0000014 /* MenuBarConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000016 /* MenuBarConfiguration.swift */; };
+		F0000015 /* SettingsWindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000017 /* SettingsWindowManager.swift */; };
+		F0000016 /* UsageDataPoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000018 /* UsageDataPoint.swift */; };
+		F0000017 /* UsageHistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000019 /* UsageHistoryService.swift */; };
+		F0000018 /* UsageChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001A /* UsageChartView.swift */; };
+		F0000019 /* UtilizationThresholds.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001B /* UtilizationThresholds.swift */; };
+		F000001C /* ContextWindow+UI.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001C /* ContextWindow+UI.swift */; };
+		F000001D /* ChartDrawingHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001D /* ChartDrawingHelper.swift */; };
+		F000001E /* ShareableChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001E /* ShareableChartView.swift */; };
+		F000001F /* ChartShareService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001F /* ChartShareService.swift */; };
+		F8629B0B2F66F1C20082D390 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = F8629B0A2F66F1C20082D390 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		D51C78C5173F4E4198388DE0 /* ModelIdentifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelIdentifier.swift; sourceTree = "<group>"; };
-
 		F1000001 /* CCInfoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CCInfoApp.swift; sourceTree = "<group>"; };
 		F1000002 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		F1000003 /* UsageData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageData.swift; sourceTree = "<group>"; };
@@ -82,6 +81,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F8629B0B2F66F1C20082D390 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -260,6 +260,9 @@
 				Base,
 			);
 			mainGroup = F3000000;
+			packageReferences = (
+				F8629B092F66F1C20082D390 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			productRefGroup = F3000010 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -532,6 +535,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		F8629B092F66F1C20082D390 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.9.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		F8629B0A2F66F1C20082D390 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F8629B092F66F1C20082D390 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = F6000017 /* Project object */;
 }
