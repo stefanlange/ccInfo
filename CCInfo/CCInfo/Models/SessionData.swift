@@ -160,10 +160,9 @@ struct ContextWindow: Sendable {
         isExtendedContext ? Constants.extendedMaxTokens : Constants.standardMaxTokens
     }
 
-    /// Haiku → 200k, Sonnet/Opus/new families → 1M, nil/unknown → 200k
     var isExtendedContext: Bool {
         guard let model = activeModel else { return false }
-        return model.family != .haiku && model.family != .unknown
+        return model.family == .sonnet || model.family == .opus
     }
 
     var effectiveMaxTokens: Int {

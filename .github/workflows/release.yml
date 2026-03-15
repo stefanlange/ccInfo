@@ -67,15 +67,19 @@ jobs:
         id: notes
         run: |
           body=$(awk '/^## ${{ inputs.version }} /{found=1; next} /^## /{if(found) exit} found' RELEASENOTES.md)
+          if [ -z "$body" ]; then
+            echo "::error::No release notes found for version ${{ inputs.version }} in RELEASENOTES.md"
+            exit 1
+          fi
           echo "body<<EOF" >> "$GITHUB_OUTPUT"
           echo "$body" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
 
       - name: Convert release notes to HTML sidecar
+        env:
+          RELEASE_NOTES: ${{ steps.notes.outputs.body }}
         run: |
-          cat > /tmp/relnotes.md << 'ENDOFNOTES'
-          ${{ steps.notes.outputs.body }}
-          ENDOFNOTES
+          echo "$RELEASE_NOTES" > /tmp/relnotes.md
           npx --yes marked /tmp/relnotes.md > "ccInfo-v${{ inputs.version }}.html"
 
       - name: Download Sparkle tools

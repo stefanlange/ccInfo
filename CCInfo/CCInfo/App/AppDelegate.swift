@@ -5,13 +5,13 @@ import Sparkle
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let appState = AppState()
-    let updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+    let updaterController = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil)
     lazy var updateService = UpdateService(updaterController: updaterController)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
-        // Enable automatic update checks by default (opt-out, not opt-in)
         UserDefaults.standard.register(defaults: ["SUEnableAutomaticChecks": true])
+        try? updaterController.updater.start()
         Task {
             await NotificationService.shared.requestAuthorization()
         }
@@ -340,6 +340,7 @@ final class AppState: ObservableObject {
         contextWindowState = nil
         usageHistoryService.handleWindowReset()
         usageHistory = usageHistoryService.history
+        NotificationService.shared.resetAllThresholds()
         showingAuth = true
     }
 }
