@@ -1,5 +1,14 @@
 # Release Notes
 
+## 1.8.0 – 2026-03-15
+
+- Replace the manual update checker with Sparkle for automatic in-app updates, including EdDSA signature verification
+- Add an Updates tab in Settings with a toggle for automatic checks (every 4 hours, enabled by default) and a manual check button
+- Sign releases with EdDSA and publish a Sparkle appcast to GitHub Pages as part of the release pipeline
+- Fix ad-hoc codesigning to preserve Sparkle XPC service entitlements (drop `--deep`, apply `disable-library-validation`)
+- Remove the old UpdateChecker, update banner, and update notification in favor of Sparkle's native update dialog
+- Add German translations for the new update settings
+
 ## 1.7.1 – 2026-03-01
 
 - Add copy-to-clipboard option in the chart share sheet (missing in ad-hoc signed builds)
