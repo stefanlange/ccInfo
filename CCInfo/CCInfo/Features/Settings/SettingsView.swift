@@ -4,12 +4,16 @@ import OSLog
 
 struct SettingsView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var updateService: UpdateService
 
     var body: some View {
         TabView {
             GeneralTab()
                 .environmentObject(appState)
                 .tabItem { Label("General", systemImage: "gear") }
+            UpdatesTab()
+                .environmentObject(updateService)
+                .tabItem { Label("Updates", systemImage: "arrow.triangle.2.circlepath") }
             AccountTab()
                 .environmentObject(appState)
                 .tabItem { Label("Account", systemImage: "person.crop.circle") }
@@ -242,6 +246,47 @@ struct PricingStatusRow: View {
 
     private func relativeTime(for date: Date) -> String {
         Self.relativeDateFormatter.localizedString(for: date, relativeTo: .now)
+    }
+}
+
+struct UpdatesTab: View {
+    @EnvironmentObject var updateService: UpdateService
+    @State private var isChecking = false
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle(
+                    String(localized: "Automatically check for updates"),
+                    isOn: Binding(
+                        get: { updateService.automaticallyChecksForUpdates },
+                        set: { updateService.automaticallyChecksForUpdates = $0 }
+                    )
+                )
+            }
+
+            Section {
+                HStack {
+                    Button(String(localized: "Check for Updates")) {
+                        isChecking = true
+                        updateService.checkForUpdates()
+                        // Reset after a short delay — Sparkle takes over with its own UI
+                        Task {
+                            try? await Task.sleep(for: .seconds(3))
+                            isChecking = false
+                        }
+                    }
+                    .disabled(!updateService.canCheckForUpdates || isChecking)
+
+                    if isChecking {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .padding()
     }
 }
 
