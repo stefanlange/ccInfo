@@ -454,6 +454,9 @@ actor JSONLParser {
                 lastModified: entry.date,
                 isActive: entry.date >= activeCutoff
             )
+        }.filter { session in
+            guard let path = session.projectPath else { return true }
+            return FileManager.default.fileExists(atPath: path)
         }
 
         // Active first (alphabetical), then inactive (most recent first)
@@ -467,6 +470,7 @@ actor JSONLParser {
     }
 
     /// Returns the single most recently modified session across all projects, ignoring any activity threshold.
+    /// Skips sessions whose projectPath directory no longer exists on disk.
     func findMostRecentSession() -> ActiveSession? {
         guard let enumerator = FileManager.default.enumerator(
             at: claudeProjectsPath,
@@ -474,7 +478,7 @@ actor JSONLParser {
             options: [.skipsHiddenFiles]
         ) else { return nil }
 
-        var newest: (url: URL, date: Date)?
+        var candidates: [(url: URL, date: Date)] = []
 
         while let url = enumerator.nextObject() as? URL {
             guard url.pathExtension == "jsonl",
@@ -482,21 +486,27 @@ actor JSONLParser {
                   let values = try? url.resourceValues(forKeys: [.contentModificationDateKey]),
                   let modDate = values.contentModificationDate else { continue }
 
-            if newest == nil || modDate > newest!.date {
-                newest = (url, modDate)
-            }
+            candidates.append((url, modDate))
         }
 
-        guard let result = newest else { return nil }
-        let projectDir = result.url.deletingLastPathComponent().lastPathComponent
-        let path = extractProjectPath(from: result.url)
-        return ActiveSession(
-            sessionURL: result.url,
-            projectDirectory: projectDir,
-            projectName: projectDisplayName(path: path, fallback: projectDir),
-            projectPath: path,
-            lastModified: result.date,
-            isActive: false
-        )
+        candidates.sort { $0.date > $1.date }
+
+        for candidate in candidates {
+            let path = extractProjectPath(from: candidate.url)
+            if let path {
+                guard FileManager.default.fileExists(atPath: path) else { continue }
+            }
+            let projectDir = candidate.url.deletingLastPathComponent().lastPathComponent
+            return ActiveSession(
+                sessionURL: candidate.url,
+                projectDirectory: projectDir,
+                projectName: projectDisplayName(path: path, fallback: projectDir),
+                projectPath: path,
+                lastModified: candidate.date,
+                isActive: false
+            )
+        }
+
+        return nil
     }
 }
