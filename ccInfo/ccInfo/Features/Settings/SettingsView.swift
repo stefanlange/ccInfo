@@ -22,7 +22,7 @@ struct SettingsView: View {
                 .tabItem { Label("About", systemImage: "info.circle") }
         }
         .background(SettingsWindowAccessor())
-        .frame(width: 400, height: 330)
+        .frame(width: 400, height: 365)
     }
 }
 
@@ -33,6 +33,7 @@ struct GeneralTab: View {
     @AppStorage(AppStorageKeys.sessionActivityThreshold) private var sessionActivityThreshold: Double = AppStorageKeys.Defaults.sessionActivityThreshold
     @AppStorage(AppStorageKeys.menuBarSlot1) private var menuBarSlot1: MenuBarSlot = AppStorageKeys.Defaults.menuBarSlot1
     @AppStorage(AppStorageKeys.menuBarSlot2) private var menuBarSlot2: MenuBarSlot = AppStorageKeys.Defaults.menuBarSlot2
+    @AppStorage(AppStorageKeys.sonnetContextSize) private var sonnetContextSize: Int = AppStorageKeys.Defaults.sonnetContextSize
 
     private let logger = Logger(subsystem: "com.ccinfo.app", category: "Settings")
 
@@ -65,6 +66,11 @@ struct GeneralTab: View {
                 }
                 .onChange(of: sessionActivityThreshold) { _, _ in
                     appState.updateSessionActivityThreshold()
+                }
+
+                Picker(String(localized: "Sonnet Context"), selection: $sonnetContextSize) {
+                    Text("200K").tag(200_000)
+                    Text("1M").tag(1_000_000)
                 }
             }
 

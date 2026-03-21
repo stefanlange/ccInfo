@@ -162,7 +162,15 @@ struct ContextWindow: Sendable {
 
     var isExtendedContext: Bool {
         guard let model = activeModel else { return false }
-        return model.family == .sonnet || model.family == .opus
+        switch model.family {
+        case .opus:
+            return true
+        case .sonnet:
+            let stored = UserDefaults.standard.integer(forKey: AppStorageKeys.sonnetContextSize)
+            return stored == Constants.extendedMaxTokens
+        case .haiku, .unknown:
+            return false
+        }
     }
 
     var effectiveMaxTokens: Int {

@@ -30,6 +30,7 @@ enum AppStorageKeys {
     static let refreshInterval = "refreshInterval"
     static let sessionActivityThreshold = "sessionActivityThreshold"
     static let statisticsPeriod = "statisticsPeriod"
+    static let sonnetContextSize = "sonnetContextSize"
 
     enum Defaults {
         static let launchAtLogin: Bool = false
@@ -38,5 +39,6 @@ enum AppStorageKeys {
         static let statisticsPeriod: StatisticsPeriod = .today
         static let menuBarSlot1: MenuBarSlot = .fiveHour
         static let menuBarSlot2: MenuBarSlot = .weeklyLimit
+        static let sonnetContextSize: Int = 200_000
     }
 }
