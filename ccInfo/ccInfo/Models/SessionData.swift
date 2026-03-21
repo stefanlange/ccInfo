@@ -155,21 +155,27 @@ struct ContextWindow: Sendable {
 
     let currentTokens: Int
     let activeModel: ModelIdentifier?
+    let isExtendedContext: Bool
 
     var maxTokens: Int {
         isExtendedContext ? Constants.extendedMaxTokens : Constants.standardMaxTokens
     }
 
-    var isExtendedContext: Bool {
-        guard let model = activeModel else { return false }
-        switch model.family {
+    init(currentTokens: Int, activeModel: ModelIdentifier? = nil) {
+        self.currentTokens = currentTokens
+        self.activeModel = activeModel
+        guard let family = activeModel?.family else {
+            self.isExtendedContext = false
+            return
+        }
+        switch family {
         case .opus:
-            return true
+            self.isExtendedContext = true
         case .sonnet:
             let stored = UserDefaults.standard.integer(forKey: AppStorageKeys.sonnetContextSize)
-            return stored == Constants.extendedMaxTokens
+            self.isExtendedContext = stored == Constants.extendedMaxTokens
         case .haiku, .unknown:
-            return false
+            self.isExtendedContext = false
         }
     }
 
@@ -187,10 +193,6 @@ struct ContextWindow: Sendable {
         currentTokens >= effectiveMaxTokens - Constants.autoCompactWarningBuffer
     }
 
-    init(currentTokens: Int, activeModel: ModelIdentifier? = nil) {
-        self.currentTokens = currentTokens
-        self.activeModel = activeModel
-    }
 }
 
 struct AgentContext: Sendable, Identifiable {

@@ -10,7 +10,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
-        UserDefaults.standard.register(defaults: ["SUEnableAutomaticChecks": true])
+        UserDefaults.standard.register(defaults: [
+            "SUEnableAutomaticChecks": true,
+            AppStorageKeys.sonnetContextSize: AppStorageKeys.Defaults.sonnetContextSize
+        ])
         try? updaterController.updater.start()
         Task {
             await NotificationService.shared.requestAuthorization()
@@ -38,14 +41,14 @@ final class AppState: ObservableObject {
     @Published var selectedSessionURL: URL?
     @Published private(set) var usageHistory: [UsageDataPoint] = []
 
-    let keychainService = KeychainService()
+    let credentialStore = CredentialStore()
     let usageHistoryService = UsageHistoryService()
     private let apiClient: ClaudeAPIClient
     private let jsonlParser = JSONLParser()
     private let logger = Logger(subsystem: "com.ccinfo.app", category: "AppState")
 
     init() {
-        self.apiClient = ClaudeAPIClient(keychainService: keychainService)
+        self.apiClient = ClaudeAPIClient(credentialStore: credentialStore)
         if let raw = UserDefaults.standard.string(forKey: AppStorageKeys.statisticsPeriod),
            let period = StatisticsPeriod(rawValue: raw) {
             self.statisticsPeriod = period
@@ -63,8 +66,8 @@ final class AppState: ObservableObject {
         return interval > 0 ? interval : AppStorageKeys.Defaults.refreshInterval
     }
 
-    var isAuthenticated: Bool { keychainService.hasCredentials }
-    var credentials: ClaudeCredentials? { keychainService.getCredentials() }
+    var isAuthenticated: Bool { credentialStore.hasCredentials }
+    var credentials: ClaudeCredentials? { credentialStore.getCredentials() }
     var contextWindow: ContextWindow? { contextWindowState?.main }
 
     private var sessionActivityThreshold: TimeInterval {
@@ -326,7 +329,7 @@ final class AppState: ObservableObject {
     }
 
     func signIn(credentials: ClaudeCredentials) {
-        if keychainService.saveCredentials(credentials) {
+        if credentialStore.saveCredentials(credentials) {
             showingAuth = false
             startMonitoring()
         }
@@ -334,7 +337,7 @@ final class AppState: ObservableObject {
 
     func signOut() {
         stopMonitoring()
-        keychainService.deleteCredentials()
+        credentialStore.deleteCredentials()
         usageData = nil
         sessionData = nil
         contextWindowState = nil

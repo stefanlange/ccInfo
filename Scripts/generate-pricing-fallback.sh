@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Default output path (can be overridden by argument)
-OUTPUT_PATH="${1:-$REPO_ROOT/CCInfo/CCInfo/Resources/claude-pricing-fallback.json}"
+OUTPUT_PATH="${1:-$REPO_ROOT/ccInfo/ccInfo/Resources/claude-pricing-fallback.json}"
 
 # LiteLLM pricing data URL
 LITELLM_URL="https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"

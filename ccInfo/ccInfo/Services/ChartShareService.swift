@@ -46,7 +46,7 @@ enum ChartShareService {
         }
 
         let tempURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("CCInfo-Chart-\(Int(utilization))pct", conformingTo: .png)
+            .appendingPathComponent("ccInfo-Chart-\(Int(utilization))pct", conformingTo: .png)
 
         do {
             try pngData.write(to: tempURL)

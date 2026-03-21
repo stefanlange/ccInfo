@@ -3,7 +3,7 @@ import OSLog
 
 actor ClaudeAPIClient {
     private static let baseURL = "https://claude.ai/api"
-    private let keychainService: KeychainService
+    private let credentialStore: CredentialStore
     private let logger = Logger(subsystem: "com.ccinfo.app", category: "API")
 
     enum APIError: Error, LocalizedError {
@@ -24,12 +24,12 @@ actor ClaudeAPIClient {
         }
     }
 
-    init(keychainService: KeychainService) {
-        self.keychainService = keychainService
+    init(credentialStore: CredentialStore) {
+        self.credentialStore = credentialStore
     }
 
     func fetchUsage() async throws -> UsageData {
-        guard let creds = await keychainService.getCredentials() else {
+        guard let creds = await credentialStore.getCredentials() else {
             throw APIError.notAuthenticated
         }
 
@@ -54,7 +54,7 @@ actor ClaudeAPIClient {
         }
 
         if http.statusCode == 401 {
-            await keychainService.deleteCredentials()
+            await credentialStore.deleteCredentials()
             throw APIError.sessionExpired
         }
 

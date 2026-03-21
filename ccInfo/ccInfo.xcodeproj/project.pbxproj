@@ -13,7 +13,7 @@
 		F0000003 /* UsageData.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000003 /* UsageData.swift */; };
 		F0000004 /* SessionData.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000004 /* SessionData.swift */; };
 		F0000005 /* ClaudeAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000005 /* ClaudeAPIClient.swift */; };
-		F0000006 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000006 /* KeychainService.swift */; };
+		F0000006 /* CredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000006 /* CredentialStore.swift */; };
 		F0000007 /* JSONLParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000007 /* JSONLParser.swift */; };
 		F0000008 /* FileWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000008 /* FileWatcher.swift */; };
 		F0000009 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000009 /* MenuBarView.swift */; };
@@ -47,7 +47,7 @@
 		F1000003 /* UsageData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageData.swift; sourceTree = "<group>"; };
 		F1000004 /* SessionData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionData.swift; sourceTree = "<group>"; };
 		F1000005 /* ClaudeAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAPIClient.swift; sourceTree = "<group>"; };
-		F1000006 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
+		F1000006 /* CredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialStore.swift; sourceTree = "<group>"; };
 		F1000007 /* JSONLParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONLParser.swift; sourceTree = "<group>"; };
 		F1000008 /* FileWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileWatcher.swift; sourceTree = "<group>"; };
 		F1000009 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
@@ -55,7 +55,7 @@
 		F100000B /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		F100000C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F100000D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		F100000E /* CCInfo.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CCInfo.entitlements; sourceTree = "<group>"; };
+		F100000E /* ccInfo.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ccInfo.entitlements; sourceTree = "<group>"; };
 		F100000F /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		F1000010 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		F1000011 /* UpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateService.swift; sourceTree = "<group>"; };
@@ -73,7 +73,7 @@
 		F100001D /* ChartDrawingHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartDrawingHelper.swift; sourceTree = "<group>"; };
 		F100001E /* ShareableChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareableChartView.swift; sourceTree = "<group>"; };
 		F100001F /* ChartShareService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartShareService.swift; sourceTree = "<group>"; };
-		F1000020 /* CCInfo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CCInfo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F1000020 /* ccInfo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ccInfo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -91,12 +91,12 @@
 		F3000000 = {
 			isa = PBXGroup;
 			children = (
-				F3000001 /* CCInfo */,
+				F3000001 /* ccInfo */,
 				F3000010 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		F3000001 /* CCInfo */ = {
+		F3000001 /* ccInfo */ = {
 			isa = PBXGroup;
 			children = (
 				F3000002 /* App */,
@@ -106,7 +106,7 @@
 				F3000009 /* Resources */,
 				F3000011 /* Utilities */,
 			);
-			path = CCInfo;
+			path = ccInfo;
 			sourceTree = "<group>";
 		};
 		F3000002 /* App */ = {
@@ -136,7 +136,7 @@
 			isa = PBXGroup;
 			children = (
 				F1000005 /* ClaudeAPIClient.swift */,
-				F1000006 /* KeychainService.swift */,
+				F1000006 /* CredentialStore.swift */,
 				F1000007 /* JSONLParser.swift */,
 				F1000008 /* FileWatcher.swift */,
 				F1000010 /* NotificationService.swift */,
@@ -189,7 +189,7 @@
 			children = (
 				F100000C /* Assets.xcassets */,
 				F100000D /* Info.plist */,
-				F100000E /* CCInfo.entitlements */,
+				F100000E /* ccInfo.entitlements */,
 				F100000F /* Localizable.xcstrings */,
 				F1000014 /* claude-pricing-fallback.json */,
 			);
@@ -199,7 +199,7 @@
 		F3000010 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				F1000020 /* CCInfo.app */,
+				F1000020 /* ccInfo.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -218,9 +218,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		F400001F /* CCInfo */ = {
+		F400001F /* ccInfo */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = F5000024 /* Build configuration list for PBXNativeTarget "CCInfo" */;
+			buildConfigurationList = F5000024 /* Build configuration list for PBXNativeTarget "ccInfo" */;
 			buildPhases = (
 				F200001C /* Sources */,
 				F200001D /* Frameworks */,
@@ -230,9 +230,9 @@
 			);
 			dependencies = (
 			);
-			name = CCInfo;
-			productName = CCInfo;
-			productReference = F1000020 /* CCInfo.app */;
+			name = ccInfo;
+			productName = ccInfo;
+			productReference = F1000020 /* ccInfo.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -250,7 +250,7 @@
 					};
 				};
 			};
-			buildConfigurationList = F500001A /* Build configuration list for PBXProject "CCInfo" */;
+			buildConfigurationList = F500001A /* Build configuration list for PBXProject "ccInfo" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -267,7 +267,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				F400001F /* CCInfo */,
+				F400001F /* ccInfo */,
 			);
 		};
 /* End PBXProject section */
@@ -295,7 +295,7 @@
 				F0000003 /* UsageData.swift in Sources */,
 				F0000004 /* SessionData.swift in Sources */,
 				F0000005 /* ClaudeAPIClient.swift in Sources */,
-				F0000006 /* KeychainService.swift in Sources */,
+				F0000006 /* CredentialStore.swift in Sources */,
 				F0000007 /* JSONLParser.swift in Sources */,
 				F0000008 /* FileWatcher.swift in Sources */,
 				F0000009 /* MenuBarView.swift in Sources */,
@@ -443,7 +443,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = CCInfo/Resources/CCInfo.entitlements;
+				CODE_SIGN_ENTITLEMENTS = ccInfo/Resources/ccInfo.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -462,7 +462,7 @@
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = CCInfo/Resources/Info.plist;
+				INFOPLIST_FILE = ccInfo/Resources/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -480,7 +480,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = CCInfo/Resources/CCInfo.entitlements;
+				CODE_SIGN_ENTITLEMENTS = ccInfo/Resources/ccInfo.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -499,7 +499,7 @@
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = CCInfo/Resources/Info.plist;
+				INFOPLIST_FILE = ccInfo/Resources/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -516,7 +516,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		F500001A /* Build configuration list for PBXProject "CCInfo" */ = {
+		F500001A /* Build configuration list for PBXProject "ccInfo" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				F7000025 /* Debug */,
@@ -525,7 +525,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		F5000024 /* Build configuration list for PBXNativeTarget "CCInfo" */ = {
+		F5000024 /* Build configuration list for PBXNativeTarget "ccInfo" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				F7000027 /* Debug */,

@@ -72,6 +72,9 @@ struct GeneralTab: View {
                     Text("200K").tag(200_000)
                     Text("1M").tag(1_000_000)
                 }
+                .onChange(of: sonnetContextSize) { _, _ in
+                    Task { await appState.refreshLocalData() }
+                }
             }
 
             Section(String(localized: "MenuBar Display")) {

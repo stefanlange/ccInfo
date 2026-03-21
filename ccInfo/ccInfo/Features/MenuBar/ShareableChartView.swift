@@ -135,7 +135,7 @@ struct ShareableChartView: View {
                 // Footer
                 HStack {
                     Spacer()
-                    Text("CCInfo")
+                    Text("ccInfo")
                         .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(textMuted.opacity(0.6))
                         .kerning(2)

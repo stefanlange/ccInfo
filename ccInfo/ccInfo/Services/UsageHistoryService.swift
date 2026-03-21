@@ -30,7 +30,12 @@ final class UsageHistoryService {
             logger.error("Application Support directory not found")
             return nil
         }
-        let ccInfoDir = appSupport.appendingPathComponent("CCInfo")
+        let ccInfoDir = appSupport.appendingPathComponent("ccInfo")
+        // Migrate from old "CCInfo" directory if it exists
+        let oldDir = appSupport.appendingPathComponent("CCInfo")
+        if FileManager.default.fileExists(atPath: oldDir.path) && !FileManager.default.fileExists(atPath: ccInfoDir.path) {
+            try? FileManager.default.moveItem(at: oldDir, to: ccInfoDir)
+        }
         return ccInfoDir.appendingPathComponent("usageHistory.json")
     }
 
