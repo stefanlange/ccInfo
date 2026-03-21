@@ -6,12 +6,12 @@
 
 | Data | Storage | Purpose |
 |------|---------|---------|
-| Session key, organization ID | macOS Keychain | API authentication |
+| Session key, organization ID | Application Support (`credentials.json`, chmod 600) | API authentication |
 | User preferences (refresh interval, statistics period, MenuBar slots, session activity threshold) | UserDefaults | App configuration |
 | Model pricing cache | Application Support | Offline pricing fallback (refreshed every 12h) |
 | Usage history (5-hour timeline) | Application Support | Area chart visualization of recent usage |
 
-Keychain entries use `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` — they are only accessible when your Mac is unlocked and are excluded from iCloud backup.
+Credentials are stored as a JSON file with owner-only read/write permissions (chmod 600) in `~/Library/Application Support/ccInfo/`. They are not synced to iCloud.
 
 ## Network Connections
 
@@ -47,7 +47,7 @@ The app uses one entitlement:
 It also uses:
 
 - **Network access** for API calls to claude.ai, update checks via Sparkle appcast, and pricing data from LiteLLM
-- **Keychain access** for secure credential storage
+- **File system write access** to `~/Library/Application Support/ccInfo/` for credential and cache storage
 - **File system read access** to `~/.claude/projects/` for session data
 - **Notification permission** (optional) for usage threshold alerts (80%/95%)
 

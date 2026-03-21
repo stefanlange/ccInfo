@@ -32,7 +32,7 @@ A native macOS MenuBar app for real-time monitoring of your Claude usage.
 - **Sparkle Auto-Updates** – Automatic update checks every 4 hours with in-app install via Sparkle, configurable in Settings
 - **Configurable Refresh Interval** – Manual or automatic polling from 30 seconds to 10 minutes
 - **Launch at Login** – Start ccInfo automatically with macOS
-- **Secure Authentication** – Session tokens stored in macOS Keychain
+- **Secure Authentication** – Session tokens stored locally with restricted file permissions
 - **VoiceOver Accessible** – Full VoiceOver support across all MenuBar components
 
 ## Installation
@@ -64,7 +64,7 @@ Build with ⌘B, run with ⌘R.
 
 ## Privacy
 
-- Stores tokens locally in the macOS Keychain
+- Stores tokens locally in Application Support (chmod 600)
 - Communicates only with claude.ai and the LiteLLM pricing API
 - Collects no telemetry
 - Sends no data to third parties
