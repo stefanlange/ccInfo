@@ -3,6 +3,29 @@
     <channel>
         <title>CCInfo</title>
         <item>
+            <title>1.8.2</title>
+            <pubDate>Sat, 21 Mar 2026 15:23:30 +0000</pubDate>
+            <link>https://github.com/stefanlange/ccInfo</link>
+            <sparkle:version>1.8.2</sparkle:version>
+            <sparkle:shortVersionString>1.8.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<ul>
+<li>Add a Sonnet context window setting (200K/1M) in Settings for plans without extended context</li>
+<li>Store credentials as a local file instead of macOS Keychain, fixing the password prompt after every app update</li>
+<li>Migrate existing Keychain credentials on first launch and delete the old entry</li>
+<li>Hide sessions whose project directory no longer exists (e.g. after removing a git worktree)</li>
+<li>Rename the project from CCInfo to ccInfo to match the repo and DMG naming</li>
+</ul>
+
+]]></description>
+            <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo-v1.8.2.dmg" length="3169158" type="application/octet-stream" sparkle:edSignature="+l/LDQ/j5ABfZF86O3iC4y3oY2ZytHkK8VNnq1yUF0xSLl0kHj2ZQjvVhLvkgQ32GkZLMBX0/NLpLy27tNOsDw=="/>
+            <sparkle:deltas>
+                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.8.2-1.8.1.delta" sparkle:deltaFrom="1.8.1" length="319986" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="Is6tTE8d1B3Sd2Zkdr++/3M+9eZN0wch5yvw7sPwtLb2ajJrNkq0P/V/ysA/B85NAtboauZneQzXjL+tsFbmDw=="/>
+                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.8.2-1.8.0.delta" sparkle:deltaFrom="1.8.0" length="323790" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="oMikl4ysJieZLtYc7zGmty4KjmzQ1b78O10ik0daaBLVz5bsrPEhk4uJDCqHJGXv0RJnH+OeGRu76hImhRFhCA=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>1.8.1</title>
             <pubDate>Sun, 15 Mar 2026 16:24:15 +0000</pubDate>
             <link>https://github.com/stefanlange/ccInfo</link>
