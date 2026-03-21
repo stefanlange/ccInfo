@@ -28,8 +28,8 @@ jobs:
 
       - name: Build
         run: |
-          xcodebuild -project CCInfo/CCInfo.xcodeproj \
-                     -scheme CCInfo \
+          xcodebuild -project ccInfo/ccInfo.xcodeproj \
+                     -scheme ccInfo \
                      -configuration Release \
                      -derivedDataPath build \
                      CODE_SIGNING_ALLOWED=NO \
@@ -41,11 +41,11 @@ jobs:
           git push origin "v${{ inputs.version }}"
 
       - name: Fix executable permissions
-        run: chmod +x build/Build/Products/Release/CCInfo.app/Contents/MacOS/CCInfo
+        run: chmod +x build/Build/Products/Release/ccInfo.app/Contents/MacOS/ccInfo
 
       - name: Ad-hoc code sign
         run: |
-          APP="build/Build/Products/Release/CCInfo.app"
+          APP="build/Build/Products/Release/ccInfo.app"
           FRAMEWORKS="$APP/Contents/Frameworks/Sparkle.framework/Versions/B"
           # Sign nested Sparkle executables individually (--deep corrupts XPC entitlements,
           # and signing only the framework misses nested bundles)
@@ -54,12 +54,12 @@ jobs:
           codesign --force --sign - "$FRAMEWORKS/Updater.app"
           codesign --force --sign - "$APP/Contents/Frameworks/Sparkle.framework"
           # Then sign the app itself with entitlements
-          codesign --force --sign - --entitlements CCInfo/CCInfo/Resources/CCInfo.entitlements "$APP"
+          codesign --force --sign - --entitlements ccInfo/ccInfo/Resources/ccInfo.entitlements "$APP"
 
       - name: Create DMG
         run: |
           mkdir -p dmg-contents
-          cp -R build/Build/Products/Release/CCInfo.app dmg-contents/
+          cp -R build/Build/Products/Release/ccInfo.app dmg-contents/
           ln -s /Applications dmg-contents/Applications
           hdiutil create -volname "ccInfo" -srcfolder dmg-contents -ov -format UDZO "ccInfo-v${{ inputs.version }}.dmg"
 

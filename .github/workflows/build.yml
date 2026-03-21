@@ -14,8 +14,8 @@ jobs:
 
       - name: Build
         run: |
-          xcodebuild -project CCInfo/CCInfo.xcodeproj \
-                     -scheme CCInfo \
+          xcodebuild -project ccInfo/ccInfo.xcodeproj \
+                     -scheme ccInfo \
                      -configuration Release \
                      -derivedDataPath build \
                      CODE_SIGNING_ALLOWED=NO

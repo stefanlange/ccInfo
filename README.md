@@ -42,9 +42,9 @@ A native macOS MenuBar app for real-time monitoring of your Claude usage.
 1. Download the latest release from [Releases](https://github.com/stefanlange/ccInfo/releases)
 2. Open the DMG and drag the app to `/Applications`
 3. **First launch:** The app is not notarized by Apple. On first launch:
-   - **Right-click** (or Ctrl+click) on CCInfo.app → **Open** → click **Open** in the dialog
+   - **Right-click** (or Ctrl+click) on ccInfo.app → **Open** → click **Open** in the dialog
    - *Or* go to **System Settings** → **Privacy & Security** → scroll down and click **Open Anyway**
-   - *Or* run `xattr -cr /Applications/CCInfo.app` in Terminal
+   - *Or* run `xattr -cr /Applications/ccInfo.app` in Terminal
 4. Launch and sign in with your Claude account
 
 ### Build from Source
@@ -52,7 +52,7 @@ A native macOS MenuBar app for real-time monitoring of your Claude usage.
 ```bash
 git clone https://github.com/stefanlange/ccInfo.git
 cd ccInfo
-open CCInfo/CCInfo.xcodeproj
+open ccInfo/ccInfo.xcodeproj
 ```
 
 Build with ⌘B, run with ⌘R.
