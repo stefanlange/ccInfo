@@ -1,5 +1,13 @@
 # Release Notes
 
+## 1.8.2 – 2026-03-21
+
+- Add a Sonnet context window setting (200K/1M) in Settings for plans without extended context
+- Store credentials as a local file instead of macOS Keychain, fixing the password prompt after every app update
+- Migrate existing Keychain credentials on first launch and delete the old entry
+- Hide sessions whose project directory no longer exists (e.g. after removing a git worktree)
+- Rename the project from CCInfo to ccInfo to match the repo and DMG naming
+
 ## 1.8.1 – 2026-03-15
 
 - Recognize the new 1M context window for Sonnet and Opus instead of relying on a token-count heuristic (Haiku stays at 200k)
