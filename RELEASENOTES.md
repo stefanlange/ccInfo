@@ -1,5 +1,10 @@
 # Release Notes
 
+## 1.8.3 – 2026-03-25
+
+- Compact the three footer buttons (Refresh, Settings, Quit) to icons with hover tooltips
+- Switch CI and release builds to the macOS 26 SDK for Liquid Glass on Tahoe
+
 ## 1.8.2 – 2026-03-21
 
 - Add a Sonnet context window setting (200K/1M) in Settings for plans without extended context
