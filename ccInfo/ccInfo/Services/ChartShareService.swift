@@ -71,7 +71,7 @@ enum ChartShareService {
 
 /// Injects a "Copy" clipboard service into the sharing service picker.
 @MainActor
-private final class SharePickerDelegate: NSObject, NSSharingServicePickerDelegate {
+private final class SharePickerDelegate: NSObject, @preconcurrency NSSharingServicePickerDelegate {
     private let image: NSImage
 
     init(image: NSImage) {
