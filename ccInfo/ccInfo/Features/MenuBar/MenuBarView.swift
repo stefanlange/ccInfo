@@ -122,19 +122,33 @@ struct MenuBarView: View {
     }
 
     private var footerButtons: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Button { Task { await appState.refreshAll() } } label: { footerLabel("Refresh", systemImage: "arrow.clockwise") }.buttonStyle(.borderless).disabled(appState.isLoading)
-            SettingsLink { footerLabel("Settings", systemImage: "gear") }
-                .buttonStyle(.borderless)
-            Button { NSApplication.shared.terminate(nil) } label: { footerLabel("Quit", systemImage: "power") }.buttonStyle(.borderless)
-        }.font(.callout)
-    }
+        HStack {
+            Button { Task { await appState.refreshAll() } } label: {
+                Image(systemName: "arrow.clockwise")
+            }
+            .buttonStyle(.borderless)
+            .disabled(appState.isLoading)
+            .help(String(localized: "Refresh"))
+            .accessibilityLabel(Text("Refresh"))
 
-    private func footerLabel(_ title: LocalizedStringKey, systemImage: String) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: systemImage).frame(width: 16, alignment: .center)
-            Text(title)
-        }
+            Spacer()
+
+            SettingsLink {
+                Image(systemName: "gear")
+            }
+            .buttonStyle(.borderless)
+            .help(String(localized: "Settings"))
+            .accessibilityLabel(Text("Settings"))
+
+            Spacer()
+
+            Button { NSApplication.shared.terminate(nil) } label: {
+                Image(systemName: "power")
+            }
+            .buttonStyle(.borderless)
+            .help(String(localized: "Quit"))
+            .accessibilityLabel(Text("Quit"))
+        }.font(.callout)
     }
 }
 
