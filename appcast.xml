@@ -3,6 +3,34 @@
     <channel>
         <title>CCInfo</title>
         <item>
+            <title>1.9.0</title>
+            <pubDate>Tue, 31 Mar 2026 10:55:41 +0000</pubDate>
+            <link>https://github.com/stefanlange/ccInfo</link>
+            <sparkle:version>1.9.0</sparkle:version>
+            <sparkle:shortVersionString>1.9.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<ul>
+<li>Redesign Settings as a sidebar navigation with colored icon badges and the app icon on the About tab</li>
+<li>Replace the flat green chart fill with a smooth horizontal color gradient that follows the usage level from green through yellow to orange</li>
+<li>Fix a visual gap in the usage chart after restarting the app</li>
+<li>Fix high CPU usage during active Claude sessions by switching FSEvents to directory-level coalescing and adding caches for parsed paths, context windows, and JSONL byte offsets</li>
+<li>Parse JSONL files incrementally — only new bytes are read after the initial parse, cutting steady-state I/O to near zero</li>
+<li>Combine the two directory walks for session discovery into a single pass</li>
+<li>Migrate AppState from ObservableObject to @Observable for fine-grained SwiftUI re-renders</li>
+<li>Implement Sparkle gentle reminders so update dialogs appear correctly for background apps</li>
+</ul>
+
+]]></description>
+            <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo-v1.9.0.dmg" length="3236012" type="application/octet-stream" sparkle:edSignature="n8wd+TuLnDT6dHGjPM648w7W6o/4JHVYhMAUimdg17a61/ParwdTO2Emm7mymYz2wGp27/sQO9i/3xEybBI8CA=="/>
+            <sparkle:deltas>
+                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.9.0-1.8.3.delta" sparkle:deltaFrom="1.8.3" length="253162" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="3u65xRfW6QjUsKw8/GGYlpkvixTgHpYFw+8J6XyRlWtgsnJXfkeokPA5ts9SooBMpuJqhUxQYT30v5IabGHKDQ=="/>
+                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.9.0-1.8.2.delta" sparkle:deltaFrom="1.8.2" length="395110" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="gWR6xDzhXxJGVShvbtMlcABCXnqQkuq72pbzE6gJOOPqoFVknjdvXxdbzckEiUbQE9wSNEw5okXChgL254iQBA=="/>
+                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.9.0-1.8.1.delta" sparkle:deltaFrom="1.8.1" length="400906" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="Nch33BIY/uTVQjv+0vRKqQCdsfNLe70YpQFwf29/I3K/PwZTCs34an7a1ynR0kCWcuC9Jw4fLmiHbIhZhZ94Cg=="/>
+                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.9.0-1.8.0.delta" sparkle:deltaFrom="1.8.0" length="403846" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="prBSYj8/t6y6D4s61SCwMPFoEeb5DzGhXBhC5efcHzH1+/4sb1R8oMbSGzEeo20teM3cqiIbRW4fBP9OnF1zAA=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>1.8.3</title>
             <pubDate>Wed, 25 Mar 2026 18:48:53 +0000</pubDate>
             <link>https://github.com/stefanlange/ccInfo</link>
