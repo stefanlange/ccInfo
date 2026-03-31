@@ -1,7 +1,7 @@
 import Foundation
 
 /// A single data point in the 5-hour usage history timeline.
-struct UsageDataPoint: Codable, Sendable {
+struct UsageDataPoint: Codable, Sendable, Equatable {
     /// Timestamp when this data point was captured
     let timestamp: Date
 

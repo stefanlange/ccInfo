@@ -57,9 +57,10 @@ final class AppState: ObservableObject {
 
     private var fileWatcher: FileWatcher?
     private var refreshTask: Task<Void, Never>?
-    private var fileWatcherDebounceTask: Task<Void, Never>?
     private var contextWindowTask: Task<Void, Never>?
     private var localDataTask: Task<Void, Never>?
+    private var lastLocalRefresh: Date = .distantPast
+    private let minLocalRefreshInterval: TimeInterval = 2.0
 
     private var refreshInterval: TimeInterval {
         let interval = UserDefaults.standard.double(forKey: AppStorageKeys.refreshInterval)
@@ -135,13 +136,14 @@ final class AppState: ObservableObject {
         let home = FileManager.default.homeDirectoryForCurrentUser
         let claudePath = home.appendingPathComponent(".claude/projects").path
         fileWatcher = FileWatcher(path: claudePath) { [weak self] in
-            Task { @MainActor [weak self] in
-                self?.fileWatcherDebounceTask?.cancel()
-                self?.fileWatcherDebounceTask = Task { [weak self] in
-                    try? await Task.sleep(for: .milliseconds(500))
-                    guard !Task.isCancelled else { return }
-                    self?.scheduleLocalDataRefresh()
-                }
+            // FSEventStream dispatches on DispatchQueue.main, so MainActor is safe here.
+            // Using assumeIsolated avoids async Task enqueue, making the timestamp gate atomic.
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                let now = Date()
+                guard now.timeIntervalSince(self.lastLocalRefresh) >= self.minLocalRefreshInterval else { return }
+                self.lastLocalRefresh = now
+                self.scheduleLocalDataRefresh()
             }
         }
         fileWatcher?.start()
@@ -153,8 +155,6 @@ final class AppState: ObservableObject {
 
         refreshTask?.cancel()
         refreshTask = nil
-        fileWatcherDebounceTask?.cancel()
-        fileWatcherDebounceTask = nil
         localDataTask?.cancel()
         localDataTask = nil
         contextWindowTask?.cancel()
@@ -241,14 +241,17 @@ final class AppState: ObservableObject {
     }
 
     func refreshLocalData() async {
+        guard !Task.isCancelled else { return }
         let snapshotPeriod = statisticsPeriod
         let snapshotURL = selectedSessionURL
 
         do {
             let availableKeys = await PricingService.shared.availableModelKeys
+            guard !Task.isCancelled else { return }
 
             // Discover active and recently inactive sessions
             var sessions = await jsonlParser.findActiveSessions(threshold: sessionActivityThreshold)
+            guard !Task.isCancelled else { return }
             if sessions.isEmpty, let mostRecent = await jsonlParser.findMostRecentSession() {
                 sessions = [mostRecent]
             }

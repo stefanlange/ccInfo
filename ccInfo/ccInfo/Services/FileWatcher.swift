@@ -53,7 +53,7 @@ final class FileWatcher: @unchecked Sendable {
             [path] as CFArray,
             FSEventStreamEventId(kFSEventStreamEventIdSinceNow),
             1.0,
-            UInt32(kFSEventStreamCreateFlagUseCFTypes | kFSEventStreamCreateFlagFileEvents)
+            UInt32(kFSEventStreamCreateFlagUseCFTypes)
         )
 
         guard let stream else {

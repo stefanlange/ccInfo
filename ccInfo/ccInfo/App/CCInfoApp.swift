@@ -31,21 +31,53 @@ struct ccInfoApp: App {
 
 struct MenuBarLabel: View {
     @EnvironmentObject var appState: AppState
+    @State private var cachedImage: NSImage?
+    @State private var cachedKey = MenuBarCacheKey()
 
     var body: some View {
         if appState.isAuthenticated, appState.usageData != nil {
-            let slot1Value = appState.utilizationForSlot(appState.menuBarSlot1) ?? 0
-            let slot2Value = appState.utilizationForSlot(appState.menuBarSlot2) ?? 0
-            Image(nsImage: MenuBarImageRenderer.render(
-                topRow: slot1Value,
-                bottomRow: slot2Value,
-                topSlot: appState.menuBarSlot1,
-                bottomSlot: appState.menuBarSlot2
-            ))
+            let slot1 = appState.menuBarSlot1
+            let slot2 = appState.menuBarSlot2
+            let slot1Value = Int(appState.utilizationForSlot(slot1) ?? 0)
+            let slot2Value = Int(appState.utilizationForSlot(slot2) ?? 0)
+            let key = MenuBarCacheKey(slot1: slot1, slot2: slot2, value1: slot1Value, value2: slot2Value)
+
+            let image: NSImage = if key == cachedKey, let cached = cachedImage {
+                cached
+            } else {
+                MenuBarImageRenderer.render(
+                    topRow: Double(slot1Value),
+                    bottomRow: Double(slot2Value),
+                    topSlot: slot1,
+                    bottomSlot: slot2
+                )
+            }
+
+            Image(nsImage: image)
+                .onChange(of: key) { _, newKey in
+                    cachedImage = MenuBarImageRenderer.render(
+                        topRow: Double(newKey.value1),
+                        bottomRow: Double(newKey.value2),
+                        topSlot: newKey.slot1,
+                        bottomSlot: newKey.slot2
+                    )
+                    cachedKey = newKey
+                }
+                .onAppear {
+                    cachedImage = image
+                    cachedKey = key
+                }
         } else {
             Image(systemName: "gauge.with.dots.needle.bottom.50percent")
         }
     }
+}
+
+private struct MenuBarCacheKey: Equatable, Hashable {
+    var slot1: MenuBarSlot = .fiveHour
+    var slot2: MenuBarSlot = .weeklyLimit
+    var value1: Int = -1
+    var value2: Int = -1
 }
 
 enum MenuBarImageRenderer {

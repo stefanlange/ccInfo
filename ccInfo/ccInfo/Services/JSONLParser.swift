@@ -7,6 +7,14 @@ actor JSONLParser {
     private let pricingService: PricingService
     private let logger = Logger(subsystem: "com.ccinfo.app", category: "JSONLParser")
 
+    /// Cache for extractProjectPath results — JSONL files are append-only,
+    /// so the cwd (written at session start) never changes for a given file.
+    private var projectPathCache: [URL: String?] = [:]
+
+    /// Cache for getContextWindowForFile results, keyed by file size.
+    /// A size change means new entries were appended → re-read needed.
+    private var contextWindowCache: [URL: (size: UInt64, result: ContextWindow)] = [:]
+
     init(pricingService: PricingService = .shared) {
         self.pricingService = pricingService
         claudeProjectsPath = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/projects")
@@ -164,6 +172,10 @@ actor JSONLParser {
     /// Extracts the full `cwd` path from the first few lines of a JSONL file.
     /// Only reads the first 16 KB chunk — `cwd` appears in the initial session entries.
     private func extractProjectPath(from url: URL) -> String? {
+        if let cached = projectPathCache[url] {
+            return cached
+        }
+
         guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? handle.close() }
 
@@ -175,8 +187,10 @@ actor JSONLParser {
                   let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let cwd = obj["cwd"] as? String,
                   !cwd.isEmpty else { continue }
+            projectPathCache[url] = cwd
             return cwd
         }
+        // Don't cache nil — the file may be recreated at the same URL with a cwd entry
         return nil
     }
 
@@ -329,12 +343,23 @@ actor JSONLParser {
         defer { try? handle.close() }
 
         let fileSize = handle.seekToEndOfFile()
+
+        // Fast path: if file size hasn't changed, the context window is unchanged
+        if let cached = contextWindowCache[url], cached.size == fileSize {
+            return cached.result
+        }
+        // Evict stale entries to prevent unbounded growth
+        if contextWindowCache.count > 20 {
+            contextWindowCache.removeAll()
+        }
         let tailSize: UInt64 = 1_048_576
         handle.seek(toFileOffset: fileSize > tailSize ? fileSize - tailSize : 0)
         let tailData = handle.readDataToEndOfFile()
 
         guard let text = String(data: tailData, encoding: .utf8) else {
-            return ContextWindow(currentTokens: 0, activeModel: nil)
+            let result = ContextWindow(currentTokens: 0, activeModel: nil)
+            contextWindowCache[url] = (size: fileSize, result: result)
+            return result
         }
 
         for line in text.components(separatedBy: .newlines).reversed() {
@@ -347,10 +372,14 @@ actor JSONLParser {
                 ModelIdentifier(rawId: $0, availableModelKeys: availableModelKeys)
             }
             let finalModel = activeModel?.family != .unknown ? activeModel : nil
-            return ContextWindow(currentTokens: usage.totalInputTokens, activeModel: finalModel)
+            let result = ContextWindow(currentTokens: usage.totalInputTokens, activeModel: finalModel)
+            contextWindowCache[url] = (size: fileSize, result: result)
+            return result
         }
 
-        return ContextWindow(currentTokens: 0, activeModel: nil)
+        let result = ContextWindow(currentTokens: 0, activeModel: nil)
+        contextWindowCache[url] = (size: fileSize, result: result)
+        return result
     }
 
     func getCurrentContextWindow(availableModelKeys: Set<String> = []) throws -> ContextWindow {
