@@ -85,7 +85,14 @@ final class UsageHistoryService {
 
             let now = Date()
             let fiveHoursAgo = now.addingTimeInterval(-windowDuration)
-            dataPoints = loaded.filter { $0.timestamp > fiveHoursAgo }
+            // Strip isGap flags from persisted data — gaps from previous sessions
+            // represent app restarts, not actual usage pauses. The API-reported utilization
+            // is continuous regardless of whether ccInfo was running.
+            // Live gap detection in record() still creates markers for the current session.
+            dataPoints = loaded
+                .filter { $0.timestamp > fiveHoursAgo }
+                .map { UsageDataPoint(timestamp: $0.timestamp, usage: $0.usage) }
+
             if !dataPoints.isEmpty {
                 suppressNextGap = true
             }
