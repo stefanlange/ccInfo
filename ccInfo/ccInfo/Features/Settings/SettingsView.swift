@@ -3,22 +3,22 @@ import ServiceManagement
 import OSLog
 
 struct SettingsView: View {
-    @EnvironmentObject var appState: AppState
+    @Environment(AppState.self) var appState
     @EnvironmentObject var updateService: UpdateService
 
     var body: some View {
         TabView {
             GeneralTab()
-                .environmentObject(appState)
+                .environment(appState)
                 .tabItem { Label("General", systemImage: "gear") }
             UpdatesTab()
                 .environmentObject(updateService)
                 .tabItem { Label("Updates", systemImage: "arrow.triangle.2.circlepath") }
             AccountTab()
-                .environmentObject(appState)
+                .environment(appState)
                 .tabItem { Label("Account", systemImage: "person.crop.circle") }
             AboutTab()
-                .environmentObject(appState)
+                .environment(appState)
                 .tabItem { Label("About", systemImage: "info.circle") }
         }
         .background(SettingsWindowAccessor())
@@ -27,7 +27,7 @@ struct SettingsView: View {
 }
 
 struct GeneralTab: View {
-    @EnvironmentObject var appState: AppState
+    @Environment(AppState.self) var appState
     @AppStorage(AppStorageKeys.launchAtLogin) private var launchAtLogin = AppStorageKeys.Defaults.launchAtLogin
     @AppStorage(AppStorageKeys.refreshInterval) private var refreshInterval: Double = AppStorageKeys.Defaults.refreshInterval
     @AppStorage(AppStorageKeys.sessionActivityThreshold) private var sessionActivityThreshold: Double = AppStorageKeys.Defaults.sessionActivityThreshold
@@ -121,7 +121,7 @@ struct GeneralTab: View {
 }
 
 struct AccountTab: View {
-    @EnvironmentObject var appState: AppState
+    @Environment(AppState.self) var appState
     @State private var orgIdCopied = false
     @State private var copyResetTask: Task<Void, Never>?
 
@@ -176,7 +176,7 @@ struct AccountTab: View {
 }
 
 struct AboutTab: View {
-    @EnvironmentObject var appState: AppState
+    @Environment(AppState.self) var appState
 
     private var versionLabel: String {
         let value = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"

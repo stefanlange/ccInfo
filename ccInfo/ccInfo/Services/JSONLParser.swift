@@ -317,6 +317,8 @@ actor JSONLParser {
                         accumulator.accumulate(usage: usage, rawModelId: entry.rawModelId, entryCost: cost, entryModel: model)
                     }
                 }
+            } catch is CancellationError {
+                break
             } catch {
                 logger.debug("Error reading \(url.lastPathComponent): \(error.localizedDescription)")
             }
@@ -441,29 +443,38 @@ actor JSONLParser {
         return ContextWindowState(main: mainContext, activeAgents: agentContexts)
     }
 
-    func findActiveSessions(threshold: TimeInterval) -> [ActiveSession] {
+    /// Combined single-walk method that returns both active sessions and a fallback "most recent" session.
+    /// Eliminates the need for two separate `FileManager.enumerator` walks.
+    func findSessionsWithFallback(threshold: TimeInterval) -> (active: [ActiveSession], fallback: ActiveSession?) {
         guard let enumerator = FileManager.default.enumerator(
             at: claudeProjectsPath,
             includingPropertiesForKeys: [.contentModificationDateKey],
             options: [.skipsHiddenFiles]
-        ) else { return [] }
+        ) else { return ([], nil) }
 
         let now = Date()
         let activeCutoff = now.addingTimeInterval(-threshold)
         let inactiveCutoff = now.addingTimeInterval(-86400) // 24 hours
-        // Group by project directory, keeping only the newest session per project
+
+        // For active sessions: newest per project within 24h
         var newestByProject: [String: (url: URL, date: Date)] = [:]
+        // For fallback: track only the single newest file (O(1) instead of collecting all)
+        var fallbackBest: (url: URL, date: Date)?
 
         while let url = enumerator.nextObject() as? URL {
             guard url.pathExtension == "jsonl",
                   !url.pathComponents.contains("subagents"),
                   let values = try? url.resourceValues(forKeys: [.contentModificationDateKey]),
-                  let modDate = values.contentModificationDate,
-                  modDate >= inactiveCutoff else { continue }
+                  let modDate = values.contentModificationDate else { continue }
 
-            // Project directory is the parent of the JSONL file
+            // Track global newest for fallback
+            if fallbackBest == nil || modDate > fallbackBest!.date {
+                fallbackBest = (url, modDate)
+            }
+
+            // Only track for active sessions if within 24h
+            guard modDate >= inactiveCutoff else { continue }
             let projectDir = url.deletingLastPathComponent().lastPathComponent
-
             if let existing = newestByProject[projectDir] {
                 if modDate > existing.date {
                     newestByProject[projectDir] = (url, modDate)
@@ -473,6 +484,7 @@ actor JSONLParser {
             }
         }
 
+        // Build active sessions list
         let sessions = newestByProject.map { (projectDir, entry) in
             let path = extractProjectPath(from: entry.url)
             return ActiveSession(
@@ -486,16 +498,32 @@ actor JSONLParser {
         }.filter { session in
             guard let path = session.projectPath else { return true }
             return FileManager.default.fileExists(atPath: path)
-        }
-
-        // Active first (alphabetical), then inactive (most recent first)
-        return sessions.sorted { a, b in
+        }.sorted { a, b in
             if a.isActive != b.isActive { return a.isActive }
             if a.isActive {
                 return a.projectName.localizedStandardCompare(b.projectName) == .orderedAscending
             }
             return a.lastModified > b.lastModified
         }
+
+        // Build fallback only if needed (caller checks active.isEmpty)
+        var fallback: ActiveSession?
+        if sessions.isEmpty, let best = fallbackBest {
+            let path = extractProjectPath(from: best.url)
+            if path == nil || FileManager.default.fileExists(atPath: path!) {
+                let projectDir = best.url.deletingLastPathComponent().lastPathComponent
+                fallback = ActiveSession(
+                    sessionURL: best.url,
+                    projectDirectory: projectDir,
+                    projectName: projectDisplayName(path: path, fallback: projectDir),
+                    projectPath: path,
+                    lastModified: best.date,
+                    isActive: false
+                )
+            }
+        }
+
+        return (sessions, fallback)
     }
 
     /// Returns the single most recently modified session across all projects, ignoring any activity threshold.

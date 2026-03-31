@@ -8,29 +8,29 @@ struct ccInfoApp: App {
     var body: some Scene {
         MenuBarExtra {
             MenuBarView()
-                .environmentObject(appDelegate.appState)
+                .environment(appDelegate.appState)
         } label: {
             MenuBarLabel()
-                .environmentObject(appDelegate.appState)
+                .environment(appDelegate.appState)
         }
         .menuBarExtraStyle(.window)
 
         Settings {
             SettingsView()
-                .environmentObject(appDelegate.appState)
+                .environment(appDelegate.appState)
                 .environmentObject(appDelegate.updateService)
         }
 
         Window(String(localized: "Sign in to Claude"), id: "auth") {
             AuthWebView()
-                .environmentObject(appDelegate.appState)
+                .environment(appDelegate.appState)
         }
         .windowResizability(.contentSize)
     }
 }
 
 struct MenuBarLabel: View {
-    @EnvironmentObject var appState: AppState
+    @Environment(AppState.self) var appState
     @State private var cachedImage: NSImage?
     @State private var cachedKey = MenuBarCacheKey()
 

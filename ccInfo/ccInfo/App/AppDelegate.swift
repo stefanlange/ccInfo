@@ -26,20 +26,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-@MainActor
-final class AppState: ObservableObject {
-    @Published private(set) var usageData: UsageData?
-    @Published private(set) var sessionData: SessionData?
-    @Published private(set) var contextWindowState: ContextWindowState?
-    @Published private(set) var isLoading = false
-    @Published private(set) var error: Error?
-    @Published var showingAuth = false
-    @Published var statisticsPeriod: StatisticsPeriod = .today
-    @Published private(set) var pricingDataSource: PricingDataSource = .bundled
-    @Published private(set) var pricingLastUpdate: Date?
-    @Published private(set) var activeSessions: [ActiveSession] = []
-    @Published var selectedSessionURL: URL?
-    @Published private(set) var usageHistory: [UsageDataPoint] = []
+@Observable @MainActor
+final class AppState {
+    private(set) var usageData: UsageData?
+    private(set) var sessionData: SessionData?
+    private(set) var contextWindowState: ContextWindowState?
+    private(set) var isLoading = false
+    private(set) var error: Error?
+    var showingAuth = false
+    var statisticsPeriod: StatisticsPeriod = .today
+    private(set) var pricingDataSource: PricingDataSource = .bundled
+    private(set) var pricingLastUpdate: Date?
+    private(set) var activeSessions: [ActiveSession] = []
+    var selectedSessionURL: URL?
+    private(set) var usageHistory: [UsageDataPoint] = []
 
     let credentialStore = CredentialStore()
     let usageHistoryService = UsageHistoryService()
@@ -135,7 +135,7 @@ final class AppState: ObservableObject {
 
         let home = FileManager.default.homeDirectoryForCurrentUser
         let claudePath = home.appendingPathComponent(".claude/projects").path
-        fileWatcher = FileWatcher(path: claudePath) { [weak self] in
+        fileWatcher = FileWatcher(path: claudePath) { [weak self] _ in
             // FSEventStream dispatches on DispatchQueue.main, so MainActor is safe here.
             // Using assumeIsolated avoids async Task enqueue, making the timestamp gate atomic.
             MainActor.assumeIsolated {
@@ -249,12 +249,10 @@ final class AppState: ObservableObject {
             let availableKeys = await PricingService.shared.availableModelKeys
             guard !Task.isCancelled else { return }
 
-            // Discover active and recently inactive sessions
-            var sessions = await jsonlParser.findActiveSessions(threshold: sessionActivityThreshold)
+            // Discover active and recently inactive sessions (single directory walk)
+            let (foundSessions, fallback) = await jsonlParser.findSessionsWithFallback(threshold: sessionActivityThreshold)
             guard !Task.isCancelled else { return }
-            if sessions.isEmpty, let mostRecent = await jsonlParser.findMostRecentSession() {
-                sessions = [mostRecent]
-            }
+            var sessions = foundSessions.isEmpty ? (fallback.map { [$0] } ?? []) : foundSessions
 
             // Resolve session URL: keep current if still in list, otherwise find successor
             var resolvedURL = snapshotURL
@@ -288,6 +286,8 @@ final class AppState: ObservableObject {
             selectedSessionURL = resolvedURL
             contextWindowState = newContextState
             sessionData = newSessionData
+        } catch is CancellationError {
+            // Expected when a newer refresh supersedes this one
         } catch {
             logger.warning("Local data error: \(error.localizedDescription)")
         }

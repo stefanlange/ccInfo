@@ -24,6 +24,10 @@ final class UsageHistoryService {
     /// Counter for periodic saves
     private var recordCount = 0
 
+    /// Suppress gap detection for the first record after loading from disk,
+    /// so the chart connects smoothly to persisted history after an app restart.
+    private var suppressNextGap = false
+
     /// File URL for persistent storage
     private var fileURL: URL? {
         guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
@@ -45,9 +49,17 @@ final class UsageHistoryService {
     func record(usagePercent: Int) {
         let clamped = max(0, min(100, usagePercent))
         let now = Date()
-        let shouldMarkGap = detectGap(at: now)
 
-        let dataPoint = UsageDataPoint(timestamp: now, usage: clamped, isGap: shouldMarkGap)
+        // Insert a separate gap marker so the actual data point draws normally.
+        // Skip gap detection right after loading from disk (app restart).
+        if suppressNextGap {
+            suppressNextGap = false
+        } else if detectGap(at: now), let last = dataPoints.last {
+            let gapTime = last.timestamp.addingTimeInterval(1)
+            dataPoints.append(UsageDataPoint(timestamp: gapTime, usage: last.usage, isGap: true))
+        }
+
+        let dataPoint = UsageDataPoint(timestamp: now, usage: clamped)
         dataPoints.append(dataPoint)
 
         pruneOldPoints()
@@ -74,6 +86,9 @@ final class UsageHistoryService {
             let now = Date()
             let fiveHoursAgo = now.addingTimeInterval(-windowDuration)
             dataPoints = loaded.filter { $0.timestamp > fiveHoursAgo }
+            if !dataPoints.isEmpty {
+                suppressNextGap = true
+            }
 
             logger.info("Loaded \(loaded.count) data points, \(self.dataPoints.count) within 5h window")
         } catch {

@@ -3,7 +3,7 @@ import WebKit
 import OSLog
 
 struct AuthWebView: View {
-    @EnvironmentObject var appState: AppState
+    @Environment(AppState.self) var appState
     @Environment(\.dismiss) private var dismiss
     @State private var isLoading = true
 

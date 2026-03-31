@@ -6,10 +6,10 @@ final class FileWatcher: @unchecked Sendable {
     private var stream: FSEventStreamRef?
     private var retainedSelf: Unmanaged<FileWatcher>?
     private let path: String
-    private let callback: @Sendable () -> Void
+    private let callback: @Sendable ([String]) -> Void
     private let lock = NSLock()
 
-    init(path: String, callback: @escaping @Sendable () -> Void) {
+    init(path: String, callback: @escaping @Sendable ([String]) -> Void) {
         self.path = path
         self.callback = callback
     }
@@ -40,10 +40,19 @@ final class FileWatcher: @unchecked Sendable {
             copyDescription: nil
         )
 
-        let streamCallback: FSEventStreamCallback = { _, info, _, _, _, _ in
+        let streamCallback: FSEventStreamCallback = { _, info, numEvents, eventPaths, _, _ in
             guard let info else { return }
             let watcher = Unmanaged<FileWatcher>.fromOpaque(info).takeUnretainedValue()
-            watcher.callback()
+            var paths: [String] = []
+            if let cfArray = unsafeBitCast(eventPaths, to: CFArray?.self) {
+                for i in 0..<numEvents {
+                    if let cfStr = CFArrayGetValueAtIndex(cfArray, i) {
+                        let str = unsafeBitCast(cfStr, to: CFString.self) as String
+                        paths.append(str)
+                    }
+                }
+            }
+            watcher.callback(paths)
         }
 
         stream = FSEventStreamCreate(
