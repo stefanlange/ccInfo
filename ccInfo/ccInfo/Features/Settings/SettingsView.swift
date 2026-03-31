@@ -2,27 +2,101 @@ import SwiftUI
 import ServiceManagement
 import OSLog
 
+enum SettingsTab: String, CaseIterable, Identifiable {
+    case general, updates, account, about
+
+    var id: String { rawValue }
+
+    var label: LocalizedStringKey {
+        switch self {
+        case .general: "General"
+        case .updates: "Updates"
+        case .account: "Account"
+        case .about: "About"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .general: "gear"
+        case .updates: "arrow.triangle.2.circlepath"
+        case .account: "person.crop.circle"
+        case .about: "info.circle"
+        }
+    }
+
+    var iconColor: Color {
+        switch self {
+        case .general: .green
+        case .updates: .blue
+        case .account: .red
+        case .about: .orange
+        }
+    }
+}
+
+private struct SettingsIconBadge: View {
+    let systemImage: String
+    let color: Color
+
+    var body: some View {
+        Image(systemName: systemImage)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: 22, height: 22)
+            .background(color, in: RoundedRectangle(cornerRadius: 5))
+    }
+}
+
 struct SettingsView: View {
     @Environment(AppState.self) var appState
     @EnvironmentObject var updateService: UpdateService
+    @State private var selectedTab: SettingsTab = .general
 
     var body: some View {
-        TabView {
-            GeneralTab()
-                .environment(appState)
-                .tabItem { Label("General", systemImage: "gear") }
-            UpdatesTab()
-                .environmentObject(updateService)
-                .tabItem { Label("Updates", systemImage: "arrow.triangle.2.circlepath") }
-            AccountTab()
-                .environment(appState)
-                .tabItem { Label("Account", systemImage: "person.crop.circle") }
-            AboutTab()
-                .environment(appState)
-                .tabItem { Label("About", systemImage: "info.circle") }
+        NavigationSplitView(columnVisibility: .constant(.all)) {
+            List(SettingsTab.allCases, selection: $selectedTab) { tab in
+                Label {
+                    Text(tab.label)
+                } icon: {
+                    SettingsIconBadge(systemImage: tab.systemImage, color: tab.iconColor)
+                }
+                .tag(tab)
+            }
+            .listStyle(.sidebar)
+            .navigationSplitViewColumnWidth(min: 150, ideal: 160, max: 200)
+            .toolbar(removing: .sidebarToggle)
+        } detail: {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(selectedTab.label)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .padding(.top, 12)
+                    .padding(.bottom, 4)
+                    .padding(.leading, 20)
+
+                switch selectedTab {
+                case .general:
+                    GeneralTab()
+                        .environment(appState)
+                case .updates:
+                    UpdatesTab()
+                        .environmentObject(updateService)
+                case .account:
+                    AccountTab()
+                        .environment(appState)
+                case .about:
+                    AboutTab()
+                        .environment(appState)
+                }
+            }
+            .padding(.horizontal)
+            .navigationTitle("")
+            .toolbarBackground(.hidden, for: .windowToolbar)
         }
+        .navigationSplitViewStyle(.balanced)
         .background(SettingsWindowAccessor())
-        .frame(width: 400, height: 365)
+        .frame(width: 580, height: 380)
     }
 }
 
@@ -102,7 +176,6 @@ struct GeneralTab: View {
             }
         }
         .formStyle(.grouped)
-        .padding()
     }
 
     private func updateLaunchAtLogin(enabled: Bool) {
@@ -159,7 +232,7 @@ struct AccountTab: View {
                 LabeledContent(String(localized: "Status")) { HStack { Image(systemName: "xmark.circle.fill").foregroundStyle(.red); Text(String(localized: "Not connected")) } }
                 Section { Button(String(localized: "Sign in")) { appState.showingAuth = true }.buttonStyle(.borderedProminent) }
             }
-        }.formStyle(.grouped).padding()
+        }.formStyle(.grouped)
     }
 
     private func copyOrgId(_ orgId: String) {
@@ -186,7 +259,9 @@ struct AboutTab: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            Image(systemName: "gauge.with.dots.needle.bottom.50percent").font(.system(size: 50)).foregroundStyle(.blue)
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 64, height: 64)
             Text("ccInfo").font(.title2).fontWeight(.semibold)
             Text("Know your limits. Use them wisely.").font(.subheadline).foregroundStyle(.secondary)
             Text(versionLabel).font(.caption).foregroundStyle(.tertiary)
@@ -206,7 +281,7 @@ struct AboutTab: View {
             .padding(.horizontal)
 
             Spacer()
-        }.padding()
+        }
     }
 }
 
@@ -295,7 +370,6 @@ struct UpdatesTab: View {
             }
         }
         .formStyle(.grouped)
-        .padding()
     }
 }
 
