@@ -1,5 +1,16 @@
 # Release Notes
 
+## 1.9.0 – 2026-03-31
+
+- Redesign Settings as a sidebar navigation with colored icon badges and the app icon on the About tab
+- Replace the flat green chart fill with a smooth horizontal color gradient that follows the usage level from green through yellow to orange
+- Fix a visual gap in the usage chart after restarting the app
+- Fix high CPU usage during active Claude sessions by switching FSEvents to directory-level coalescing and adding caches for parsed paths, context windows, and JSONL byte offsets
+- Parse JSONL files incrementally — only new bytes are read after the initial parse, cutting steady-state I/O to near zero
+- Combine the two directory walks for session discovery into a single pass
+- Migrate AppState from ObservableObject to @Observable for fine-grained SwiftUI re-renders
+- Implement Sparkle gentle reminders so update dialogs appear correctly for background apps
+
 ## 1.8.3 – 2026-03-25
 
 - Compact the three footer buttons (Refresh, Settings, Quit) to icons with hover tooltips
