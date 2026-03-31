@@ -5,6 +5,7 @@
 - Redesign Settings as a sidebar navigation with colored icon badges and the app icon on the About tab
 - Replace the flat green chart fill with a smooth horizontal color gradient that follows the usage level from green through yellow to orange
 - Fix a visual gap in the usage chart after restarting the app
+- Fix chart gaps reappearing on the next launch by stripping restart markers from saved history
 - Fix high CPU usage during active Claude sessions by switching FSEvents to directory-level coalescing and adding caches for parsed paths, context windows, and JSONL byte offsets
 - Parse JSONL files incrementally — only new bytes are read after the initial parse, cutting steady-state I/O to near zero
 - Combine the two directory walks for session discovery into a single pass
