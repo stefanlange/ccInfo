@@ -33,6 +33,7 @@ struct ChartDrawingHelper {
     func colorForUsage(_ percent: Double) -> Color {
         let p = max(0, min(100, percent))
 
+        let deepGreen = RGBColor(r: 0.0, g: 0.65, b: 0.0)
         let green = RGBColor(r: 0.0, g: 0.8, b: 0.0)
         let yellow = RGBColor(r: 1.0, g: 0.9, b: 0.0)
         let orange = RGBColor(r: 1.0, g: 0.6, b: 0.0)
@@ -45,7 +46,9 @@ struct ChartDrawingHelper {
         var interpolated: RGBColor
 
         if p < greenYellow {
-            interpolated = green
+            // Smooth gradient from deep green to bright green within the "safe" zone
+            let t = p / greenYellow
+            interpolated = interpolateRGB(from: deepGreen, to: green, t: t)
         } else if p < yellowOrange {
             let t = (p - greenYellow) / (yellowOrange - greenYellow)
             interpolated = interpolateRGB(from: green, to: yellow, t: t)

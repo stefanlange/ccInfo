@@ -15,6 +15,19 @@ actor JSONLParser {
     /// A size change means new entries were appended → re-read needed.
     private var contextWindowCache: [URL: (size: UInt64, result: ContextWindow)] = [:]
 
+    // MARK: - Incremental Parse Cache
+
+    private struct FileParseState {
+        var byteOffset: UInt64
+        var accumulator: TokenAccumulator
+        var fileSize: UInt64
+        var sessionId: String?
+        var filterDate: Date?
+    }
+
+    private var parseStateCache: [URL: FileParseState] = [:]
+    private static let maxParseStateCacheEntries = 200
+
     init(pricingService: PricingService = .shared) {
         self.pricingService = pricingService
         claudeProjectsPath = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/projects")
@@ -194,6 +207,103 @@ actor JSONLParser {
         return nil
     }
 
+    // MARK: - Incremental Parsing
+
+    /// Incrementally parse new bytes of a single JSONL file into its cached state.
+    @discardableResult
+    private func incrementalParse(
+        url: URL,
+        availableModelKeys: Set<String>,
+        extractSessionId: Bool = false,
+        filterDate: Date? = nil
+    ) async -> FileParseState? {
+        // Use stat() for the size check — avoids opening a FileHandle for unchanged files
+        var st = stat()
+        guard stat(url.path, &st) == 0 else { return nil }
+        let fileSize = UInt64(st.st_size)
+
+        // Check cache — must match both file size and filterDate
+        if let cached = parseStateCache[url] {
+            if cached.filterDate != filterDate {
+                // Different filter context — must re-parse from scratch
+                parseStateCache[url] = nil
+            } else if fileSize == cached.fileSize {
+                return cached  // File unchanged, same filter — zero I/O (no FileHandle opened)
+            } else if fileSize < cached.fileSize {
+                parseStateCache[url] = nil  // File was replaced — invalidate
+            }
+        }
+
+        let existing = parseStateCache[url]
+        let startOffset = existing?.byteOffset ?? 0
+        var accumulator = existing?.accumulator ?? TokenAccumulator()
+        var sessionId = existing?.sessionId
+
+        // Only open FileHandle when we actually need to read new bytes
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? handle.close() }
+        handle.seek(toFileOffset: startOffset)
+        let newData = handle.readDataToEndOfFile()
+        let bytesRead = UInt64(newData.count)
+
+        // Track how many bytes we can safely commit (exclude trailing incomplete line)
+        var committedBytes = bytesRead
+
+        if bytesRead > 0, let text = String(data: newData, encoding: .utf8) {
+            let lines = text.components(separatedBy: "\n")
+            // If the text doesn't end with \n, the last element is a partial line —
+            // exclude it from processing and back up the offset so it's re-read next time.
+            let hasTrailingNewline = text.hasSuffix("\n")
+            let linesToProcess = hasTrailingNewline ? lines : Array(lines.dropLast())
+            if !hasTrailingNewline, let partial = lines.last {
+                committedBytes -= UInt64(partial.utf8.count)
+            }
+
+            for line in linesToProcess {
+                guard !line.isEmpty, let lineData = line.data(using: .utf8) else { continue }
+                guard let entry = try? decoder.decode(JSONLEntry.self, from: lineData) else { continue }
+
+                if extractSessionId, let sid = entry.sessionId {
+                    sessionId = sid
+                }
+                if let filterDate, let timestamp = entry.timestamp, timestamp < filterDate {
+                    continue
+                }
+                if let usage = accumulator.shouldProcess(entry) {
+                    let cumInput = accumulator.cumulativeInput(for: entry.rawModelId)
+                    let (cost, model) = await costForEntry(
+                        costUSD: entry.costUSD,
+                        rawModelId: entry.rawModelId,
+                        usage: usage,
+                        availableModelKeys: availableModelKeys,
+                        cumulativeInputTokens: cumInput
+                    )
+                    accumulator.accumulate(usage: usage, rawModelId: entry.rawModelId, entryCost: cost, entryModel: model)
+                }
+            }
+        }
+
+        // Clear dedup hashes — the byte offset ensures we never re-read the same data,
+        // so hashes from previous chunks are no longer needed. This prevents unbounded memory growth.
+        accumulator.processedHashes.removeAll(keepingCapacity: false)
+
+        let state = FileParseState(
+            byteOffset: startOffset + committedBytes,
+            accumulator: accumulator,
+            fileSize: fileSize,
+            sessionId: sessionId,
+            filterDate: filterDate
+        )
+        parseStateCache[url] = state
+        if parseStateCache.count > Self.maxParseStateCacheEntries {
+            let excess = parseStateCache.count - Self.maxParseStateCacheEntries / 2
+            for key in parseStateCache.keys.prefix(excess) where key != url {
+                parseStateCache.removeValue(forKey: key)
+            }
+        }
+        return state
+    }
+
     // MARK: - Public Methods
 
     func findLatestSession() -> URL? {
@@ -201,40 +311,22 @@ actor JSONLParser {
     }
     
     func parseSession(at url: URL, availableModelKeys: Set<String> = []) async throws -> SessionData {
-        var sessionId = url.deletingPathExtension().lastPathComponent
-        var accumulator = TokenAccumulator()
+        let fallbackSessionId = url.deletingPathExtension().lastPathComponent
 
-        // Process main session file (streaming to avoid loading entire file into memory)
-        let mainHandle = try FileHandle(forReadingFrom: url)
-        defer { try? mainHandle.close() }
-        for try await line in mainHandle.bytes.lines {
-            guard !line.isEmpty else { continue }
-            guard let data = line.data(using: .utf8) else {
-                logger.warning("Failed to convert line to UTF-8 data in \(url.lastPathComponent)")
-                continue
-            }
-
-            guard let entry = try? decoder.decode(JSONLEntry.self, from: data) else {
-                logger.debug("Skipping malformed JSONL line in \(url.lastPathComponent)")
-                continue
-            }
-
-            if let sid = entry.sessionId { sessionId = sid }
-
-            if let usage = accumulator.shouldProcess(entry) {
-                let cumInput = accumulator.cumulativeInput(for: entry.rawModelId)
-                let (cost, model) = await costForEntry(
-                    costUSD: entry.costUSD,
-                    rawModelId: entry.rawModelId,
-                    usage: usage,
-                    availableModelKeys: availableModelKeys,
-                    cumulativeInputTokens: cumInput
-                )
-                accumulator.accumulate(usage: usage, rawModelId: entry.rawModelId, entryCost: cost, entryModel: model)
-            }
+        // Incrementally parse main session file
+        guard let mainState = await incrementalParse(
+            url: url,
+            availableModelKeys: availableModelKeys,
+            extractSessionId: true
+        ) else {
+            return SessionData(sessionId: fallbackSessionId, tokens: .zero, models: [])
         }
 
-        // Process subagent JSONL files
+        var totalTokens = mainState.accumulator.buildTokenStats()
+        var allModels = mainState.accumulator.models
+        let sessionId = mainState.sessionId ?? fallbackSessionId
+
+        // Process subagent JSONL files (also incrementally)
         let sessionDir = url.deletingPathExtension()
         let subagentsDir = sessionDir.appendingPathComponent("subagents")
 
@@ -245,34 +337,22 @@ actor JSONLParser {
                options: [.skipsHiddenFiles]
            ) {
             for subagentURL in subagentFiles where subagentURL.pathExtension == "jsonl" {
-                guard let subHandle = try? FileHandle(forReadingFrom: subagentURL) else { continue }
-                defer { try? subHandle.close() }
-
-                for try await line in subHandle.bytes.lines {
-                    guard !line.isEmpty else { continue }
-                    guard let data = line.data(using: .utf8),
-                          let entry = try? decoder.decode(JSONLEntry.self, from: data) else { continue }
-
-                    if let usage = accumulator.shouldProcess(entry) {
-                        let cumInput = accumulator.cumulativeInput(for: entry.rawModelId)
-                        let (cost, model) = await costForEntry(
-                            costUSD: entry.costUSD,
-                            rawModelId: entry.rawModelId,
-                            usage: usage,
-                            availableModelKeys: availableModelKeys,
-                            cumulativeInputTokens: cumInput
-                        )
-                        accumulator.accumulate(usage: usage, rawModelId: entry.rawModelId, entryCost: cost, entryModel: model)
-                    }
+                if let subState = await incrementalParse(
+                    url: subagentURL,
+                    availableModelKeys: availableModelKeys
+                ) {
+                    totalTokens = totalTokens + subState.accumulator.buildTokenStats()
+                    allModels.formUnion(subState.accumulator.models)
                 }
             }
         }
 
-        return SessionData(sessionId: sessionId, tokens: accumulator.buildTokenStats(), models: accumulator.models)
+        return SessionData(sessionId: sessionId, tokens: totalTokens, models: allModels)
     }
 
     func parseAggregate(since periodStart: Date, availableModelKeys: Set<String> = []) async -> SessionData {
-        var accumulator = TokenAccumulator()
+        // filterDate mismatch is handled per-file inside incrementalParse,
+        // so no bulk cache invalidation needed here.
 
         guard let enumerator = FileManager.default.enumerator(
             at: claudeProjectsPath,
@@ -282,9 +362,13 @@ actor JSONLParser {
             return SessionData(sessionId: nil, tokens: .zero, models: [])
         }
 
+        var totalTokens = SessionData.TokenStats.zero
+        var allModels: Set<ModelIdentifier> = []
+
         while let url = enumerator.nextObject() as? URL {
             guard !Task.isCancelled else { break }
-            guard url.pathExtension == "jsonl" else { continue }
+            guard url.pathExtension == "jsonl",
+                  !url.pathComponents.contains("subagents") else { continue }
 
             // Skip files not modified since period start
             if let values = try? url.resourceValues(forKeys: [.contentModificationDateKey]),
@@ -293,38 +377,17 @@ actor JSONLParser {
                 continue
             }
 
-            guard let fileHandle = try? FileHandle(forReadingFrom: url) else { continue }
-            defer { try? fileHandle.close() }
-
-            do {
-                for try await line in fileHandle.bytes.lines {
-                    guard !line.isEmpty else { continue }
-                    guard let data = line.data(using: .utf8),
-                          let entry = try? decoder.decode(JSONLEntry.self, from: data) else { continue }
-
-                    // Only include entries with timestamp >= periodStart
-                    guard let timestamp = entry.timestamp, timestamp >= periodStart else { continue }
-
-                    if let usage = accumulator.shouldProcess(entry) {
-                        let cumInput = accumulator.cumulativeInput(for: entry.rawModelId)
-                        let (cost, model) = await costForEntry(
-                            costUSD: entry.costUSD,
-                            rawModelId: entry.rawModelId,
-                            usage: usage,
-                            availableModelKeys: availableModelKeys,
-                            cumulativeInputTokens: cumInput
-                        )
-                        accumulator.accumulate(usage: usage, rawModelId: entry.rawModelId, entryCost: cost, entryModel: model)
-                    }
-                }
-            } catch is CancellationError {
-                break
-            } catch {
-                logger.debug("Error reading \(url.lastPathComponent): \(error.localizedDescription)")
+            if let state = await incrementalParse(
+                url: url,
+                availableModelKeys: availableModelKeys,
+                filterDate: periodStart
+            ) {
+                totalTokens = totalTokens + state.accumulator.buildTokenStats()
+                allModels.formUnion(state.accumulator.models)
             }
         }
 
-        return SessionData(sessionId: nil, tokens: accumulator.buildTokenStats(), models: accumulator.models)
+        return SessionData(sessionId: nil, tokens: totalTokens, models: allModels)
     }
 
     func parseForPeriod(_ period: StatisticsPeriod, sessionURL: URL? = nil, availableModelKeys: Set<String> = []) async throws -> SessionData? {

@@ -41,8 +41,9 @@ struct UsageChartView: View {
 
                     // Draw area fill and line if we have data and colors are ready
                     if points.count > 0, colors.count == 101 {
-                        drawAreaFill(context: context, points: points, width: plotWidth, height: plotHeight, colors: colors)
-                        drawLine(context: context, points: points, width: plotWidth, height: plotHeight, colors: colors)
+                        let (gradient, gradStartX, gradEndX) = horizontalGradientStops(points: points, width: plotWidth, colors: colors)
+                        drawAreaFill(context: context, points: points, width: plotWidth, height: plotHeight, gradient: gradient, startX: gradStartX, endX: gradEndX)
+                        drawLine(context: context, points: points, width: plotWidth, height: plotHeight, gradient: gradient, startX: gradStartX, endX: gradEndX)
                         drawGlowIndicator(context: context, points: points, width: plotWidth, height: plotHeight, colors: colors)
                     }
                 }
@@ -136,68 +137,126 @@ struct UsageChartView: View {
         }
     }
 
-    private func drawAreaFill(context: GraphicsContext, points: [UsageDataPoint], width: CGFloat, height: CGFloat, colors: [Color]) {
-        guard points.count > 1 else { return }
+    /// Builds horizontal gradient stops from data points, mapping each point's X position to its usage color.
+    private func horizontalGradientStops(
+        points: [UsageDataPoint], width: CGFloat, colors: [Color], opacity: Double = 1.0
+    ) -> (gradient: Gradient, startX: CGFloat, endX: CGFloat) {
+        var stops: [Gradient.Stop] = []
+        var minX: CGFloat = width
+        var maxX: CGFloat = 0
 
+        for point in points where !point.isGap {
+            let x = xPosition(for: point.timestamp, width: width)
+            minX = min(minX, x)
+            maxX = max(maxX, x)
+        }
+
+        let range = maxX - minX
+        guard range > 0 else {
+            let color = colors[max(0, min(100, points.first(where: { !$0.isGap })?.usage ?? 0))]
+            return (Gradient(colors: [color.opacity(opacity)]), minX, maxX)
+        }
+
+        for point in points where !point.isGap {
+            let x = xPosition(for: point.timestamp, width: width)
+            let location = (x - minX) / range
+            let index = max(0, min(100, point.usage))
+            stops.append(Gradient.Stop(color: colors[index].opacity(opacity), location: location))
+        }
+
+        stops.sort { $0.location < $1.location }
+        // Deduplicate stops at the same location (required by Gradient)
+        var deduped: [Gradient.Stop] = []
+        for stop in stops {
+            if let last = deduped.last, last.location == stop.location { continue }
+            deduped.append(stop)
+        }
+        return (Gradient(stops: deduped), minX, maxX)
+    }
+
+    private func drawAreaFill(context: GraphicsContext, points: [UsageDataPoint], width: CGFloat, height: CGFloat, gradient: Gradient, startX: CGFloat, endX: CGFloat) {
+        guard points.count > 1 else { return }
+        let areaGradient = Gradient(stops: gradient.stops.map { Gradient.Stop(color: $0.color.opacity(0.25), location: $0.location) })
+
+        // Build continuous paths, splitting at gaps
         var i = 0
         while i < points.count - 1 {
             let current = points[i]
             let next = points[i + 1]
-
             if current.isGap || next.isGap || (current.usage == 0 && next.usage == 0) {
                 i += 1
                 continue
             }
 
-            let currentX = xPosition(for: current.timestamp, width: width)
-            let nextX = xPosition(for: next.timestamp, width: width)
-            let currentY = yPosition(for: Double(current.usage), height: height)
-            let nextY = yPosition(for: Double(next.usage), height: height)
-
             var path = Path()
-            path.move(to: CGPoint(x: currentX, y: height))
-            path.addLine(to: CGPoint(x: currentX, y: currentY))
-            path.addLine(to: CGPoint(x: nextX, y: nextY))
-            path.addLine(to: CGPoint(x: nextX, y: height))
+            let sx = xPosition(for: current.timestamp, width: width)
+            let sy = yPosition(for: Double(current.usage), height: height)
+            path.move(to: CGPoint(x: sx, y: height))
+            path.addLine(to: CGPoint(x: sx, y: sy))
+
+            var lastX = xPosition(for: next.timestamp, width: width)
+            var lastY = yPosition(for: Double(next.usage), height: height)
+            path.addLine(to: CGPoint(x: lastX, y: lastY))
+            i += 1
+
+            while i < points.count - 1 {
+                let cur = points[i]
+                let nxt = points[i + 1]
+                if cur.isGap || nxt.isGap || (cur.usage == 0 && nxt.usage == 0) { break }
+                lastX = xPosition(for: nxt.timestamp, width: width)
+                lastY = yPosition(for: Double(nxt.usage), height: height)
+                path.addLine(to: CGPoint(x: lastX, y: lastY))
+                i += 1
+            }
+
+            path.addLine(to: CGPoint(x: lastX, y: height))
             path.closeSubpath()
 
-            let avgUsage = Double(current.usage + next.usage) / 2.0
-            let color = helper.colorAt(avgUsage, from: colors)
-
-            context.fill(path, with: .color(color.opacity(0.25)))
-
-            i += 1
+            context.fill(path, with: .linearGradient(
+                areaGradient,
+                startPoint: CGPoint(x: startX, y: 0),
+                endPoint: CGPoint(x: endX, y: 0)
+            ))
         }
     }
 
-    private func drawLine(context: GraphicsContext, points: [UsageDataPoint], width: CGFloat, height: CGFloat, colors: [Color]) {
+    private func drawLine(context: GraphicsContext, points: [UsageDataPoint], width: CGFloat, height: CGFloat, gradient: Gradient, startX: CGFloat, endX: CGFloat) {
         guard points.count > 1 else { return }
 
         var i = 0
         while i < points.count - 1 {
             let current = points[i]
             let next = points[i + 1]
-
             if current.isGap || next.isGap || (current.usage == 0 && next.usage == 0) {
                 i += 1
                 continue
             }
 
-            let currentX = xPosition(for: current.timestamp, width: width)
-            let nextX = xPosition(for: next.timestamp, width: width)
-            let currentY = yPosition(for: Double(current.usage), height: height)
-            let nextY = yPosition(for: Double(next.usage), height: height)
-
             var path = Path()
-            path.move(to: CGPoint(x: currentX, y: currentY))
-            path.addLine(to: CGPoint(x: nextX, y: nextY))
+            let sx = xPosition(for: current.timestamp, width: width)
+            let sy = yPosition(for: Double(current.usage), height: height)
+            path.move(to: CGPoint(x: sx, y: sy))
 
-            let avgUsage = Double(current.usage + next.usage) / 2.0
-            let color = helper.colorAt(avgUsage, from: colors)
-
-            context.stroke(path, with: .color(color), lineWidth: 1.5)
-
+            var lastX = xPosition(for: next.timestamp, width: width)
+            var lastY = yPosition(for: Double(next.usage), height: height)
+            path.addLine(to: CGPoint(x: lastX, y: lastY))
             i += 1
+
+            while i < points.count - 1 {
+                let cur = points[i]
+                let nxt = points[i + 1]
+                if cur.isGap || nxt.isGap || (cur.usage == 0 && nxt.usage == 0) { break }
+                lastX = xPosition(for: nxt.timestamp, width: width)
+                lastY = yPosition(for: Double(nxt.usage), height: height)
+                path.addLine(to: CGPoint(x: lastX, y: lastY))
+                i += 1
+            }
+
+            context.stroke(path, with: .linearGradient(
+                gradient,
+                startPoint: CGPoint(x: startX, y: 0),
+                endPoint: CGPoint(x: endX, y: 0)
+            ), lineWidth: 1.5)
         }
     }
 
