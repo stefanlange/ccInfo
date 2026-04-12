@@ -1,5 +1,10 @@
 # Release Notes
 
+## 1.10.0 – 2026-04-12
+
+- Show a burn rate warning when the current token consumption pace will exhaust the 5-hour window before it resets, with a flame icon in the menu bar, a red inline banner in the popover, and a one-shot macOS notification
+- Fix the session dropdown occasionally showing the encoded project path instead of the project name
+
 ## 1.9.0 – 2026-03-31
 
 - Redesign Settings as a sidebar navigation with colored icon badges and the app icon on the About tab
