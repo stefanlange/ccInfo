@@ -13,6 +13,7 @@ final class NotificationService {
     // Track which thresholds have already triggered to avoid duplicate notifications
     private var notifiedFiveHour: Set<Int> = []
     private var notifiedSevenDay: Set<Int> = []
+    private var notifiedBurnRate = false
 
     enum WindowType: String {
         case fiveHour = "5-Hour"
@@ -114,9 +115,48 @@ final class NotificationService {
         }
     }
 
+    // MARK: - Burn Rate
+
+    /// Check burn rate and fire a one-shot notification when exhaustion is first predicted.
+    /// Resets automatically when the danger passes so a future spike can re-trigger.
+    func checkBurnRate(history: [UsageDataPoint], usage: UsageData) {
+        guard let prediction = BurnRateCalculator.predict(
+            history: history,
+            currentUtilization: usage.fiveHour.utilization,
+            resetsAt: usage.fiveHour.resetsAt
+        ) else {
+            notifiedBurnRate = false
+            return
+        }
+        guard !notifiedBurnRate else { return }
+        notifiedBurnRate = true
+
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "Burn rate warning")
+        let timeLabel = prediction.formattedTimeUntilLimit
+        content.body = String(localized: "At current pace, token limit reached in \(timeLabel).")
+        content.sound = .default
+        content.interruptionLevel = .timeSensitive
+
+        let request = UNNotificationRequest(
+            identifier: "usage-burnrate",
+            content: content,
+            trigger: nil
+        )
+        Task { @MainActor in
+            do {
+                try await notificationCenter.add(request)
+                logger.info("Sent burn rate notification (limit in \(timeLabel))")
+            } catch {
+                logger.error("Failed to send burn rate notification: \(error.localizedDescription)")
+            }
+        }
+    }
+
     /// Reset notification state when user signs out or app restarts
     func resetAllThresholds() {
         notifiedFiveHour.removeAll()
         notifiedSevenDay.removeAll()
+        notifiedBurnRate = false
     }
 }

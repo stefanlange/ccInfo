@@ -37,6 +37,7 @@
 		F000001D /* ChartDrawingHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001D /* ChartDrawingHelper.swift */; };
 		F000001E /* ShareableChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001E /* ShareableChartView.swift */; };
 		F000001F /* ChartShareService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001F /* ChartShareService.swift */; };
+		F0000020 /* BurnRateCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000021 /* BurnRateCalculator.swift */; };
 		F8629B0B2F66F1C20082D390 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = F8629B0A2F66F1C20082D390 /* Sparkle */; };
 /* End PBXBuildFile section */
 
@@ -73,6 +74,7 @@
 		F100001D /* ChartDrawingHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartDrawingHelper.swift; sourceTree = "<group>"; };
 		F100001E /* ShareableChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareableChartView.swift; sourceTree = "<group>"; };
 		F100001F /* ChartShareService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartShareService.swift; sourceTree = "<group>"; };
+		F1000021 /* BurnRateCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BurnRateCalculator.swift; sourceTree = "<group>"; };
 		F1000020 /* ccInfo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ccInfo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -128,6 +130,7 @@
 				F1000016 /* MenuBarConfiguration.swift */,
 				F1000018 /* UsageDataPoint.swift */,
 				F100001C /* ContextWindow+UI.swift */,
+				F1000021 /* BurnRateCalculator.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -317,6 +320,7 @@
 				F000001D /* ChartDrawingHelper.swift in Sources */,
 				F000001E /* ShareableChartView.swift in Sources */,
 				F000001F /* ChartShareService.swift in Sources */,
+				F0000020 /* BurnRateCalculator.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -40,33 +40,45 @@ struct MenuBarLabel: View {
             let slot2 = appState.menuBarSlot2
             let slot1Value = Int(appState.utilizationForSlot(slot1) ?? 0)
             let slot2Value = Int(appState.utilizationForSlot(slot2) ?? 0)
-            let key = MenuBarCacheKey(slot1: slot1, slot2: slot2, value1: slot1Value, value2: slot2Value)
+            let showFlame = appState.usageData.flatMap { usage in
+                BurnRateCalculator.predict(
+                    history: appState.usageHistory,
+                    currentUtilization: usage.fiveHour.utilization,
+                    resetsAt: usage.fiveHour.resetsAt
+                )
+            } != nil
+            let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            let key = MenuBarCacheKey(slot1: slot1, slot2: slot2, value1: slot1Value, value2: slot2Value, showFlame: showFlame, isDark: isDark)
 
             let image: NSImage = if key == cachedKey, let cached = cachedImage {
                 cached
+            } else if showFlame {
+                MenuBarImageRenderer.renderWithFlame(
+                    topRow: Double(slot1Value), bottomRow: Double(slot2Value),
+                    topSlot: slot1, bottomSlot: slot2)
             } else {
                 MenuBarImageRenderer.render(
-                    topRow: Double(slot1Value),
-                    bottomRow: Double(slot2Value),
-                    topSlot: slot1,
-                    bottomSlot: slot2
-                )
+                    topRow: Double(slot1Value), bottomRow: Double(slot2Value),
+                    topSlot: slot1, bottomSlot: slot2)
             }
 
             Image(nsImage: image)
-                .onChange(of: key) { _, newKey in
-                    cachedImage = MenuBarImageRenderer.render(
-                        topRow: Double(newKey.value1),
-                        bottomRow: Double(newKey.value2),
-                        topSlot: newKey.slot1,
-                        bottomSlot: newKey.slot2
-                    )
-                    cachedKey = newKey
+            .onChange(of: key) { _, newKey in
+                cachedImage = if newKey.showFlame {
+                    MenuBarImageRenderer.renderWithFlame(
+                        topRow: Double(newKey.value1), bottomRow: Double(newKey.value2),
+                        topSlot: newKey.slot1, bottomSlot: newKey.slot2)
+                } else {
+                    MenuBarImageRenderer.render(
+                        topRow: Double(newKey.value1), bottomRow: Double(newKey.value2),
+                        topSlot: newKey.slot1, bottomSlot: newKey.slot2)
                 }
-                .onAppear {
-                    cachedImage = image
-                    cachedKey = key
-                }
+                cachedKey = newKey
+            }
+            .onAppear {
+                cachedImage = image
+                cachedKey = key
+            }
         } else {
             Image(systemName: "gauge.with.dots.needle.bottom.50percent")
         }
@@ -78,6 +90,8 @@ private struct MenuBarCacheKey: Equatable, Hashable {
     var slot2: MenuBarSlot = .weeklyLimit
     var value1: Int = -1
     var value2: Int = -1
+    var showFlame: Bool = false
+    var isDark: Bool = false
 }
 
 enum MenuBarImageRenderer {
@@ -99,6 +113,40 @@ enum MenuBarImageRenderer {
         let image = NSImage(size: size, flipped: false) { rect in
             drawRow(value: topRow, y: Layout.height - Layout.rowHeight, slot: topSlot)
             drawRow(value: bottomRow, y: 0, slot: bottomSlot)
+            return true
+        }
+
+        image.isTemplate = false
+        return image
+    }
+
+    static func renderWithFlame(topRow: Double, bottomRow: Double, topSlot: MenuBarSlot = .fiveHour, bottomSlot: MenuBarSlot = .weeklyLimit) -> NSImage {
+        let flameSize: CGFloat = Layout.height
+        let flameGap: CGFloat = 5
+        let totalWidth = flameSize + flameGap + Layout.width
+        let size = NSSize(width: totalWidth, height: Layout.height)
+
+        let image = NSImage(size: size, flipped: false) { rect in
+            guard let ctx = NSGraphicsContext.current?.cgContext else { return true }
+
+            // Draw flame symbol adapting to menu bar appearance (white in dark mode, black in light)
+            if let flameImage = NSImage(systemSymbolName: "flame.fill", accessibilityDescription: nil) {
+                let isDark = NSAppearance.currentDrawing().bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                let flameColor: NSColor = isDark ? .white : .black
+                let config = NSImage.SymbolConfiguration(pointSize: flameSize * 0.75, weight: .medium)
+                    .applying(.init(paletteColors: [flameColor]))
+                let configured = flameImage.withSymbolConfiguration(config) ?? flameImage
+                let flameRect = NSRect(x: 0, y: 0, width: flameSize, height: flameSize)
+                configured.draw(in: flameRect, from: .zero, operation: .sourceOver, fraction: 1.0)
+            }
+
+            // Shift bars to the right
+            ctx.saveGState()
+            ctx.translateBy(x: flameSize + flameGap, y: 0)
+            drawRow(value: topRow, y: Layout.height - Layout.rowHeight, slot: topSlot)
+            drawRow(value: bottomRow, y: 0, slot: bottomSlot)
+            ctx.restoreGState()
+
             return true
         }
 

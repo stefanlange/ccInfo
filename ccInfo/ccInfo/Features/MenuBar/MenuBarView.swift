@@ -52,6 +52,13 @@ struct MenuBarView: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
+                        if let prediction = BurnRateCalculator.predict(
+                            history: appState.usageHistory,
+                            currentUtilization: usage.fiveHour.utilization,
+                            resetsAt: usage.fiveHour.resetsAt
+                        ) {
+                            BurnRateWarningBanner(prediction: prediction)
+                        }
                     }
                     Divider()
                     UsageSection(title: String(localized: "Weekly Limit"), utilization: usage.sevenDay.utilization, resetTime: usage.sevenDay.formattedTimeUntilReset, resetDate: usage.sevenDay.formattedResetDate)
@@ -149,6 +156,28 @@ struct MenuBarView: View {
             .help(String(localized: "Quit"))
             .accessibilityLabel(Text("Quit"))
         }.font(.callout)
+    }
+}
+
+private struct BurnRateWarningBanner: View {
+    let prediction: BurnRateCalculator.Prediction
+
+    var body: some View {
+        let timeLabel = prediction.formattedTimeUntilLimit
+        HStack(spacing: 5) {
+            Image(systemName: "flame.fill")
+                .foregroundStyle(.white)
+            Text(String(localized: "Token limit reached in \(timeLabel)"))
+                .font(.caption)
+                .foregroundStyle(.white)
+            Spacer()
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Color.red)
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .font(.caption)
+        .accessibilityLabel(String(localized: "Warning: projected to hit usage limit in \(timeLabel)"))
     }
 }
 

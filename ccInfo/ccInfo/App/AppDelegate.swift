@@ -225,6 +225,7 @@ final class AppState {
             let usage = try await apiClient.fetchUsage()
             usageData = usage
             NotificationService.shared.checkThresholds(usage: usage)
+            NotificationService.shared.checkBurnRate(history: usageHistoryService.history, usage: usage)
 
             // Record usage data point
             let percent = Int(usage.fiveHour.utilization)
