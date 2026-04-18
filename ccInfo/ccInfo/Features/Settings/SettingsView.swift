@@ -197,6 +197,7 @@ struct AccountTab: View {
     @Environment(AppState.self) var appState
     @State private var orgIdCopied = false
     @State private var copyResetTask: Task<Void, Never>?
+    @State private var showingSignOutConfirmation = false
 
     var body: some View {
         Form {
@@ -227,7 +228,23 @@ struct AccountTab: View {
                     }
                 }
 
-                Section { Button(String(localized: "Sign out"), role: .destructive) { appState.signOut() } }
+                Section {
+                    Button(String(localized: "Sign out"), role: .destructive) {
+                        showingSignOutConfirmation = true
+                    }
+                    .confirmationDialog(
+                        String(localized: "Sign out of Claude?"),
+                        isPresented: $showingSignOutConfirmation,
+                        titleVisibility: .visible
+                    ) {
+                        Button(String(localized: "Sign out"), role: .destructive) {
+                            appState.signOut()
+                        }
+                        Button(String(localized: "Cancel"), role: .cancel) { }
+                    } message: {
+                        Text(String(localized: "This removes your credentials and clears the local usage history on this Mac."))
+                    }
+                }
             } else {
                 LabeledContent(String(localized: "Status")) { HStack { Image(systemName: "xmark.circle.fill").foregroundStyle(.red); Text(String(localized: "Not connected")) } }
                 Section { Button(String(localized: "Sign in")) { appState.showingAuth = true }.buttonStyle(.borderedProminent) }
@@ -263,13 +280,13 @@ struct AboutTab: View {
                 .resizable()
                 .frame(width: 64, height: 64)
             Text("ccInfo").font(.title2).fontWeight(.semibold)
-            Text("Know your limits. Use them wisely.").font(.subheadline).foregroundStyle(.secondary)
+            Text(String(localized: "Know your limits. Use them wisely.")).font(.subheadline).foregroundStyle(.secondary)
             Text(versionLabel).font(.caption).foregroundStyle(.tertiary)
 
             Divider().padding(.horizontal)
 
             HStack {
-                Text("Pricing Data")
+                Text(String(localized: "Pricing Data"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -282,6 +299,7 @@ struct AboutTab: View {
 
             Spacer()
         }
+        .padding(.top, 20)
     }
 }
 

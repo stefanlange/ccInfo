@@ -7,6 +7,11 @@ struct MenuBarView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if appState.isAuthenticated {
+                if let errorMessage = visibleErrorMessage {
+                    ErrorBanner(message: errorMessage) {
+                        Task { await appState.refreshAll() }
+                    }
+                }
                 if appState.activeSessions.count > 1 {
                     SessionSwitcher(
                         sessions: appState.activeSessions,
@@ -114,6 +119,14 @@ struct MenuBarView: View {
         }
     }
     
+    private var visibleErrorMessage: String? {
+        guard let err = appState.error else { return nil }
+        if let apiErr = err as? ClaudeAPIClient.APIError, case .sessionExpired = apiErr {
+            return nil
+        }
+        return err.localizedDescription
+    }
+
     private var sessionURLBinding: Binding<URL?> {
         Binding(
             get: { appState.selectedSessionURL },
@@ -156,6 +169,37 @@ struct MenuBarView: View {
             .help(String(localized: "Quit"))
             .accessibilityLabel(Text("Quit"))
         }.font(.callout)
+    }
+}
+
+private struct ErrorBanner: View {
+    let message: String
+    let retry: () -> Void
+
+    var body: some View {
+        Button(action: retry) {
+            HStack(alignment: .top, spacing: 6) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.white)
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 4)
+                Image(systemName: "arrow.clockwise")
+                    .foregroundStyle(.white.opacity(0.85))
+                    .font(.caption2)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Color.orange)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(String(localized: "Tap to retry"))
+        .accessibilityLabel(String(localized: "Error: \(message). Tap to retry."))
     }
 }
 
