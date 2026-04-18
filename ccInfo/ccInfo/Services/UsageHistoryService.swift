@@ -18,12 +18,6 @@ final class UsageHistoryService {
     /// Window duration: 5 hours
     private let windowDuration: TimeInterval = 5 * 60 * 60
 
-    /// Periodic save interval: save every 30 data points (~15 minutes at 30s intervals)
-    private let saveInterval = 30
-
-    /// Counter for periodic saves
-    private var recordCount = 0
-
     /// Suppress gap detection for the first record after loading from disk,
     /// so the chart connects smoothly to persisted history after an app restart.
     private var suppressNextGap = false
@@ -45,10 +39,23 @@ final class UsageHistoryService {
 
     // MARK: - Public Methods
 
-    /// Record a new usage data point
-    func record(usagePercent: Int) {
+    /// Record a new usage data point.
+    /// Pass `resetsAt` from the API so the service can drop any persisted points
+    /// that belong to a previous 5h window (happens on window rotation and on
+    /// app restart where `loadFromDisk()` may have kept points from the old window).
+    func record(usagePercent: Int, resetsAt: Date? = nil) {
         let clamped = max(0, min(100, usagePercent))
         let now = Date()
+
+        if let resetsAt {
+            let windowStart = resetsAt.addingTimeInterval(-windowDuration)
+            let originalCount = dataPoints.count
+            dataPoints.removeAll { $0.timestamp < windowStart }
+            let dropped = originalCount - dataPoints.count
+            if dropped > 0 {
+                logger.info("Dropped \(dropped) data points from previous 5h window")
+            }
+        }
 
         // Insert a separate gap marker so the actual data point draws normally.
         // Skip gap detection right after loading from disk (app restart).
@@ -63,12 +70,7 @@ final class UsageHistoryService {
         dataPoints.append(dataPoint)
 
         pruneOldPoints()
-
-        recordCount += 1
-        if recordCount >= saveInterval {
-            saveToDisk()
-            recordCount = 0
-        }
+        saveToDisk()
     }
 
     /// Load persisted data from disk and filter to current 5h window
@@ -126,7 +128,6 @@ final class UsageHistoryService {
     /// Clear all data points and overwrite the file (called on window reset)
     func handleWindowReset() {
         dataPoints.removeAll()
-        recordCount = 0
         saveToDisk()
         logger.info("History cleared due to window reset")
     }

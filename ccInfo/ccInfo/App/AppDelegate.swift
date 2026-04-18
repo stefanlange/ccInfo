@@ -221,27 +221,14 @@ final class AppState {
         isLoading = true
         error = nil
         do {
-            let previousUsage = usageData
             let usage = try await apiClient.fetchUsage()
             usageData = usage
             NotificationService.shared.checkThresholds(usage: usage)
             NotificationService.shared.checkBurnRate(history: usageHistoryService.history, usage: usage)
 
-            // Record usage data point
             let percent = Int(usage.fiveHour.utilization)
-            usageHistoryService.record(usagePercent: percent)
+            usageHistoryService.record(usagePercent: percent, resetsAt: usage.fiveHour.resetsAt)
             usageHistory = usageHistoryService.history
-
-            // Detect window reset: utilization dropped to near-zero from a meaningful level
-            if let previous = previousUsage {
-                let previousUtil = previous.fiveHour.utilization
-                let newUtil = usage.fiveHour.utilization
-                if newUtil < 5 && previousUtil > 20 {
-                    logger.info("Window reset detected (prev: \(previousUtil), new: \(newUtil))")
-                    usageHistoryService.handleWindowReset()
-                    usageHistory = usageHistoryService.history
-                }
-            }
         } catch let apiError as ClaudeAPIClient.APIError {
             error = apiError
             logger.error("API error: \(apiError.localizedDescription)")
