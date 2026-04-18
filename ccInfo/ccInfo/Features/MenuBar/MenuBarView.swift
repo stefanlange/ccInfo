@@ -93,8 +93,8 @@ struct MenuBarView: View {
                 footerButtons
             } else {
                 VStack(spacing: 16) {
-                    Image(systemName: "person.crop.circle.badge.questionmark").font(.system(size: 40)).foregroundStyle(.secondary)
-                    Text("Not signed in").font(.headline)
+                    Image(systemName: "person.crop.circle.badge.questionmark").font(.largeTitle).foregroundStyle(.secondary)
+                    Text("Not signed in").font(.callout)
                     Button("Sign in with Claude") {
                         openWindow(id: "auth")
                         NSApp.activate(ignoringOtherApps: true)
@@ -208,7 +208,7 @@ private struct BurnRateWarningBanner: View {
 
     var body: some View {
         let timeLabel = prediction.formattedTimeUntilLimit
-        HStack(spacing: 5) {
+        HStack(spacing: Spacing.xs) {
             Image(systemName: "flame.fill")
                 .foregroundStyle(.white)
             Text(String(localized: "Token limit reached in \(timeLabel)"))
@@ -286,8 +286,7 @@ struct ContextSection: View {
                     Text(model.displayName)
                         .font(.caption2)
                         .fontWeight(.medium)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
+                        .padding(.horizontal, Spacing.xs)
                         .background(context.badgeColor(for: model))
                         .foregroundStyle(.white)
                         .clipShape(Capsule())
@@ -321,7 +320,11 @@ struct SessionSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 3) {
+            Grid(
+                alignment: .leading,
+                horizontalSpacing: Spacing.md,
+                verticalSpacing: Spacing.xs
+            ) {
                 GridRow {
                     Text(String(localized: "Models:")).foregroundStyle(.secondary)
                     Text(formatModelList())
@@ -369,7 +372,7 @@ struct SessionSection: View {
                 .accessibilityElement(children: .combine)
                 GridRow {
                     Text(String(localized: "Cost (API eq.):")).foregroundStyle(.secondary)
-                    HStack(spacing: 2) {
+                    HStack(spacing: 2) { // deliberate sub-scale: keeps "~" tight to the amount as a qualifier
                         if session.isCostEstimated && session.estimatedCost > 0 {
                             Text("~")
                                 .font(.caption2)
@@ -424,8 +427,7 @@ struct AgentContextRow: View {
                     Text(model.displayName)
                         .font(.caption2)
                         .fontWeight(.medium)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 1)
+                        .padding(.horizontal, Spacing.xs)
                         .background(color)
                         .foregroundStyle(.white)
                         .clipShape(Capsule())
@@ -516,14 +518,14 @@ struct PeriodSwitcher: View {
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
 
-        HStack(spacing: 2) {
+        HStack(spacing: 2) { // deliberate sub-scale: tight inter-button gap for segmented-control look
             ForEach(StatisticsPeriod.allCases, id: \.self) { period in
                 let isSelected = period == selectedPeriod
                 Button {
                     selectedPeriod = period
                 } label: {
                     Text(isSelected ? period.displayName : period.shortLabel)
-                        .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
+                        .font(.caption2).fontWeight(isSelected ? .semibold : .regular)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 4)
                         .contentShape(Rectangle())
@@ -535,7 +537,7 @@ struct PeriodSwitcher: View {
                 .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
         }
-        .padding(2)
+        .padding(Spacing.xs)
         .background(Color.primary.opacity(0.06))
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .frame(maxWidth: .infinity)

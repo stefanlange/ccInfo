@@ -11,7 +11,7 @@ struct UsageChartView: View {
 
     // Chart dimensions
     private let chartHeight: CGFloat = 50
-    private let leftMargin: CGFloat = 30
+    private let leftMargin: CGFloat = 36
     private let bottomMargin: CGFloat = 12
 
     /// Cached color lookup table (0-100). Rebuilt only when colorScheme changes.
@@ -53,15 +53,15 @@ struct UsageChartView: View {
                 // Y-axis labels (left of chart)
                 VStack(alignment: .trailing, spacing: 0) {
                     Text("100%")
-                        .font(.system(size: 8))
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
                     Spacer()
                     Text("50%")
-                        .font(.system(size: 8))
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
                     Spacer()
                     Text("0%")
-                        .font(.system(size: 8))
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
                 .frame(width: leftMargin - 6, height: chartHeight, alignment: .trailing)
@@ -76,7 +76,7 @@ struct UsageChartView: View {
                     ForEach(0..<6) { hour in
                         if hour > 0 { Spacer() }
                         Text("\(hour)h")
-                            .font(.system(size: 8))
+                            .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
                 }

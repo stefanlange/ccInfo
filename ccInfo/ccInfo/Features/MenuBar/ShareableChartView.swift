@@ -1,5 +1,17 @@
 import SwiftUI
 
+/// Fixed-size typography for the 440×520 export canvas.
+/// Do not reuse in app UI — `Features/**/*.swift` uses semantic SwiftUI fonts
+/// and `Spacing` tokens (see `Utilities/Spacing.swift`).
+private enum ExportTypography {
+    static let heroNumber: CGFloat = 56        // main percent hero
+    static let headline: CGFloat = 28          // secondary headline
+    static let sectionLabel: CGFloat = 20      // section value labels (monospaced)
+    static let subheadlineBold: CGFloat = 12   // bold subheadlines
+    static let caption: CGFloat = 10           // metadata captions
+    static let microMonospaced: CGFloat = 9    // mono axis/value micro-labels
+}
+
 /// Path-based chart view optimized for image export via `ImageRenderer`.
 /// Unlike `UsageChartView` (which uses Canvas), this view draws all chart
 /// elements as SwiftUI `Path` views so they render correctly in a static image.
@@ -60,21 +72,21 @@ struct ShareableChartView: View {
                 // Header
                 HStack(alignment: .lastTextBaseline, spacing: 8) {
                     Text("\(Int(utilization))")
-                        .font(.system(size: 56, weight: .black, design: .rounded))
+                        .font(.system(size: ExportTypography.heroNumber, weight: .black, design: .rounded))
                         .foregroundStyle(helper.colorForUsage(utilization))
                     Text("%")
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .font(.system(size: ExportTypography.headline, weight: .bold, design: .rounded))
                         .foregroundStyle(helper.colorForUsage(utilization).opacity(0.6))
                     Spacer()
                     if let resetTimeFormatted {
                         VStack(alignment: .trailing, spacing: 2) {
                             Text(String(localized: "Resets in"))
-                                .font(.system(size: 10, weight: .semibold))
+                                .font(.system(size: ExportTypography.caption, weight: .semibold))
                                 .foregroundStyle(textMuted)
                                 .textCase(.uppercase)
                                 .kerning(1)
                             Text(resetTimeFormatted)
-                                .font(.system(size: 20, weight: .bold, design: .monospaced))
+                                .font(.system(size: ExportTypography.sectionLabel, weight: .bold, design: .monospaced))
                                 .foregroundStyle(textPrimary)
                         }
                     }
@@ -86,7 +98,7 @@ struct ShareableChartView: View {
                 // Subtitle
                 HStack {
                     Text(String(localized: "5-Hour Window"))
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: ExportTypography.subheadlineBold, weight: .semibold))
                         .foregroundStyle(accent)
                         .textCase(.uppercase)
                         .kerning(1.5)
@@ -105,7 +117,7 @@ struct ShareableChartView: View {
                             Spacer()
                             Text("0%")
                         }
-                        .font(.system(size: 9, weight: .medium, design: .monospaced))
+                        .font(.system(size: ExportTypography.microMonospaced, weight: .medium, design: .monospaced))
                         .foregroundStyle(textMuted)
                         .frame(width: leftMargin, height: chartHeight)
 
@@ -120,7 +132,7 @@ struct ShareableChartView: View {
                             Text("\(hour)h")
                         }
                     }
-                    .font(.system(size: 9, weight: .medium, design: .monospaced))
+                    .font(.system(size: ExportTypography.microMonospaced, weight: .medium, design: .monospaced))
                     .foregroundStyle(textMuted)
                     .padding(.leading, leftMargin)
                     .padding(.top, 6)
@@ -136,7 +148,7 @@ struct ShareableChartView: View {
                 HStack {
                     Spacer()
                     Text("ccInfo")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.system(size: ExportTypography.caption, weight: .bold))
                         .foregroundStyle(textMuted.opacity(0.6))
                         .kerning(2)
                         .textCase(.uppercase)

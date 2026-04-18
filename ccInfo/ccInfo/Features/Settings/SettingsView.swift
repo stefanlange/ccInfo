@@ -41,7 +41,7 @@ private struct SettingsIconBadge: View {
 
     var body: some View {
         Image(systemName: systemImage)
-            .font(.system(size: 12, weight: .semibold))
+            .font(.callout).fontWeight(.semibold)
             .foregroundStyle(.white)
             .frame(width: 22, height: 22)
             .background(color, in: RoundedRectangle(cornerRadius: 5))
@@ -71,9 +71,9 @@ struct SettingsView: View {
                 Text(selectedTab.label)
                     .font(.title2)
                     .fontWeight(.bold)
-                    .padding(.top, 12)
-                    .padding(.bottom, 4)
-                    .padding(.leading, 20)
+                    .padding(.top, Spacing.md)
+                    .padding(.bottom, Spacing.xs)
+                    .padding(.leading, Spacing.xl)
 
                 switch selectedTab {
                 case .general:
@@ -205,7 +205,7 @@ struct AccountTab: View {
                 LabeledContent(String(localized: "Status")) { HStack { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green); Text(String(localized: "Connected")) } }
 
                 LabeledContent(String(localized: "Organization")) {
-                    VStack(alignment: .trailing, spacing: 4) {
+                    VStack(alignment: .trailing, spacing: Spacing.xs) {
                         if let orgName = creds.organizationName {
                             Text(orgName).font(.body)
                         }
@@ -219,7 +219,7 @@ struct AccountTab: View {
                                 copyOrgId(creds.organizationId)
                             } label: {
                                 Image(systemName: orgIdCopied ? "checkmark" : "doc.on.doc")
-                                    .font(.system(size: 11))
+                                    .font(.caption2)
                                     .foregroundStyle(orgIdCopied ? .green : .secondary)
                             }
                             .buttonStyle(.plain)
@@ -275,7 +275,7 @@ struct AboutTab: View {
     }
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: Spacing.md) {
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
                 .frame(width: 64, height: 64)
@@ -299,7 +299,7 @@ struct AboutTab: View {
 
             Spacer()
         }
-        .padding(.top, 20)
+        .padding(.top, Spacing.xl)
     }
 }
 
