@@ -1,0 +1,17 @@
+<ul>
+<li>Align the tilde and cost amount in the session row so they share the same baseline instead of the tilde floating half a step above</li>
+<li>Anchor the about-tab divider to the 64pt app-icon width so it reads as an underline rather than a full-pane section break</li>
+<li>Keep the pricing status timestamp in the About tab refreshing every minute while the window is open, so &quot;N minutes ago&quot; no longer goes stale</li>
+<li>Swap the refresh button&#39;s arrow icon for a small spinner while a refresh is running, with a 250 ms minimum-display window to avoid flicker on cached refreshes</li>
+<li>Show a two-line tooltip on inactive sessions with the configured activity threshold in minutes; active sessions keep their single-line path tooltip</li>
+<li>Localize notification titles and bodies so German builds no longer leak English &quot;5-Hour&quot;/&quot;weekly&quot; labels — the window name is now resolved through the string catalog</li>
+<li>Add German translations for &quot;Not signed in&quot;, &quot;No data&quot;, the new Loading label, and the inactive-session tooltip</li>
+<li>Fix burn chart data loss when the app is terminated unexpectedly by saving history more often and on app termination</li>
+<li>Refactor the codebase onto implicit LocalizedStringKey so future strings pick up their translations automatically</li>
+<li>Centralize typography and spacing in shared Swift enums (ShareableChartView keeps its export-only typography)</li>
+<li>Save usage history off the main thread so the app no longer pauses briefly on each poll</li>
+<li>Clear the usage chart at the 5-hour window reset instead of drawing a vertical cliff from the retired window down to 0%</li>
+<li>Stop the pricing status timestamp timer when the About tab is hidden so it doesn&#39;t keep ticking in the background</li>
+<li>Stop VoiceOver from reading &quot;Tap to retry&quot; twice when the error banner is focused</li>
+</ul>
+
