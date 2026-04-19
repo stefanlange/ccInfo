@@ -22,20 +22,20 @@ final class UsageHistoryService {
     /// so the chart connects smoothly to persisted history after an app restart.
     private var suppressNextGap = false
 
-    /// File URL for persistent storage
-    private var fileURL: URL? {
+    /// Resolved once on first access. The CCInfo→ccInfo directory migration
+    /// is a one-time event, so re-running it on every save adds no value.
+    private lazy var fileURL: URL? = {
         guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
             logger.error("Application Support directory not found")
             return nil
         }
         let ccInfoDir = appSupport.appendingPathComponent("ccInfo")
-        // Migrate from old "CCInfo" directory if it exists
         let oldDir = appSupport.appendingPathComponent("CCInfo")
         if FileManager.default.fileExists(atPath: oldDir.path) && !FileManager.default.fileExists(atPath: ccInfoDir.path) {
             try? FileManager.default.moveItem(at: oldDir, to: ccInfoDir)
         }
         return ccInfoDir.appendingPathComponent("usageHistory.json")
-    }
+    }()
 
     // MARK: - Public Methods
 
@@ -105,21 +105,38 @@ final class UsageHistoryService {
         }
     }
 
-    /// Persist current data points to disk
+    /// Persist current data points to disk on a background priority. Returns
+    /// immediately; the write itself runs off the main actor.
+    ///
+    /// Snapshots `dataPoints` by value before dispatching so a mutation that
+    /// happens between the call and the write does not corrupt the output.
+    /// Use `saveToDiskSync()` from `applicationWillTerminate` where a
+    /// fire-and-forget Task could be discarded before the process exits.
     func saveToDisk() {
         guard let url = fileURL else { return }
+        let snapshot = dataPoints
+        Task.detached(priority: .utility) {
+            Self.writeToDisk(snapshot: snapshot, to: url)
+        }
+    }
+
+    /// Synchronous save for termination paths. Blocks until the write completes.
+    func saveToDiskSync() {
+        guard let url = fileURL else { return }
+        Self.writeToDisk(snapshot: dataPoints, to: url)
+    }
+
+    nonisolated private static func writeToDisk(snapshot: [UsageDataPoint], to url: URL) {
+        let logger = Logger(subsystem: "com.ccinfo.app", category: "UsageHistoryService")
         do {
             let dir = url.deletingLastPathComponent()
             if !FileManager.default.fileExists(atPath: dir.path) {
                 try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             }
-
             let encoder = JSONEncoder()
-            encoder.outputFormatting = .prettyPrinted
-            let data = try encoder.encode(dataPoints)
+            let data = try encoder.encode(snapshot)
             try data.write(to: url, options: .atomic)
-
-            logger.info("Saved \(self.dataPoints.count) data points to disk")
+            logger.info("Saved \(snapshot.count) data points to disk")
         } catch {
             logger.error("Failed to save history to disk: \(error.localizedDescription)")
         }

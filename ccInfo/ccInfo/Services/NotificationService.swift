@@ -56,27 +56,25 @@ final class NotificationService {
     // MARK: - Threshold Checking
 
     /// Check usage and send notifications if thresholds are crossed
-    func checkThresholds(usage: UsageData) {
+    func checkThresholds(usage: UsageData) async {
         // Reset thresholds that are no longer applicable (allows re-notification after reset)
         notifiedFiveHour = notifiedFiveHour.filter { Double($0) <= usage.fiveHour.utilization }
         notifiedSevenDay = notifiedSevenDay.filter { Double($0) <= usage.sevenDay.utilization }
 
-        // Check 5-hour window
-        checkAndNotify(
+        await checkAndNotify(
             window: .fiveHour,
             utilization: usage.fiveHour.utilization,
             resetTime: usage.fiveHour.formattedTimeUntilReset
         )
 
-        // Check 7-day window
-        checkAndNotify(
+        await checkAndNotify(
             window: .sevenDay,
             utilization: usage.sevenDay.utilization,
             resetTime: usage.sevenDay.formattedTimeUntilReset
         )
     }
 
-    private func checkAndNotify(window: WindowType, utilization: Double, resetTime: String?) {
+    private func checkAndNotify(window: WindowType, utilization: Double, resetTime: String?) async {
         let thresholds = [80, 95]
 
         for threshold in thresholds where utilization >= Double(threshold) {
@@ -87,7 +85,7 @@ final class NotificationService {
 
             guard !alreadyNotified else { continue }
 
-            sendNotification(window: window, threshold: threshold, utilization: utilization, resetTime: resetTime)
+            await sendNotification(window: window, threshold: threshold, utilization: utilization, resetTime: resetTime)
 
             switch window {
             case .fiveHour: notifiedFiveHour.insert(threshold)
@@ -96,7 +94,7 @@ final class NotificationService {
         }
     }
 
-    private func sendNotification(window: WindowType, threshold: Int, utilization: Double, resetTime: String?) {
+    private func sendNotification(window: WindowType, threshold: Int, utilization: Double, resetTime: String?) async {
         let content = UNMutableNotificationContent()
 
         let severity = threshold >= 95 ? "⚠️" : "⚡️"
@@ -118,14 +116,11 @@ final class NotificationService {
         let identifier = "usage-\(window.rawValue)-\(threshold)"
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
 
-        // Spawn detached task for notification (fire-and-forget is acceptable for notifications)
-        Task { @MainActor in
-            do {
-                try await notificationCenter.add(request)
-                logger.info("Sent notification for \(window.rawValue) at \(threshold)%")
-            } catch {
-                logger.error("Failed to send notification: \(error.localizedDescription)")
-            }
+        do {
+            try await notificationCenter.add(request)
+            logger.info("Sent notification for \(window.rawValue) at \(threshold)%")
+        } catch {
+            logger.error("Failed to send notification: \(error.localizedDescription)")
         }
     }
 
@@ -133,7 +128,7 @@ final class NotificationService {
 
     /// Check burn rate and fire a one-shot notification when exhaustion is first predicted.
     /// Resets automatically when the danger passes so a future spike can re-trigger.
-    func checkBurnRate(history: [UsageDataPoint], usage: UsageData) {
+    func checkBurnRate(history: [UsageDataPoint], usage: UsageData) async {
         guard let prediction = BurnRateCalculator.predict(
             history: history,
             currentUtilization: usage.fiveHour.utilization,
@@ -157,13 +152,11 @@ final class NotificationService {
             content: content,
             trigger: nil
         )
-        Task { @MainActor in
-            do {
-                try await notificationCenter.add(request)
-                logger.info("Sent burn rate notification (limit in \(timeLabel))")
-            } catch {
-                logger.error("Failed to send burn rate notification: \(error.localizedDescription)")
-            }
+        do {
+            try await notificationCenter.add(request)
+            logger.info("Sent burn rate notification (limit in \(timeLabel))")
+        } catch {
+            logger.error("Failed to send burn rate notification: \(error.localizedDescription)")
         }
     }
 

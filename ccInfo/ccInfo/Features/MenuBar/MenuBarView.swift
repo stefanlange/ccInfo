@@ -164,10 +164,14 @@ struct MenuBarView: View {
                     clearLoadingTask?.cancel()
                     showLoading = true
                 } else {
-                    clearLoadingTask = Task {
-                        try? await Task.sleep(for: .milliseconds(250))
-                        if !Task.isCancelled && !appState.isLoading {
-                            showLoading = false
+                    clearLoadingTask = Task { [weak appState] in
+                        do {
+                            try await Task.sleep(for: .milliseconds(250))
+                            if appState?.isLoading == false {
+                                showLoading = false
+                            }
+                        } catch {
+                            // Cancelled — a new loading phase started, leave showLoading alone.
                         }
                     }
                 }
@@ -535,12 +539,12 @@ struct SessionSwitcher: View {
         }
     }
 
-    private func helpText(for session: ActiveSession) -> LocalizedStringKey {
+    private func helpText(for session: ActiveSession) -> String {
         let path = session.projectPath ?? session.projectDirectory
         if session.isActive {
-            return LocalizedStringKey(path)
+            return path
         } else {
-            return "No activity for over \(thresholdMinutes) minutes\n\(path)"
+            return String(localized: "No activity for over \(thresholdMinutes) minutes\n\(path)")
         }
     }
 }

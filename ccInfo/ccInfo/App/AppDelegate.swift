@@ -162,8 +162,9 @@ final class AppState {
     }
 
     func stopMonitoring() {
-        // Save usage history before stopping
-        usageHistoryService.saveToDisk()
+        // Synchronous save so data lands before the process tears down —
+        // the fire-and-forget saveToDisk() can be discarded at termination.
+        usageHistoryService.saveToDiskSync()
 
         refreshTask?.cancel()
         refreshTask = nil
@@ -173,6 +174,12 @@ final class AppState {
         contextWindowTask = nil
         fileWatcher?.stop()
         fileWatcher = nil
+        // Best-effort cancel of the PricingService actor's internal poll tasks.
+        // At applicationWillTerminate we can't await — the AppKit callback is
+        // synchronous — so if the process is already tearing down the Task may
+        // not run. That's fine: PricingService state is cached on disk and the
+        // OS cleans up any in-flight network work. At signOut() the app keeps
+        // running so the Task always completes.
         Task {
             await PricingService.shared.stopMonitoring()
         }
@@ -223,8 +230,8 @@ final class AppState {
         do {
             let usage = try await apiClient.fetchUsage()
             usageData = usage
-            NotificationService.shared.checkThresholds(usage: usage)
-            NotificationService.shared.checkBurnRate(history: usageHistoryService.history, usage: usage)
+            await NotificationService.shared.checkThresholds(usage: usage)
+            await NotificationService.shared.checkBurnRate(history: usageHistoryService.history, usage: usage)
 
             let percent = Int(usage.fiveHour.utilization)
             usageHistoryService.record(usagePercent: percent, resetsAt: usage.fiveHour.resetsAt)
