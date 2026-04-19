@@ -1,5 +1,22 @@
 # Release Notes
 
+## 1.11.0 – 2026-04-19
+
+- Align the tilde and cost amount in the session row so they share the same baseline instead of the tilde floating half a step above
+- Anchor the about-tab divider to the 64pt app-icon width so it reads as an underline rather than a full-pane section break
+- Keep the pricing status timestamp in the About tab refreshing every minute while the window is open, so "N minutes ago" no longer goes stale
+- Swap the refresh button's arrow icon for a small spinner while a refresh is running, with a 250 ms minimum-display window to avoid flicker on cached refreshes
+- Show a two-line tooltip on inactive sessions with the configured activity threshold in minutes; active sessions keep their single-line path tooltip
+- Localize notification titles and bodies so German builds no longer leak English "5-Hour"/"weekly" labels — the window name is now resolved through the string catalog
+- Add German translations for "Not signed in", "No data", the new Loading label, and the inactive-session tooltip
+- Fix burn chart data loss when the app is terminated unexpectedly by saving history more often and on app termination
+- Refactor the codebase onto implicit LocalizedStringKey so future strings pick up their translations automatically
+- Centralize typography and spacing in shared Swift enums (ShareableChartView keeps its export-only typography)
+- Save usage history off the main thread so the app no longer pauses briefly on each poll
+- Clear the usage chart at the 5-hour window reset instead of drawing a vertical cliff from the retired window down to 0%
+- Stop the pricing status timestamp timer when the About tab is hidden so it doesn't keep ticking in the background
+- Stop VoiceOver from reading "Tap to retry" twice when the error banner is focused
+
 ## 1.10.0 – 2026-04-12
 
 - Show a burn rate warning when the current token consumption pace will exhaust the 5-hour window before it resets, with a flame icon in the menu bar, a red inline banner in the popover, and a one-shot macOS notification
