@@ -33,7 +33,7 @@ struct MenuBarView: View {
                     // 5-Hour Window with chart
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
-                            Text(String(localized: "5-Hour Window"))
+                            Text("5-Hour Window")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .textCase(.uppercase)
@@ -211,7 +211,7 @@ private struct BurnRateWarningBanner: View {
         HStack(spacing: Spacing.xs) {
             Image(systemName: "flame.fill")
                 .foregroundStyle(.white)
-            Text(String(localized: "Token limit reached in \(timeLabel)"))
+            Text("Token limit reached in \(timeLabel)")
                 .font(.caption)
                 .foregroundStyle(.white)
             Spacer()
@@ -264,7 +264,7 @@ struct ContextSection: View {
         let progressColor = UtilizationThresholds.color(for: context.utilization)
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(String(localized: "Context Window")).font(.caption).foregroundStyle(.secondary).textCase(.uppercase)
+                Text("Context Window").font(.caption).foregroundStyle(.secondary).textCase(.uppercase)
                 Spacer()
                 if context.isNearAutoCompact {
                     Label("Near autocompact", systemImage: "exclamationmark.triangle.fill")
@@ -326,7 +326,7 @@ struct SessionSection: View {
                 verticalSpacing: Spacing.xs
             ) {
                 GridRow {
-                    Text(String(localized: "Models:")).foregroundStyle(.secondary)
+                    Text("Models:").foregroundStyle(.secondary)
                     Text(formatModelList())
                         .gridColumnAlignment(.trailing)
                         .monospacedDigit()
@@ -334,28 +334,28 @@ struct SessionSection: View {
                 .accessibilityElement(children: .combine)
                 Divider()
                 GridRow {
-                    Text(String(localized: "Input:")).foregroundStyle(.secondary)
+                    Text("Input:").foregroundStyle(.secondary)
                     Text(formatTokens(session.tokens.input))
                         .gridColumnAlignment(.trailing)
                         .monospacedDigit()
                 }
                 .accessibilityElement(children: .combine)
                 GridRow {
-                    Text(String(localized: "Output:")).foregroundStyle(.secondary)
+                    Text("Output:").foregroundStyle(.secondary)
                     Text(formatTokens(session.tokens.output))
                         .gridColumnAlignment(.trailing)
                         .monospacedDigit()
                 }
                 .accessibilityElement(children: .combine)
                 GridRow {
-                    Text(String(localized: "Cache Write:")).foregroundStyle(.secondary)
+                    Text("Cache Write:").foregroundStyle(.secondary)
                     Text(formatTokens(session.tokens.cacheCreation))
                         .gridColumnAlignment(.trailing)
                         .monospacedDigit()
                 }
                 .accessibilityElement(children: .combine)
                 GridRow {
-                    Text(String(localized: "Cache Read:")).foregroundStyle(.secondary)
+                    Text("Cache Read:").foregroundStyle(.secondary)
                     Text(formatTokens(session.tokens.cacheRead))
                         .gridColumnAlignment(.trailing)
                         .monospacedDigit()
@@ -363,7 +363,7 @@ struct SessionSection: View {
                 .accessibilityElement(children: .combine)
                 Divider()
                 GridRow {
-                    Text(String(localized: "Total:")).foregroundStyle(.secondary).fontWeight(.medium)
+                    Text("Total:").foregroundStyle(.secondary).fontWeight(.medium)
                     Text(formatTokens(session.tokens.totalTokens))
                         .gridColumnAlignment(.trailing)
                         .monospacedDigit()
@@ -371,10 +371,10 @@ struct SessionSection: View {
                 }
                 .accessibilityElement(children: .combine)
                 GridRow {
-                    Text(String(localized: "Cost (API eq.):")).foregroundStyle(.secondary)
+                    Text("Cost (API eq.):").foregroundStyle(.secondary)
                     HStack(spacing: 2) { // deliberate sub-scale: keeps "~" tight to the amount as a qualifier
                         if session.isCostEstimated && session.estimatedCost > 0 {
-                            Text("~")
+                            Text(verbatim: "~")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
@@ -455,7 +455,7 @@ struct AgentContextRow: View {
 struct EmptyContextSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(String(localized: "Context Window"))
+            Text("Context Window")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
@@ -465,10 +465,10 @@ struct EmptyContextSection: View {
                 .accessibilityLabel("Context window")
                 .accessibilityValue("0 %")
             HStack {
-                Text("0%")
+                Text(verbatim: "0%")
                     .font(.system(.title2, design: .rounded, weight: .semibold))
                     .foregroundStyle(.secondary)
-                Text(String(localized: "No active session"))
+                Text("No active session")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                 Spacer()
@@ -483,7 +483,7 @@ struct SessionSwitcher: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(String(localized: "Active Sessions"))
+            Text("Active Sessions")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
@@ -513,7 +513,7 @@ struct PeriodSwitcher: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(String(localized: "Statistics"))
+            Text("Statistics")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)

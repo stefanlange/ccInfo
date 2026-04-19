@@ -131,28 +131,28 @@ struct GeneralTab: View {
                     appState.updateRefreshInterval()
                 }
 
-                Picker(String(localized: "Session Activity"), selection: $sessionActivityThreshold) {
-                    Text(String(localized: "5 minutes")).tag(300.0)
-                    Text(String(localized: "10 minutes")).tag(600.0)
-                    Text(String(localized: "30 minutes")).tag(1800.0)
-                    Text(String(localized: "1 hour")).tag(3600.0)
-                    Text(String(localized: "4 hours")).tag(14400.0)
+                Picker("Session Activity", selection: $sessionActivityThreshold) {
+                    Text("5 minutes").tag(300.0)
+                    Text("10 minutes").tag(600.0)
+                    Text("30 minutes").tag(1800.0)
+                    Text("1 hour").tag(3600.0)
+                    Text("4 hours").tag(14400.0)
                 }
                 .onChange(of: sessionActivityThreshold) { _, _ in
                     appState.updateSessionActivityThreshold()
                 }
 
-                Picker(String(localized: "Sonnet Context"), selection: $sonnetContextSize) {
-                    Text("200K").tag(200_000)
-                    Text("1M").tag(1_000_000)
+                Picker("Sonnet Context", selection: $sonnetContextSize) {
+                    Text(verbatim: "200K").tag(200_000)   // unit suffix, language-independent
+                    Text(verbatim: "1M").tag(1_000_000)   // unit suffix, language-independent
                 }
                 .onChange(of: sonnetContextSize) { _, _ in
                     Task { await appState.refreshLocalData() }
                 }
             }
 
-            Section(String(localized: "MenuBar Display")) {
-                Picker(String(localized: "Slot 1"), selection: $menuBarSlot1) {
+            Section("MenuBar Display") {
+                Picker("Slot 1", selection: $menuBarSlot1) {
                     ForEach(MenuBarSlot.allCases, id: \.self) { slot in
                         Text(slot.displayName).tag(slot)
                     }
@@ -163,7 +163,7 @@ struct GeneralTab: View {
                     }
                 }
 
-                Picker(String(localized: "Slot 2"), selection: $menuBarSlot2) {
+                Picker("Slot 2", selection: $menuBarSlot2) {
                     ForEach(MenuBarSlot.allCases, id: \.self) { slot in
                         Text(slot.displayName).tag(slot)
                     }
@@ -202,9 +202,9 @@ struct AccountTab: View {
     var body: some View {
         Form {
             if appState.isAuthenticated, let creds = appState.credentials {
-                LabeledContent(String(localized: "Status")) { HStack { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green); Text(String(localized: "Connected")) } }
+                LabeledContent("Status") { HStack { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green); Text("Connected") } }
 
-                LabeledContent(String(localized: "Organization")) {
+                LabeledContent("Organization") {
                     VStack(alignment: .trailing, spacing: Spacing.xs) {
                         if let orgName = creds.organizationName {
                             Text(orgName).font(.body)
@@ -229,7 +229,7 @@ struct AccountTab: View {
                 }
 
                 Section {
-                    Button(String(localized: "Sign out"), role: .destructive) {
+                    Button("Sign out", role: .destructive) {
                         showingSignOutConfirmation = true
                     }
                     .confirmationDialog(
@@ -237,17 +237,17 @@ struct AccountTab: View {
                         isPresented: $showingSignOutConfirmation,
                         titleVisibility: .visible
                     ) {
-                        Button(String(localized: "Sign out"), role: .destructive) {
+                        Button("Sign out", role: .destructive) {
                             appState.signOut()
                         }
-                        Button(String(localized: "Cancel"), role: .cancel) { }
+                        Button("Cancel", role: .cancel) { }
                     } message: {
-                        Text(String(localized: "This removes your credentials and clears the local usage history on this Mac."))
+                        Text("This removes your credentials and clears the local usage history on this Mac.")
                     }
                 }
             } else {
-                LabeledContent(String(localized: "Status")) { HStack { Image(systemName: "xmark.circle.fill").foregroundStyle(.red); Text(String(localized: "Not connected")) } }
-                Section { Button(String(localized: "Sign in")) { appState.showingAuth = true }.buttonStyle(.borderedProminent) }
+                LabeledContent("Status") { HStack { Image(systemName: "xmark.circle.fill").foregroundStyle(.red); Text("Not connected") } }
+                Section { Button("Sign in") { appState.showingAuth = true }.buttonStyle(.borderedProminent) }
             }
         }.formStyle(.grouped)
     }
@@ -279,14 +279,14 @@ struct AboutTab: View {
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
                 .frame(width: 64, height: 64)
-            Text("ccInfo").font(.title2).fontWeight(.semibold)
-            Text(String(localized: "Know your limits. Use them wisely.")).font(.subheadline).foregroundStyle(.secondary)
+            Text(verbatim: "ccInfo").font(.title2).fontWeight(.semibold)   // product name
+            Text("Know your limits. Use them wisely.").font(.subheadline).foregroundStyle(.secondary)
             Text(versionLabel).font(.caption).foregroundStyle(.tertiary)
 
             Divider().padding(.horizontal)
 
             HStack {
-                Text(String(localized: "Pricing Data"))
+                Text("Pricing Data")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -359,7 +359,7 @@ struct UpdatesTab: View {
         Form {
             Section {
                 Toggle(
-                    String(localized: "Automatically check for updates"),
+                    "Automatically check for updates",
                     isOn: Binding(
                         get: { updateService.automaticallyChecksForUpdates },
                         set: { updateService.automaticallyChecksForUpdates = $0 }
@@ -369,7 +369,7 @@ struct UpdatesTab: View {
 
             Section {
                 HStack {
-                    Button(String(localized: "Check for Updates")) {
+                    Button("Check for Updates") {
                         isChecking = true
                         updateService.checkForUpdates()
                         // Reset after a short delay — Sparkle takes over with its own UI

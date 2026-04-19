@@ -52,15 +52,15 @@ struct UsageChartView: View {
 
                 // Y-axis labels (left of chart)
                 VStack(alignment: .trailing, spacing: 0) {
-                    Text("100%")
+                    Text(verbatim: "100%")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Text("50%")
+                    Text(verbatim: "50%")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Text("0%")
+                    Text(verbatim: "0%")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -99,7 +99,7 @@ struct UsageChartView: View {
     }
 
     private var accessibilityValue: String {
-        guard let last = dataPoints.last else { return "No data" }
+        guard let last = dataPoints.last else { return String(localized: "No data") }
         return "\(last.usage) percent"
     }
 
