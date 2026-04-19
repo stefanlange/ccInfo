@@ -4,6 +4,9 @@ struct MenuBarView: View {
     @Environment(AppState.self) var appState
     @Environment(\.openWindow) private var openWindow
 
+    @State private var showLoading = false
+    @State private var clearLoadingTask: Task<Void, Never>?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if appState.isAuthenticated {
@@ -144,12 +147,31 @@ struct MenuBarView: View {
     private var footerButtons: some View {
         HStack {
             Button { Task { await appState.refreshAll() } } label: {
-                Image(systemName: "arrow.clockwise")
+                Group {
+                    if showLoading {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                }
             }
             .buttonStyle(.borderless)
             .disabled(appState.isLoading)
             .help(String(localized: "Refresh"))
-            .accessibilityLabel(Text("Refresh"))
+            .accessibilityLabel(showLoading ? Text("Loading") : Text("Refresh"))
+            .onChange(of: appState.isLoading) { _, newValue in
+                if newValue {
+                    clearLoadingTask?.cancel()
+                    showLoading = true
+                } else {
+                    clearLoadingTask = Task {
+                        try? await Task.sleep(for: .milliseconds(250))
+                        if !Task.isCancelled && !appState.isLoading {
+                            showLoading = false
+                        }
+                    }
+                }
+            }
 
             Spacer()
 
@@ -372,10 +394,9 @@ struct SessionSection: View {
                 .accessibilityElement(children: .combine)
                 GridRow {
                     Text("Cost (API eq.):").foregroundStyle(.secondary)
-                    HStack(spacing: 2) { // deliberate sub-scale: keeps "~" tight to the amount as a qualifier
+                    HStack(spacing: 2) {
                         if session.isCostEstimated && session.estimatedCost > 0 {
                             Text(verbatim: "~")
-                                .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
                         Text(session.estimatedCost.formattedCurrency())
@@ -481,6 +502,13 @@ struct SessionSwitcher: View {
     let sessions: [ActiveSession]
     @Binding var selectedURL: URL?
 
+    @AppStorage(AppStorageKeys.sessionActivityThreshold)
+    private var sessionActivityThreshold: Double = AppStorageKeys.Defaults.sessionActivityThreshold
+
+    private var thresholdMinutes: Int {
+        Int(sessionActivityThreshold / 60)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Active Sessions")
@@ -497,13 +525,22 @@ struct SessionSwitcher: View {
                             Text("\(session.projectName) (\(String(localized: "Inactive")))")
                         }
                     }
-                    .help(session.projectPath ?? session.projectDirectory)
+                    .help(helpText(for: session))
                     .tag(Optional(session.sessionURL))
                 }
             }
             .pickerStyle(.menu)
             .labelsHidden()
             .accessibilityLabel("Select active session")
+        }
+    }
+
+    private func helpText(for session: ActiveSession) -> LocalizedStringKey {
+        let path = session.projectPath ?? session.projectDirectory
+        if session.isActive {
+            return LocalizedStringKey(path)
+        } else {
+            return "No activity for over \(thresholdMinutes) minutes\n\(path)"
         }
     }
 }

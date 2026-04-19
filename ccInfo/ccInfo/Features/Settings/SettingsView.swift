@@ -283,7 +283,7 @@ struct AboutTab: View {
             Text("Know your limits. Use them wisely.").font(.subheadline).foregroundStyle(.secondary)
             Text(versionLabel).font(.caption).foregroundStyle(.tertiary)
 
-            Divider().padding(.horizontal)
+            Divider().frame(width: 64)
 
             HStack {
                 Text("Pricing Data")
@@ -308,18 +308,20 @@ struct PricingStatusRow: View {
     let lastUpdate: Date?
 
     var body: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(statusColor)
-                .frame(width: 8, height: 8)
+        TimelineView(.periodic(from: .now, by: 60)) { context in
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(statusColor)
+                    .frame(width: 8, height: 8)
 
-            Text(statusLabel)
-                .font(.caption)
-
-            if let lastUpdate {
-                Text("— \(relativeTime(for: lastUpdate))")
+                Text(statusLabel)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+
+                if let lastUpdate {
+                    Text("— \(relativeTime(for: lastUpdate, now: context.date))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }
@@ -346,8 +348,8 @@ struct PricingStatusRow: View {
         return formatter
     }()
 
-    private func relativeTime(for date: Date) -> String {
-        Self.relativeDateFormatter.localizedString(for: date, relativeTo: .now)
+    private func relativeTime(for date: Date, now: Date) -> String {
+        Self.relativeDateFormatter.localizedString(for: date, relativeTo: now)
     }
 }
 

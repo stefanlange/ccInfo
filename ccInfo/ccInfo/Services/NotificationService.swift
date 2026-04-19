@@ -18,6 +18,20 @@ final class NotificationService {
     enum WindowType: String {
         case fiveHour = "5-Hour"
         case sevenDay = "Weekly"
+
+        var localizedLimitLabel: String {
+            switch self {
+            case .fiveHour: return String(localized: "5-Hour Limit")
+            case .sevenDay: return String(localized: "Weekly Limit")
+            }
+        }
+
+        var localizedSentenceForm: String {
+            switch self {
+            case .fiveHour: return String(localized: "5-hour")
+            case .sevenDay: return String(localized: "weekly")
+            }
+        }
     }
 
     private init() {}
@@ -86,15 +100,15 @@ final class NotificationService {
         let content = UNMutableNotificationContent()
 
         let severity = threshold >= 95 ? "⚠️" : "⚡️"
-        content.title = "\(severity) \(window.rawValue) Limit: \(Int(utilization))%"
+        content.title = "\(severity) \(window.localizedLimitLabel): \(Int(utilization))%"
 
         if let resetTime {
             content.body = String(
-                localized: "Your \(window.rawValue.lowercased()) usage is at \(Int(utilization))%. Resets in \(resetTime)."
+                localized: "Your \(window.localizedSentenceForm) usage is at \(Int(utilization))%. Resets in \(resetTime)."
             )
         } else {
             content.body = String(
-                localized: "Your \(window.rawValue.lowercased()) usage is at \(Int(utilization))%."
+                localized: "Your \(window.localizedSentenceForm) usage is at \(Int(utilization))%."
             )
         }
 
