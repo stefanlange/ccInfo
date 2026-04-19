@@ -22,6 +22,25 @@ final class UsageHistoryService {
     /// so the chart connects smoothly to persisted history after an app restart.
     private var suppressNextGap = false
 
+    /// UserDefaults key for persisting `lastResetsAt` across app restarts so
+    /// the time-based reset detection can still fire on the first post-restart
+    /// poll when the API hasn't yet advanced `resetsAt`.
+    private static let lastResetsAtDefaultsKey = "UsageHistoryService.lastResetsAt"
+
+    /// The `resetsAt` value reported by the previous poll. Crossing it during
+    /// a new poll means the 5h window has advanced and all existing points
+    /// belong to the retired window. Persisted to UserDefaults so the check
+    /// survives app restarts; cleared on sign-out via `handleWindowReset()`.
+    private var lastResetsAt: Date? {
+        didSet {
+            if let value = lastResetsAt {
+                UserDefaults.standard.set(value, forKey: Self.lastResetsAtDefaultsKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: Self.lastResetsAtDefaultsKey)
+            }
+        }
+    }
+
     /// Resolved once on first access. The CCInfo→ccInfo directory migration
     /// is a one-time event, so re-running it on every save adds no value.
     private lazy var fileURL: URL? = {
@@ -47,6 +66,28 @@ final class UsageHistoryService {
         let clamped = max(0, min(100, usagePercent))
         let now = Date()
 
+        // Time-based window-reset detection: once we're past the previously
+        // reported reset time, the 5h window has advanced and every existing
+        // point belongs to the retired window. Clear them so the chart redraws
+        // against the new window.
+        if let previousReset = lastResetsAt, now >= previousReset, !dataPoints.isEmpty {
+            logger.info("Window reset (time-based), cleared \(self.dataPoints.count, privacy: .public) points")
+            dataPoints.removeAll()
+            suppressNextGap = true
+        }
+        lastResetsAt = resetsAt
+
+        // Value-based fallback: API may still report a stale resetsAt on the
+        // first post-reset poll. A 0% reading after non-zero history is a
+        // window-reset signal regardless (5h window is stepped, not rolling).
+        if clamped == 0, let last = dataPoints.last, !last.isGap, last.usage > 0 {
+            logger.info("Window reset (value-based, prev \(last.usage, privacy: .public)%), cleared \(self.dataPoints.count, privacy: .public) points")
+            dataPoints.removeAll()
+            suppressNextGap = true
+        }
+
+        // Defensive: drop any points outside the current window (e.g. after
+        // loadFromDisk the persisted history may still contain older points).
         if let resetsAt {
             let windowStart = resetsAt.addingTimeInterval(-windowDuration)
             let originalCount = dataPoints.count
@@ -58,7 +99,8 @@ final class UsageHistoryService {
         }
 
         // Insert a separate gap marker so the actual data point draws normally.
-        // Skip gap detection right after loading from disk (app restart).
+        // Skip gap detection right after loading from disk (app restart) or a
+        // window reset above.
         if suppressNextGap {
             suppressNextGap = false
         } else if detectGap(at: now), let last = dataPoints.last {
@@ -75,6 +117,8 @@ final class UsageHistoryService {
 
     /// Load persisted data from disk and filter to current 5h window
     func loadFromDisk() {
+        lastResetsAt = UserDefaults.standard.object(forKey: Self.lastResetsAtDefaultsKey) as? Date
+
         guard let url = fileURL else { return }
         do {
             guard FileManager.default.fileExists(atPath: url.path) else {
@@ -145,6 +189,7 @@ final class UsageHistoryService {
     /// Clear all data points and overwrite the file (called on window reset)
     func handleWindowReset() {
         dataPoints.removeAll()
+        lastResetsAt = nil
         saveToDisk()
         logger.info("History cleared due to window reset")
     }
