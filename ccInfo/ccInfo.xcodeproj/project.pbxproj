@@ -30,6 +30,7 @@
 		F0000014 /* MenuBarConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000016 /* MenuBarConfiguration.swift */; };
 		F0000015 /* SettingsWindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000017 /* SettingsWindowManager.swift */; };
 		F0000016 /* UsageDataPoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000018 /* UsageDataPoint.swift */; };
+		2A0000000000000000000001 /* WindowType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A0000000000000000000002 /* WindowType.swift */; };
 		F0000017 /* UsageHistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000019 /* UsageHistoryService.swift */; };
 		F0000018 /* UsageChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001A /* UsageChartView.swift */; };
 		F0000019 /* UtilizationThresholds.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001B /* UtilizationThresholds.swift */; };
@@ -68,6 +69,7 @@
 		F1000016 /* MenuBarConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarConfiguration.swift; sourceTree = "<group>"; };
 		F1000017 /* SettingsWindowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowManager.swift; sourceTree = "<group>"; };
 		F1000018 /* UsageDataPoint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageDataPoint.swift; sourceTree = "<group>"; };
+		2A0000000000000000000002 /* WindowType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowType.swift; sourceTree = "<group>"; };
 		F1000019 /* UsageHistoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageHistoryService.swift; sourceTree = "<group>"; };
 		F100001A /* UsageChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageChartView.swift; sourceTree = "<group>"; };
 		F100001B /* UtilizationThresholds.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtilizationThresholds.swift; sourceTree = "<group>"; };
@@ -133,6 +135,7 @@
 				F1000018 /* UsageDataPoint.swift */,
 				F100001C /* ContextWindow+UI.swift */,
 				F1000021 /* BurnRateCalculator.swift */,
+				2A0000000000000000000002 /* WindowType.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -325,6 +328,7 @@
 				F000001E /* ShareableChartView.swift in Sources */,
 				F000001F /* ChartShareService.swift in Sources */,
 				F0000020 /* BurnRateCalculator.swift in Sources */,
+				2A0000000000000000000001 /* WindowType.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

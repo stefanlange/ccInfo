@@ -15,25 +15,6 @@ final class NotificationService {
     private var notifiedSevenDay: Set<Int> = []
     private var notifiedBurnRate = false
 
-    enum WindowType: String {
-        case fiveHour = "5-Hour"
-        case sevenDay = "Weekly"
-
-        var localizedLimitLabel: String {
-            switch self {
-            case .fiveHour: return String(localized: "5-Hour Limit")
-            case .sevenDay: return String(localized: "Weekly Limit")
-            }
-        }
-
-        var localizedSentenceForm: String {
-            switch self {
-            case .fiveHour: return String(localized: "5-hour")
-            case .sevenDay: return String(localized: "weekly")
-            }
-        }
-    }
-
     private init() {}
 
     // MARK: - Authorization
@@ -134,7 +115,12 @@ final class NotificationService {
             currentUtilization: usage.fiveHour.utilization,
             resetsAt: usage.fiveHour.resetsAt
         ) else {
-            notifiedBurnRate = false
+            // Only treat a missing prediction as "danger passed" when history actually exists.
+            // With empty history (startup, pre-first-record), predict() returns nil for a
+            // different reason and we must not reset the one-shot flag.
+            if !history.isEmpty {
+                notifiedBurnRate = false
+            }
             return
         }
         guard !notifiedBurnRate else { return }

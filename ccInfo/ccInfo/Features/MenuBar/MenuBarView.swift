@@ -69,6 +69,7 @@ struct MenuBarView: View {
                         }
                     }
                     Divider()
+                    // Note: string also used in NotificationService.swift and MenuBarConfiguration.swift.
                     UsageSection(title: String(localized: "Weekly Limit"), utilization: usage.sevenDay.utilization, resetTime: usage.sevenDay.formattedTimeUntilReset, resetDate: usage.sevenDay.formattedResetDate)
                     Divider()
                     if let sonnet = usage.sevenDaySonnet {
@@ -225,7 +226,8 @@ private struct ErrorBanner: View {
         }
         .buttonStyle(.plain)
         .help(String(localized: "Tap to retry"))
-        .accessibilityLabel(String(localized: "Error: \(message). Tap to retry."))
+        .accessibilityLabel(String(localized: "Error: \(message)"))
+        .accessibilityHint(String(localized: "Tap to retry"))
     }
 }
 

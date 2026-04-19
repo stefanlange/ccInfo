@@ -49,6 +49,8 @@ private struct SettingsIconBadge: View {
 }
 
 struct SettingsView: View {
+    // UpdateService still uses legacy ObservableObject; migrate to @Observable
+    // and switch this to @Environment(UpdateService.self) when touching that file.
     @Environment(AppState.self) var appState
     @EnvironmentObject var updateService: UpdateService
     @State private var selectedTab: SettingsTab = .general
@@ -283,7 +285,7 @@ struct AboutTab: View {
             Text("Know your limits. Use them wisely.").font(.subheadline).foregroundStyle(.secondary)
             Text(versionLabel).font(.caption).foregroundStyle(.tertiary)
 
-            Divider().frame(width: 64)
+            Divider().frame(width: 64).frame(maxWidth: .infinity, alignment: .center)
 
             HStack {
                 Text("Pricing Data")
@@ -307,22 +309,33 @@ struct PricingStatusRow: View {
     let dataSource: PricingDataSource
     let lastUpdate: Date?
 
+    @State private var now = Date()
+    @State private var timer: Timer?
+
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 60)) { context in
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(statusColor)
-                    .frame(width: 8, height: 8)
+        HStack(spacing: 6) {
+            Circle()
+                .fill(statusColor)
+                .frame(width: 8, height: 8)
 
-                Text(statusLabel)
+            Text(statusLabel)
+                .font(.caption)
+
+            if let lastUpdate {
+                Text("— \(relativeTime(for: lastUpdate, now: now))")
                     .font(.caption)
-
-                if let lastUpdate {
-                    Text("— \(relativeTime(for: lastUpdate, now: context.date))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                    .foregroundStyle(.secondary)
             }
+        }
+        .onAppear {
+            now = Date()
+            timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
+                Task { @MainActor in now = Date() }
+            }
+        }
+        .onDisappear {
+            timer?.invalidate()
+            timer = nil
         }
     }
 

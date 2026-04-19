@@ -13,6 +13,7 @@ enum MenuBarSlot: String, CaseIterable, Sendable, Codable {
         case .fiveHour:
             return String(localized: "5-Hour Window")
         case .weeklyLimit:
+            // Note: string also used in MenuBarView.swift and Models/WindowType.swift.
             return String(localized: "Weekly Limit")
         case .sonnetWeekly:
             return String(localized: "Sonnet Weekly")

@@ -17,10 +17,6 @@ struct UsageChartView: View {
     /// Cached color lookup table (0-100). Rebuilt only when colorScheme changes.
     @State private var colorLookup: [Color] = []
 
-    private var helper: ChartDrawingHelper {
-        ChartDrawingHelper(isLightMode: colorScheme == .light)
-    }
-
     private func buildColorLookup() -> [Color] {
         ChartDrawingHelper(isLightMode: colorScheme == .light).buildColorLookup()
     }
@@ -269,6 +265,7 @@ struct UsageChartView: View {
         let x = xPosition(for: last.timestamp, width: width)
         let y = yPosition(for: Double(last.usage), height: height)
 
+        let helper = ChartDrawingHelper(isLightMode: colorScheme == .light)
         let color = helper.colorAt(Double(last.usage), from: colors)
 
         var glowPath = Path()
