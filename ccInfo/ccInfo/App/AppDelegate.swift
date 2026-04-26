@@ -1,6 +1,7 @@
 import SwiftUI
 import OSLog
 import Sparkle
+import WebKit
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegate {
@@ -46,6 +47,9 @@ final class AppState {
     private(set) var isLoading = false
     private(set) var error: Error?
     var showingAuth = false
+    var authReloadToken: Int = 0
+    let authWebsiteDataStore: WKWebsiteDataStore = .nonPersistent()
+    private var consecutiveSessionExpired = 0
     var statisticsPeriod: StatisticsPeriod = .today
     private(set) var pricingDataSource: PricingDataSource = .bundled
     private(set) var pricingLastUpdate: Date?
@@ -61,6 +65,7 @@ final class AppState {
 
     init() {
         self.apiClient = ClaudeAPIClient(credentialStore: credentialStore)
+        self.isAuthenticated = credentialStore.hasCredentials
         if let raw = UserDefaults.standard.string(forKey: AppStorageKeys.statisticsPeriod),
            let period = StatisticsPeriod(rawValue: raw) {
             self.statisticsPeriod = period
@@ -79,7 +84,7 @@ final class AppState {
         return interval > 0 ? interval : AppStorageKeys.Defaults.refreshInterval
     }
 
-    var isAuthenticated: Bool { credentialStore.hasCredentials }
+    private(set) var isAuthenticated: Bool = false
     var credentials: ClaudeCredentials? { credentialStore.getCredentials() }
     var contextWindow: ContextWindow? { contextWindowState?.main }
 
@@ -229,6 +234,7 @@ final class AppState {
         error = nil
         do {
             let usage = try await apiClient.fetchUsage()
+            consecutiveSessionExpired = 0
             usageData = usage
             await NotificationService.shared.checkThresholds(usage: usage)
             await NotificationService.shared.checkBurnRate(history: usageHistoryService.history, usage: usage)
@@ -239,7 +245,16 @@ final class AppState {
         } catch let apiError as ClaudeAPIClient.APIError {
             error = apiError
             logger.error("API error: \(apiError.localizedDescription)")
-            if case .sessionExpired = apiError { showingAuth = true }
+            if case .sessionExpired = apiError {
+                isAuthenticated = false
+                consecutiveSessionExpired += 1
+                if consecutiveSessionExpired >= 3 {
+                    logger.error("Session keeps being invalidated; pausing auto-reauth to avoid loop")
+                    stopMonitoring()
+                } else {
+                    showingAuth = true
+                }
+            }
         } catch {
             self.error = error
             logger.error("Unexpected error: \(error.localizedDescription)")
@@ -340,6 +355,8 @@ final class AppState {
 
     func signIn(credentials: ClaudeCredentials) {
         if credentialStore.saveCredentials(credentials) {
+            consecutiveSessionExpired = 0
+            isAuthenticated = true
             showingAuth = false
             startMonitoring()
         }
@@ -348,12 +365,23 @@ final class AppState {
     func signOut() {
         stopMonitoring()
         credentialStore.deleteCredentials()
+        isAuthenticated = false
         usageData = nil
         sessionData = nil
         contextWindowState = nil
         usageHistoryService.handleWindowReset()
         usageHistory = usageHistoryService.history
         NotificationService.shared.resetAllThresholds()
-        showingAuth = true
+
+        let store = authWebsiteDataStore
+        store.removeData(
+            ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(),
+            modifiedSince: .distantPast
+        ) { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.authReloadToken &+= 1
+                self?.showingAuth = true
+            }
+        }
     }
 }

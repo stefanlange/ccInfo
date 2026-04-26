@@ -31,67 +31,73 @@ struct ccInfoApp: App {
 
 struct MenuBarLabel: View {
     @Environment(AppState.self) var appState
+    @Environment(\.openWindow) private var openWindow
     @State private var cachedImage: NSImage?
-    @State private var cachedKey = MenuBarCacheKey()
+    @State private var cachedKey: MenuBarCacheKey?
 
     var body: some View {
-        if appState.isAuthenticated, appState.usageData != nil {
-            let slot1 = appState.menuBarSlot1
-            let slot2 = appState.menuBarSlot2
-            let slot1Value = Int(appState.utilizationForSlot(slot1) ?? 0)
-            let slot2Value = Int(appState.utilizationForSlot(slot2) ?? 0)
-            let showFlame = appState.usageData.flatMap { usage in
-                BurnRateCalculator.predict(
-                    history: appState.usageHistory,
-                    currentUtilization: usage.fiveHour.utilization,
-                    resetsAt: usage.fiveHour.resetsAt
-                )
-            } != nil
-            let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            let key = MenuBarCacheKey(slot1: slot1, slot2: slot2, value1: slot1Value, value2: slot2Value, showFlame: showFlame, isDark: isDark)
-
-            let image: NSImage = if key == cachedKey, let cached = cachedImage {
-                cached
-            } else if showFlame {
-                MenuBarImageRenderer.renderWithFlame(
-                    topRow: Double(slot1Value), bottomRow: Double(slot2Value),
-                    topSlot: slot1, bottomSlot: slot2)
-            } else {
-                MenuBarImageRenderer.render(
-                    topRow: Double(slot1Value), bottomRow: Double(slot2Value),
-                    topSlot: slot1, bottomSlot: slot2)
-            }
-
-            Image(nsImage: image)
-            .onChange(of: key) { _, newKey in
-                cachedImage = if newKey.showFlame {
-                    MenuBarImageRenderer.renderWithFlame(
-                        topRow: Double(newKey.value1), bottomRow: Double(newKey.value2),
-                        topSlot: newKey.slot1, bottomSlot: newKey.slot2)
-                } else {
-                    MenuBarImageRenderer.render(
-                        topRow: Double(newKey.value1), bottomRow: Double(newKey.value2),
-                        topSlot: newKey.slot1, bottomSlot: newKey.slot2)
-                }
+        let key = currentKey
+        Image(nsImage: image(for: key))
+            .onChange(of: key, initial: true) { _, newKey in
                 cachedKey = newKey
+                cachedImage = renderedImage(for: newKey)
             }
-            .onAppear {
-                cachedImage = image
-                cachedKey = key
+            .onChange(of: appState.showingAuth, initial: true) { _, showAuth in
+                if showAuth {
+                    openWindow(id: "auth")
+                    NSApp.activate(ignoringOtherApps: true)
+                }
             }
-        } else {
-            Image(systemName: "gauge.with.dots.needle.bottom.50percent")
-        }
     }
+
+    private var currentKey: MenuBarCacheKey? {
+        guard appState.isAuthenticated, appState.usageData != nil else { return nil }
+        let slot1 = appState.menuBarSlot1
+        let slot2 = appState.menuBarSlot2
+        let slot1Value = Int(appState.utilizationForSlot(slot1) ?? 0)
+        let slot2Value = Int(appState.utilizationForSlot(slot2) ?? 0)
+        let showFlame = appState.usageData.flatMap { usage in
+            BurnRateCalculator.predict(
+                history: appState.usageHistory,
+                currentUtilization: usage.fiveHour.utilization,
+                resetsAt: usage.fiveHour.resetsAt
+            )
+        } != nil
+        let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        return MenuBarCacheKey(slot1: slot1, slot2: slot2, value1: slot1Value, value2: slot2Value, showFlame: showFlame, isDark: isDark)
+    }
+
+    private func image(for key: MenuBarCacheKey?) -> NSImage {
+        if key == cachedKey, let cached = cachedImage { return cached }
+        return renderedImage(for: key)
+    }
+
+    private func renderedImage(for key: MenuBarCacheKey?) -> NSImage {
+        guard let key else { return Self.fallbackImage }
+        return key.showFlame
+            ? MenuBarImageRenderer.renderWithFlame(
+                topRow: Double(key.value1), bottomRow: Double(key.value2),
+                topSlot: key.slot1, bottomSlot: key.slot2)
+            : MenuBarImageRenderer.render(
+                topRow: Double(key.value1), bottomRow: Double(key.value2),
+                topSlot: key.slot1, bottomSlot: key.slot2)
+    }
+
+    private static let fallbackImage: NSImage = {
+        let img = NSImage(systemSymbolName: "gauge.with.dots.needle.bottom.50percent",
+                          accessibilityDescription: nil) ?? NSImage()
+        img.isTemplate = true
+        return img
+    }()
 }
 
 private struct MenuBarCacheKey: Equatable, Hashable {
-    var slot1: MenuBarSlot = .fiveHour
-    var slot2: MenuBarSlot = .weeklyLimit
-    var value1: Int = -1
-    var value2: Int = -1
-    var showFlame: Bool = false
-    var isDark: Bool = false
+    let slot1: MenuBarSlot
+    let slot2: MenuBarSlot
+    let value1: Int
+    let value2: Int
+    let showFlame: Bool
+    let isDark: Bool
 }
 
 enum MenuBarImageRenderer {

@@ -115,12 +115,6 @@ struct MenuBarView: View {
             }
         }
         .padding().frame(width: 280)
-        .onChange(of: appState.showingAuth) { _, showAuth in
-            if showAuth {
-                openWindow(id: "auth")
-                NSApp.activate(ignoringOtherApps: true)
-            }
-        }
     }
     
     private var visibleErrorMessage: String? {
