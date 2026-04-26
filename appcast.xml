@@ -3,6 +3,33 @@
     <channel>
         <title>CCInfo</title>
         <item>
+            <title>1.11.1</title>
+            <pubDate>Sun, 26 Apr 2026 12:53:25 +0000</pubDate>
+            <link>https://github.com/stefanlange/ccInfo</link>
+            <sparkle:version>1.11.1</sparkle:version>
+            <sparkle:shortVersionString>1.11.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<ul>
+<li>Trigger sign-in automatically when Anthropic invalidates the session, so the menu bar no longer gets stuck on a stale error</li>
+<li>Update menu bar usage and the dropdown together right after sign-in, instead of needing a restart</li>
+<li>Show the login form again after sign-out, instead of the chat from the previous session</li>
+<li>Open the auth window reliably from any trigger, even with the app in the background, and add a manual reload button for rare blank-window cases</li>
+<li>Stop reopening the auth window in a loop when the same session keeps being rejected</li>
+<li>Bump Sparkle to 2.9.1</li>
+</ul>
+
+]]></description>
+            <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo-v1.11.1.dmg" length="3292096" type="application/octet-stream" sparkle:edSignature="1bAN6qzP+rUsoBp95f9bxI8uk9kS5Lp7wwTNNuUQErhSDi7bvr7wQE75AVOb3ZwjQXw1dSfvPKYoKyBzh1fRBA=="/>
+            <sparkle:deltas>
+                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.11.1-1.11.0.delta" sparkle:deltaFrom="1.11.0" length="136654" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="xBgKs2pcIoLh+8YmSnRKlJ3mvPcvsJqKcUyDlB/5Zsm8tDx9mPNRG/LkTs5BWMIfMVeoT8pGHgY3BU1IVBg4Ag=="/>
+                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.11.1-1.10.0.delta" sparkle:deltaFrom="1.10.0" length="198634" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="tpR7VPSLp7pGNTNxrmA1Tx4Phxkbr6peo9FKaeH1K535Z05EcsWIpNLUcmmEJMxEUbl/ZB9TKEafkz6QY2MhCQ=="/>
+                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.11.1-1.9.0.delta" sparkle:deltaFrom="1.9.0" length="214674" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="I8OXs4oA/6MpGw+AkuDhCAr6mUPe7/sBMjUh1pP1/fCV1HgDeoahOu7P5Z3T1y8W7Z/orVjVpiDMBu3fYKw9BQ=="/>
+                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.11.1-1.8.3.delta" sparkle:deltaFrom="1.8.3" length="330502" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="tyzHETjl+FeBSHZWhDjuT/vZn6acoLpl0VGk6r+Nms4IYw0GGUNUS6pUsW5keTm9VkmvDgGQl8kK+UchJXWPCw=="/>
+                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.11.1-1.8.2.delta" sparkle:deltaFrom="1.8.2" length="450218" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="qE4xs2IIch9te91WK3VqTntg9c+xy0svOr3e6MeFVX9Gt2e9IDaZ8FkdaYyebDwuFUPTD435HckdzxC0QmNYBw=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>1.11.0</title>
             <pubDate>Sun, 19 Apr 2026 14:51:42 +0000</pubDate>
             <link>https://github.com/stefanlange/ccInfo</link>
@@ -108,29 +135,6 @@
                 <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.8.3-1.8.2.delta" sparkle:deltaFrom="1.8.2" length="302190" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="0wgEE1wqmsm30vbZpl6jVNm2VTMtOVvlV2dOGRm8Z285BeR5nqPQHLZmKb1TOQKa0wEr18+tG0EbDNcyEOeRDA=="/>
                 <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.8.3-1.8.1.delta" sparkle:deltaFrom="1.8.1" length="332730" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="oywnGwpHsn0pWvQWvEevgs4apGHk1nN9wtgn+C5mAHvYgQS2gN47z6nu4suJ8qfm9JFId4oJN1zDtRIUZ8lgDw=="/>
                 <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.8.3-1.8.0.delta" sparkle:deltaFrom="1.8.0" length="335974" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="xjRvAw6DryLfMTTkQm5giHKe4AuB6xWd9LSem9IolJDA5s4udrZcG7mz7pk3Owrmft9tfLmoj1MXC+PSN+cPCQ=="/>
-            </sparkle:deltas>
-        </item>
-        <item>
-            <title>1.8.2</title>
-            <pubDate>Sat, 21 Mar 2026 15:23:30 +0000</pubDate>
-            <link>https://github.com/stefanlange/ccInfo</link>
-            <sparkle:version>1.8.2</sparkle:version>
-            <sparkle:shortVersionString>1.8.2</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description><![CDATA[<ul>
-<li>Add a Sonnet context window setting (200K/1M) in Settings for plans without extended context</li>
-<li>Store credentials as a local file instead of macOS Keychain, fixing the password prompt after every app update</li>
-<li>Migrate existing Keychain credentials on first launch and delete the old entry</li>
-<li>Hide sessions whose project directory no longer exists (e.g. after removing a git worktree)</li>
-<li>Rename the project from CCInfo to ccInfo to match the repo and DMG naming</li>
-</ul>
-
-]]></description>
-            <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo-v1.8.2.dmg" length="3169158" type="application/octet-stream" sparkle:edSignature="+l/LDQ/j5ABfZF86O3iC4y3oY2ZytHkK8VNnq1yUF0xSLl0kHj2ZQjvVhLvkgQ32GkZLMBX0/NLpLy27tNOsDw=="/>
-            <sparkle:deltas>
-                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.8.2-1.8.1.delta" sparkle:deltaFrom="1.8.1" length="319986" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="Is6tTE8d1B3Sd2Zkdr++/3M+9eZN0wch5yvw7sPwtLb2ajJrNkq0P/V/ysA/B85NAtboauZneQzXjL+tsFbmDw=="/>
-                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.8.2-1.8.0.delta" sparkle:deltaFrom="1.8.0" length="323790" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="oMikl4ysJieZLtYc7zGmty4KjmzQ1b78O10ik0daaBLVz5bsrPEhk4uJDCqHJGXv0RJnH+OeGRu76hImhRFhCA=="/>
             </sparkle:deltas>
         </item>
     </channel>
