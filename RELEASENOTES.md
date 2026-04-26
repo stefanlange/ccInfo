@@ -1,5 +1,14 @@
 # Release Notes
 
+## 1.11.1 – 2026-04-26
+
+- Trigger sign-in automatically when Anthropic invalidates the session, so the menu bar no longer gets stuck on a stale error
+- Update menu bar usage and the dropdown together right after sign-in, instead of needing a restart
+- Show the login form again after sign-out, instead of the chat from the previous session
+- Open the auth window reliably from any trigger, even with the app in the background, and add a manual reload button for rare blank-window cases
+- Stop reopening the auth window in a loop when the same session keeps being rejected
+- Bump Sparkle to 2.9.1
+
 ## 1.11.0 – 2026-04-19
 
 - Align the tilde and cost amount in the session row so they share the same baseline instead of the tilde floating half a step above
