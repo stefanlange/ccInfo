@@ -53,13 +53,16 @@ actor ClaudeAPIClient {
             throw APIError.invalidResponse
         }
 
-        if http.statusCode == 401 {
-            await credentialStore.deleteCredentials()
-            throw APIError.sessionExpired
-        }
-
         guard http.statusCode == 200 else {
-            logger.warning("API returned status code: \(http.statusCode)")
+            let body = String(data: data, encoding: .utf8) ?? "<non-UTF8 body, \(data.count) bytes>"
+            let truncatedBody = body.count > 512 ? String(body.prefix(512)) + "…" : body
+            logger.warning("\(url.absoluteString, privacy: .private) returned \(http.statusCode): \(truncatedBody, privacy: .private)")
+
+            if http.statusCode == 401 || (http.statusCode == 403 && body.contains("account_session_invalid")) {
+                await credentialStore.deleteCredentials()
+                throw APIError.sessionExpired
+            }
+
             throw APIError.httpError(http.statusCode)
         }
 
