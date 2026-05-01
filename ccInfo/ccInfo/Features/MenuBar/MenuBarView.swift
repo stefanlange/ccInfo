@@ -502,6 +502,8 @@ struct SessionSwitcher: View {
     let sessions: [ActiveSession]
     @Binding var selectedURL: URL?
 
+    @Environment(AppState.self) private var appState
+
     @AppStorage(AppStorageKeys.sessionActivityThreshold)
     private var sessionActivityThreshold: Double = AppStorageKeys.Defaults.sessionActivityThreshold
 
@@ -520,9 +522,9 @@ struct SessionSwitcher: View {
                 ForEach(sessions) { session in
                     Group {
                         if session.isActive {
-                            Text(session.projectName)
+                            Text(appState.displayName(for: session))
                         } else {
-                            Text("\(session.projectName) (\(String(localized: "Inactive")))")
+                            Text("\(appState.displayName(for: session)) (\(String(localized: "Inactive")))")
                         }
                     }
                     .help(helpText(for: session))

@@ -347,6 +347,25 @@ final class AppState {
         scheduleLocalDataRefresh()
     }
 
+    /// Returns the user-visible display name for a session.
+    ///
+    /// Looks up a custom name in `customSessionNameStore` keyed by
+    /// `session.projectDirectory` (case-sensitive slug).
+    /// Falls back to `session.projectName` when no custom name is set
+    /// or after an explicit reset — no app restart required (SC-4).
+    ///
+    /// Reads `entries` defensively to anchor SwiftUI's `@Observable`
+    /// tracking on the store dictionary. This
+    /// guarantees that mutations via `setCustomName(_:for:)` /
+    /// `clearCustomName(for:)` propagate through `@Observable`
+    /// dependency tracking even if the compiler inlines the indirect
+    /// `customName(for:)` lookup below.
+    func displayName(for session: ActiveSession) -> String {
+        _ = customSessionNameStore.entries
+        return customSessionNameStore.customName(for: session.projectDirectory)
+            ?? session.projectName
+    }
+
     func updateStatisticsPeriod(_ period: StatisticsPeriod) {
         statisticsPeriod = period
         UserDefaults.standard.set(period.rawValue, forKey: AppStorageKeys.statisticsPeriod)
