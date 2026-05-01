@@ -59,6 +59,7 @@ final class AppState {
 
     let credentialStore = CredentialStore()
     let usageHistoryService = UsageHistoryService()
+    let customSessionNameStore = CustomSessionNameStore()
     private let apiClient: ClaudeAPIClient
     private let jsonlParser = JSONLParser()
     private let logger = Logger(subsystem: "com.ccinfo.app", category: "AppState")

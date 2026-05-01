@@ -40,6 +40,7 @@
 		F000001E /* ShareableChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001E /* ShareableChartView.swift */; };
 		F000001F /* ChartShareService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100001F /* ChartShareService.swift */; };
 		F0000020 /* BurnRateCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000021 /* BurnRateCalculator.swift */; };
+		F0000021 /* CustomSessionNameStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000022 /* CustomSessionNameStore.swift */; };
 		F8629B0B2F66F1C20082D390 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = F8629B0A2F66F1C20082D390 /* Sparkle */; };
 /* End PBXBuildFile section */
 
@@ -79,6 +80,7 @@
 		F100001E /* ShareableChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareableChartView.swift; sourceTree = "<group>"; };
 		F100001F /* ChartShareService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartShareService.swift; sourceTree = "<group>"; };
 		F1000021 /* BurnRateCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BurnRateCalculator.swift; sourceTree = "<group>"; };
+		F1000022 /* CustomSessionNameStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomSessionNameStore.swift; sourceTree = "<group>"; };
 		F1000020 /* ccInfo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ccInfo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -145,6 +147,7 @@
 			children = (
 				F1000005 /* ClaudeAPIClient.swift */,
 				F1000006 /* CredentialStore.swift */,
+				F1000022 /* CustomSessionNameStore.swift */,
 				F1000007 /* JSONLParser.swift */,
 				F1000008 /* FileWatcher.swift */,
 				F1000010 /* NotificationService.swift */,
@@ -328,6 +331,7 @@
 				F000001E /* ShareableChartView.swift in Sources */,
 				F000001F /* ChartShareService.swift in Sources */,
 				F0000020 /* BurnRateCalculator.swift in Sources */,
+				F0000021 /* CustomSessionNameStore.swift in Sources */,
 				2A0000000000000000000001 /* WindowType.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

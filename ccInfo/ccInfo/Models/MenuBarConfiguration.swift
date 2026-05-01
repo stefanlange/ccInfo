@@ -32,6 +32,7 @@ enum AppStorageKeys {
     static let sessionActivityThreshold = "sessionActivityThreshold"
     static let statisticsPeriod = "statisticsPeriod"
     static let sonnetContextSize = "sonnetContextSize"
+    static let customSessionNamesV1 = "session.customNames.v1"
 
     enum Defaults {
         static let launchAtLogin: Bool = false
