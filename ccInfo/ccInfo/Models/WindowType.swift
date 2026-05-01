@@ -3,7 +3,7 @@ import Foundation
 /// Models the kind of usage window surfaced by notifications (rolling 5-hour vs weekly).
 ///
 /// The localized helpers below intentionally call `String(localized:)` and return `String`,
-/// diverging from the Phase-17 implicit-`LocalizedStringKey` convention used elsewhere in
+/// diverging from implicit-`LocalizedStringKey` convention used elsewhere in
 /// the project. This is required because `UNMutableNotificationContent.title` and `.body`
 /// are typed as `String` and do not accept `LocalizedStringKey`.
 enum WindowType: String {

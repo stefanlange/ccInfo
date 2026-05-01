@@ -9,7 +9,7 @@ final class UsageHistoryService {
     /// In-memory storage of data points
     private var dataPoints: [UsageDataPoint] = []
 
-    /// Read-only access to the current history (for Phase 12 chart binding)
+    /// Read-only access to the current history (for chart binding)
     var history: [UsageDataPoint] { dataPoints }
 
     /// Gap detection threshold: 3x the 30s poll interval = 90 seconds
