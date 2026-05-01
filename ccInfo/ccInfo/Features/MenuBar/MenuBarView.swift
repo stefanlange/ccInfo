@@ -507,6 +507,9 @@ struct SessionSwitcher: View {
     @AppStorage(AppStorageKeys.sessionActivityThreshold)
     private var sessionActivityThreshold: Double = AppStorageKeys.Defaults.sessionActivityThreshold
 
+    @State private var editingSlug: String?
+    @State private var draftName: String = ""
+
     private var thresholdMinutes: Int {
         Int(sessionActivityThreshold / 60)
     }
@@ -518,23 +521,90 @@ struct SessionSwitcher: View {
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
 
-            Picker("", selection: $selectedURL) {
-                ForEach(sessions) { session in
-                    Group {
-                        if session.isActive {
-                            Text(appState.displayName(for: session))
-                        } else {
-                            Text("\(appState.displayName(for: session)) (\(String(localized: "Inactive")))")
+            HStack(spacing: Spacing.sm) {
+                Picker("", selection: $selectedURL) {
+                    ForEach(sessions) { session in
+                        Group {
+                            if session.isActive {
+                                Text(appState.displayName(for: session))
+                            } else {
+                                Text("\(appState.displayName(for: session)) (\(String(localized: "Inactive")))")
+                            }
                         }
+                        .help(helpText(for: session))
+                        .tag(Optional(session.sessionURL))
                     }
-                    .help(helpText(for: session))
-                    .tag(Optional(session.sessionURL))
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .accessibilityLabel("Select active session")
+
+                Button {
+                    guard let slug = currentSlug else { return }
+                    draftName = appState.customSessionNameStore.customName(for: slug) ?? ""
+                    editingSlug = slug
+                } label: {
+                    Image(systemName: "pencil")
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(.secondary)
+                .disabled(sessions.isEmpty || selectedURL == nil)
+                .help(String(localized: "Rename session"))
+                .popover(
+                    item: Binding(
+                        get: { editingSlug.map { IdentifiableSlug(id: $0) } },
+                        set: { editingSlug = $0?.id }
+                    ),
+                    arrowEdge: .trailing
+                ) { wrapper in
+                    RenamePopoverContent(
+                        slug: wrapper.id,
+                        resolvedDefault: resolvedDefault(for: wrapper.id),
+                        projectPath: projectPath(for: wrapper.id),
+                        draftName: $draftName,
+                        hasPersistedCustomName: appState.customSessionNameStore.customName(for: wrapper.id) != nil,
+                        onSave: { save(slug: wrapper.id) },
+                        onCancel: { cancel() },
+                        onReset: { reset(slug: wrapper.id) }
+                    )
+                    .frame(minWidth: 280, maxWidth: 360)
                 }
             }
-            .pickerStyle(.menu)
-            .labelsHidden()
-            .accessibilityLabel("Select active session")
         }
+    }
+
+    private func resolvedDefault(for slug: String) -> String {
+        sessions.first(where: { $0.projectDirectory == slug })
+            .map { appState.displayName(for: $0) } ?? slug
+    }
+
+    private func projectPath(for slug: String) -> String? {
+        sessions.first(where: { $0.projectDirectory == slug })?.projectPath
+    }
+
+    /// Persists the trimmed draft. Empty trim → implicit reset (SESSION-NAME-06).
+    /// Always closes the popover via `editingSlug = nil`.
+    private func save(slug: String) {
+        let trimmed = draftName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            appState.customSessionNameStore.clearCustomName(for: slug)
+        } else {
+            appState.customSessionNameStore.setCustomName(trimmed, for: slug)
+        }
+        editingSlug = nil
+    }
+
+    /// Discards the draft and closes the popover (no auto-save on dismiss).
+    private func cancel() {
+        editingSlug = nil
+    }
+
+    /// Clears any persisted custom name for the slug and immediately closes the popover.
+    /// No confirmation dialog (Cancel is the undo granularity for the draft;
+    /// Reset is a deliberate, visually distinct click).
+    private func reset(slug: String) {
+        appState.customSessionNameStore.clearCustomName(for: slug)
+        editingSlug = nil
     }
 
     private func helpText(for session: ActiveSession) -> String {
@@ -544,6 +614,89 @@ struct SessionSwitcher: View {
         } else {
             return String(localized: "No activity for over \(thresholdMinutes) minutes\n\(path)")
         }
+    }
+
+    /// Wrapper that gives a session slug stable Identifiable identity for `.popover(item:)`.
+    private struct IdentifiableSlug: Identifiable {
+        let id: String
+    }
+
+    /// Resolves the slug of the currently selected session (nil if no selection or no match).
+    private var currentSlug: String? {
+        guard let url = selectedURL else { return nil }
+        return sessions.first(where: { $0.sessionURL == url })?.projectDirectory
+    }
+
+    /// Abbreviates an absolute path to the home-tilde form (`~/dev/foo`) when applicable.
+    private func abbreviatedPath(_ path: String) -> String {
+        NSString(string: path).abbreviatingWithTildeInPath
+    }
+}
+
+private struct RenamePopoverContent: View {
+    let slug: String
+    let resolvedDefault: String
+    let projectPath: String?
+    @Binding var draftName: String
+    let hasPersistedCustomName: Bool
+    let onSave: () -> Void
+    let onCancel: () -> Void
+    let onReset: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            LabeledContent {
+                Text(slug)
+                    .font(.system(.caption, design: .monospaced))
+                    .textSelection(.enabled)
+                    .foregroundStyle(.secondary)
+            } label: {
+                Text("Slug")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            LabeledContent {
+                Text(displayPath)
+                    .font(.caption)
+                    .textSelection(.enabled)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .truncationMode(.middle)
+            } label: {
+                Text("Path")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text("Custom name")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                TextField(resolvedDefault, text: $draftName)
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit { onSave() }
+            }
+
+            HStack {
+                Button(action: onReset) {
+                    Text("Reset to Default")
+                }
+                .disabled(!hasPersistedCustomName)
+
+                Spacer()
+
+                Button("Cancel", action: onCancel)
+                Button("Save", action: onSave)
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(Spacing.md)
+    }
+
+    private var displayPath: String {
+        guard let projectPath else { return slug }
+        return NSString(string: projectPath).abbreviatingWithTildeInPath
     }
 }
 
