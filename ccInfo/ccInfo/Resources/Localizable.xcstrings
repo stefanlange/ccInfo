@@ -310,6 +310,8 @@
       }
     },
     "Active Sessions" : {
+      "comment" : "Section header in the Settings → Sessions tab for currently-active sessions.",
+      "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -1751,6 +1753,42 @@
         }
       }
     },
+    "Custom Names without Active Session" : {
+      "comment" : "Section header in the Settings → Sessions tab for persisted custom names whose underlying session is no longer active.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eigene Namen ohne aktive Sitzung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Custom Names without Active Session"
+          }
+        }
+      }
+    },
+    "No sessions yet — start using Claude in a project." : {
+      "comment" : "Empty-state message shown in the Settings → Sessions tab when neither active sessions nor persisted custom names exist.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch keine Sitzungen. Starte Claude in einem Projekt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No sessions yet — start using Claude in a project."
+          }
+        }
+      }
+    },
     "Path" : {
       "comment" : "Label for the session's working directory path.",
       "extractionState" : "manual",
@@ -1783,6 +1821,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rename session"
+          }
+        }
+      }
+    },
+    "Reset custom name?" : {
+      "comment" : "Title of the confirmation dialog shown when the user clicks the Reset button on a session row in Settings → Sessions.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eigenen Namen zurücksetzen?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset custom name?"
           }
         }
       }
@@ -1823,6 +1879,24 @@
         }
       }
     },
+    "Sessions" : {
+      "comment" : "Settings tab title for the per-session custom-name list (sidebar label).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sitzungen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sessions"
+          }
+        }
+      }
+    },
     "Slug" : {
       "comment" : "Label for the session's directory slug (technical identifier).",
       "extractionState" : "manual",
@@ -1837,6 +1911,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Slug"
+          }
+        }
+      }
+    },
+    "This will remove the custom name. The default project name will be shown again." : {
+      "comment" : "Message body of the confirmation dialog when the user clicks Reset on a session row in Settings → Sessions.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der eigene Name wird entfernt. Der Standard-Projektname wird wieder angezeigt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This will remove the custom name. The default project name will be shown again."
           }
         }
       }

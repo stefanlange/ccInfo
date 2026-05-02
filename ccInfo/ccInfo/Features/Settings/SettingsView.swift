@@ -3,13 +3,14 @@ import ServiceManagement
 import OSLog
 
 enum SettingsTab: String, CaseIterable, Identifiable {
-    case general, updates, account, about
+    case general, sessions, updates, account, about
 
     var id: String { rawValue }
 
     var label: LocalizedStringKey {
         switch self {
         case .general: "General"
+        case .sessions: "Sessions"
         case .updates: "Updates"
         case .account: "Account"
         case .about: "About"
@@ -19,6 +20,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     var systemImage: String {
         switch self {
         case .general: "gear"
+        case .sessions: "person.2.fill"
         case .updates: "arrow.triangle.2.circlepath"
         case .account: "person.crop.circle"
         case .about: "info.circle"
@@ -28,6 +30,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     var iconColor: Color {
         switch self {
         case .general: .green
+        case .sessions: .purple
         case .updates: .blue
         case .account: .red
         case .about: .orange
@@ -80,6 +83,9 @@ struct SettingsView: View {
                 switch selectedTab {
                 case .general:
                     GeneralTab()
+                        .environment(appState)
+                case .sessions:
+                    SessionsTab()
                         .environment(appState)
                 case .updates:
                     UpdatesTab()
@@ -192,6 +198,142 @@ struct GeneralTab: View {
             // Revert the toggle on failure
             launchAtLogin = !enabled
         }
+    }
+}
+
+struct SessionsTab: View {
+    @Environment(AppState.self) var appState
+
+    @FocusState private var focusedSlug: String?
+    @State private var drafts: [String: String] = [:]
+    @State private var pendingResetSlug: String?
+
+    var body: some View {
+        let activeSlugs = Set(appState.activeSessions.map(\.projectDirectory))
+        let allSlugs = activeSlugs.union(appState.customSessionNameStore.entries.keys)
+        let activeSorted = activeSlugs.sorted()
+        let orphanedSorted = allSlugs.subtracting(activeSlugs).sorted()
+
+        Group {
+            if activeSlugs.isEmpty && appState.customSessionNameStore.entries.isEmpty {
+                emptyState
+            } else {
+                Form {
+                    Section("Active Sessions") {
+                        ForEach(activeSorted, id: \.self) { slug in
+                            sessionRow(slug)
+                        }
+                    }
+                    if !orphanedSorted.isEmpty {
+                        Section("Custom Names without Active Session") {
+                            ForEach(orphanedSorted, id: \.self) { slug in
+                                sessionRow(slug)
+                            }
+                        }
+                    }
+                }
+                .formStyle(.grouped)
+            }
+        }
+        .onChange(of: focusedSlug) { oldSlug, _ in
+            if let oldSlug { save(slug: oldSlug) }
+        }
+        .confirmationDialog(
+            Text("Reset custom name?"),
+            isPresented: Binding(
+                get: { pendingResetSlug != nil },
+                set: { if !$0 { pendingResetSlug = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: pendingResetSlug
+        ) { slug in
+            Button("Reset to Default", role: .destructive) {
+                appState.customSessionNameStore.clearCustomName(for: slug)
+                drafts[slug] = ""
+                pendingResetSlug = nil
+            }
+            Button("Cancel", role: .cancel) {
+                pendingResetSlug = nil
+            }
+        } message: { _ in
+            Text("This will remove the custom name. The default project name will be shown again.")
+        }
+    }
+
+    private func sessionRow(_ slug: String) -> some View {
+        HStack(spacing: Spacing.sm) {
+            Text(slug)
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer()
+            TextField("", text: bindingForDraft(slug), prompt: Text(verbatim: placeholder(for: slug)))
+                .textFieldStyle(.roundedBorder)
+                .focused($focusedSlug, equals: slug)
+                .onSubmit { save(slug: slug) }
+                .frame(minWidth: 140, idealWidth: 200)
+            Button {
+                pendingResetSlug = slug
+            } label: {
+                Image(systemName: "arrow.counterclockwise")
+            }
+            .buttonStyle(.borderless)
+            .help("Reset to Default")
+        }
+    }
+
+    /// Resolves the placeholder shown in an empty TextField. For active sessions
+    /// uses `appState.displayName(for:)` (which already prefers a custom name and
+    /// falls back to projectName). For orphans no `ActiveSession` exists, so the
+    /// slug itself serves as the visible placeholder.
+    private func placeholder(for slug: String) -> String {
+        if let session = appState.activeSessions.first(where: { $0.projectDirectory == slug }) {
+            return appState.displayName(for: session)
+        }
+        return slug
+    }
+
+    /// Lazy per-slug binding into the `drafts` dictionary. On first read seeds the
+    /// draft from the persisted custom name (or "" if none), so the TextField is
+    /// editable immediately without a separate onAppear pass.
+    private func bindingForDraft(_ slug: String) -> Binding<String> {
+        Binding(
+            get: {
+                if let existing = drafts[slug] { return existing }
+                let seed = appState.customSessionNameStore.customName(for: slug) ?? ""
+                // Note: we don't mutate `drafts` from the getter — SwiftUI may call
+                // it during view updates. The first onSubmit/onChange-blur will
+                // write through `save(slug:)` and the dictionary catches up then.
+                return seed
+            },
+            set: { newValue in
+                drafts[slug] = newValue
+            }
+        )
+    }
+
+    /// Reads the current draft for `slug` and pushes it to the store. The store's
+    /// `setCustomName` already trims and treats whitespace-only strings as a clear
+    /// (Phase 19 D-09 + 22-CONTEXT D-A3.2 / SESSION-NAME-06). No view-level trim
+    /// duplication is needed.
+    private func save(slug: String) {
+        let raw = drafts[slug] ?? appState.customSessionNameStore.customName(for: slug) ?? ""
+        appState.customSessionNameStore.setCustomName(raw, for: slug)
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: Spacing.md) {
+            Image(systemName: "person.2.slash")
+                .font(.largeTitle)
+                .foregroundStyle(.secondary)
+            Text("No sessions yet — start using Claude in a project.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, Spacing.xl)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
