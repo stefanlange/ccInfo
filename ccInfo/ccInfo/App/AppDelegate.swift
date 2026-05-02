@@ -60,12 +60,14 @@ final class AppState {
     let credentialStore = CredentialStore()
     let usageHistoryService = UsageHistoryService()
     let customSessionNameStore = CustomSessionNameStore()
+    let sessionRenameModel: SessionRenameModel
     private let apiClient: ClaudeAPIClient
     private let jsonlParser = JSONLParser()
     private let logger = Logger(subsystem: "com.ccinfo.app", category: "AppState")
 
     init() {
         self.apiClient = ClaudeAPIClient(credentialStore: credentialStore)
+        self.sessionRenameModel = SessionRenameModel(store: customSessionNameStore)
         self.isAuthenticated = credentialStore.hasCredentials
         if let raw = UserDefaults.standard.string(forKey: AppStorageKeys.statisticsPeriod),
            let period = StatisticsPeriod(rawValue: raw) {
@@ -171,6 +173,10 @@ final class AppState {
         // Synchronous save so data lands before the process tears down —
         // the fire-and-forget saveToDisk() can be discarded at termination.
         usageHistoryService.saveToDiskSync()
+        // Commit any open rename drafts and force UserDefaults to flush.
+        // Closes the Cmd-Q race where a typed-but-not-yet-blurred custom
+        // name would otherwise be lost.
+        sessionRenameModel.flush()
 
         refreshTask?.cancel()
         refreshTask = nil
@@ -350,19 +356,11 @@ final class AppState {
     /// Returns the user-visible display name for a session.
     ///
     /// Looks up a custom name in `customSessionNameStore` keyed by
-    /// `session.projectDirectory` (case-sensitive slug).
-    /// Falls back to `session.projectName` when no custom name is set
-    /// or after an explicit reset — no app restart required (SC-4).
-    ///
-    /// Reads `entries` defensively to anchor SwiftUI's `@Observable`
-    /// tracking on the store dictionary. This
-    /// guarantees that mutations via `setCustomName(_:for:)` /
-    /// `clearCustomName(for:)` propagate through `@Observable`
-    /// dependency tracking even if the compiler inlines the indirect
-    /// `customName(for:)` lookup below.
+    /// `session.projectDirectory` (case-sensitive slug). Falls back to
+    /// `session.projectName` when no custom name is set or after an
+    /// explicit reset — no app restart required (SC-4).
     func displayName(for session: ActiveSession) -> String {
-        _ = customSessionNameStore.entries
-        return customSessionNameStore.customName(for: session.projectDirectory)
+        customSessionNameStore.customName(for: session.projectDirectory)
             ?? session.projectName
     }
 
