@@ -1,5 +1,10 @@
 # Release Notes
 
+## 1.12.0 – 2026-05-02
+
+- Rename any session via the pencil button next to the switcher or the new Sessions tab in Settings; names persist across restarts and replace the auto-derived project name everywhere
+- Show the absolute reset time of the 5-hour window below the chart (e.g. "Mo 1.5. 16:30") next to the existing time-until-reset countdown
+
 ## 1.11.1 – 2026-04-26
 
 - Trigger sign-in automatically when Anthropic invalidates the session, so the menu bar no longer gets stuck on a stale error
