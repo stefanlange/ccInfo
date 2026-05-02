@@ -55,9 +55,17 @@ struct MenuBarView: View {
                                 .font(.system(.title2, design: .rounded, weight: .semibold))
                             Spacer()
                             if let t = usage.fiveHour.formattedTimeUntilReset {
-                                Label(t, systemImage: "clock")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                VStack(alignment: .trailing, spacing: 2) {
+                                    Label(t, systemImage: "clock")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    if let d = usage.fiveHour.formattedResetDate {
+                                        Text(d)
+                                            .font(.caption2)
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                }
+                                .accessibilityElement(children: .combine)
                             }
                         }
                         if let prediction = BurnRateCalculator.predict(
