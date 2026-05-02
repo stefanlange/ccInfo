@@ -8,6 +8,7 @@
 |------|---------|---------|
 | Session key, organization ID | Application Support (`credentials.json`, chmod 600) | API authentication |
 | User preferences (refresh interval, statistics period, MenuBar slots, session activity threshold) | UserDefaults | App configuration |
+| Custom session names | UserDefaults (`session.customNames.v1`) | User-provided display names that override the auto-derived project name in the MenuBar; can be removed individually or in bulk via Settings → Sessions |
 | Model pricing cache | Application Support | Offline pricing fallback (refreshed every 12h) |
 | Usage history (5-hour timeline) | Application Support | Area chart visualization of recent usage |
 

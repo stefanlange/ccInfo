@@ -24,6 +24,7 @@ A native macOS MenuBar app for real-time monitoring of your Claude usage.
 ### Session Intelligence
 
 - **Multi-Session Switcher** – Switch between active Claude Code sessions via dropdown menu (with configurable activity threshold)
+- **Custom Session Names** – Rename any session via the pencil button next to the switcher or in Settings → Sessions; names persist across restarts and replace auto-derived project names everywhere
 - **Token Statistics** – Input/output token counts aggregated by session, today, week, or month
 - **Dynamic Cost Estimation** – Live model pricing via LiteLLM with per-model cost calculation
 
