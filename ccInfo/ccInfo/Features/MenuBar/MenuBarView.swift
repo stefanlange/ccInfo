@@ -516,7 +516,6 @@ struct SessionSwitcher: View {
     private var sessionActivityThreshold: Double = AppStorageKeys.Defaults.sessionActivityThreshold
 
     @State private var editingSlug: String?
-    @State private var draftName: String = ""
 
     private var thresholdMinutes: Int {
         Int(sessionActivityThreshold / 60)
@@ -549,7 +548,6 @@ struct SessionSwitcher: View {
 
                 Button {
                     guard let slug = currentSlug else { return }
-                    draftName = appState.customSessionNameStore.customName(for: slug) ?? ""
                     editingSlug = slug
                 } label: {
                     Image(systemName: "pencil")
@@ -562,7 +560,16 @@ struct SessionSwitcher: View {
                 .popover(
                     item: Binding(
                         get: { editingSlug.map { IdentifiableSlug(id: $0) } },
-                        set: { editingSlug = $0?.id }
+                        set: { newValue in
+                            // SwiftUI-initiated dismissal (Esc / outside-click) writes nil.
+                            // Drop the in-flight draft to preserve the no-auto-save-on-dismiss
+                            // contract. Programmatic dismissal from save/cancel/reset takes
+                            // a different path and has already cleaned up the draft.
+                            if newValue == nil, let outgoing = editingSlug {
+                                appState.sessionRenameModel.discard(slug: outgoing)
+                            }
+                            editingSlug = newValue?.id
+                        }
                     ),
                     arrowEdge: .trailing
                 ) { wrapper in
@@ -570,10 +577,13 @@ struct SessionSwitcher: View {
                         slug: wrapper.id,
                         resolvedDefault: resolvedDefault(for: wrapper.id),
                         projectPath: projectPath(for: wrapper.id),
-                        draftName: $draftName,
+                        draftName: Binding(
+                            get: { appState.sessionRenameModel.draft(for: wrapper.id) },
+                            set: { appState.sessionRenameModel.setDraft($0, for: wrapper.id) }
+                        ),
                         hasPersistedCustomName: appState.customSessionNameStore.customName(for: wrapper.id) != nil,
                         onSave: { save(slug: wrapper.id) },
-                        onCancel: { cancel() },
+                        onCancel: { cancel(slug: wrapper.id) },
                         onReset: { reset(slug: wrapper.id) }
                     )
                     .frame(minWidth: 280, maxWidth: 360)
@@ -595,12 +605,13 @@ struct SessionSwitcher: View {
     /// in the store (D-09 / SESSION-NAME-06), so the surface contract is identical
     /// to the Settings → Sessions tab.
     private func save(slug: String) {
-        appState.sessionRenameModel.commit(draftName, for: slug)
+        appState.sessionRenameModel.commitDraft(for: slug)
         editingSlug = nil
     }
 
-    /// Discards the draft and closes the popover (no auto-save on dismiss).
-    private func cancel() {
+    /// Drops the in-flight draft and closes the popover (no auto-save on dismiss).
+    private func cancel(slug: String) {
+        appState.sessionRenameModel.discard(slug: slug)
         editingSlug = nil
     }
 

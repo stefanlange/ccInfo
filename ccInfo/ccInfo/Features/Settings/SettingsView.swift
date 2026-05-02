@@ -236,7 +236,7 @@ struct SessionsTab: View {
                                 Button {
                                     pendingClearOrphans = true
                                 } label: {
-                                    Text("Clear orphans")
+                                    Label("Clear orphans", systemImage: "trash")
                                         .font(.caption)
                                 }
                                 .buttonStyle(.borderless)
@@ -252,6 +252,16 @@ struct SessionsTab: View {
             // the rename model only holds a draft once `setDraft` has been called.
             guard let oldSlug,
                   appState.sessionRenameModel.hasDraft(for: oldSlug) else { return }
+            // Don't silently clear an existing custom name on blur. Force the
+            // user through the explicit Reset path (with confirmation dialog)
+            // so a stray Backspace + Tab cannot wipe a persisted name.
+            let trimmedDraft = appState.sessionRenameModel.draft(for: oldSlug)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let alreadyPersisted = appState.customSessionNameStore.customName(for: oldSlug) != nil
+            if trimmedDraft.isEmpty && alreadyPersisted {
+                appState.sessionRenameModel.discard(slug: oldSlug)
+                return
+            }
             appState.sessionRenameModel.commitDraft(for: oldSlug)
         }
         .confirmationDialog(
@@ -305,7 +315,7 @@ struct SessionsTab: View {
                 .onSubmit { appState.sessionRenameModel.commitDraft(for: slug) }
                 .frame(minWidth: 140, idealWidth: 200)
                 .accessibilitySortPriority(2)
-                Button {
+                Button(role: .destructive) {
                     pendingResetSlug = slug
                 } label: {
                     Image(systemName: "arrow.counterclockwise")

@@ -1736,13 +1736,13 @@
       }
     },
     "Clear all orphans?" : {
-      "comment" : "Title of the confirmation dialog shown before bulk-removing every custom name whose project is no longer active.",
+      "comment" : "Title of the confirmation dialog shown before bulk-removing every custom name whose project is no longer active. DE reuses the section-header phrase \"ohne aktive Sitzung\" so the same concept gets the same wording across header, dialog, and body.",
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Alle verwaisten Namen löschen?"
+            "value" : "Alle eigenen Namen ohne aktive Sitzung entfernen?"
           }
         },
         "en" : {
@@ -1754,13 +1754,13 @@
       }
     },
     "Clear orphans" : {
-      "comment" : "Button label that opens the bulk-remove confirmation for orphaned custom names in the Settings → Sessions tab.",
+      "comment" : "Button label inside the orphan section header. Opens the bulk-remove confirmation. DE \"Alle entfernen\" works because the surrounding section already labels the set; matches the verb \"entfernen\" used in the sibling reset confirmation.",
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Verwaiste löschen"
+            "value" : "Alle entfernen"
           }
         },
         "en" : {
@@ -1952,13 +1952,13 @@
       }
     },
     "This will remove every custom name whose project is no longer active." : {
-      "comment" : "Message body of the confirmation dialog before bulk-removing every orphaned custom name from the Settings → Sessions tab.",
+      "comment" : "Message body of the confirmation dialog before bulk-removing every orphaned custom name from the Settings → Sessions tab. DE uses passive future to match the sibling reset-confirmation register.",
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Entfernt alle eigenen Namen, deren Projekt nicht mehr aktiv ist."
+            "value" : "Alle eigenen Namen ohne aktive Sitzung werden entfernt."
           }
         },
         "en" : {
