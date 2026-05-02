@@ -358,7 +358,7 @@ final class AppState {
     /// Looks up a custom name in `customSessionNameStore` keyed by
     /// `session.projectDirectory` (case-sensitive slug). Falls back to
     /// `session.projectName` when no custom name is set or after an
-    /// explicit reset — no app restart required (SC-4).
+    /// explicit reset — no app restart required.
     func displayName(for session: ActiveSession) -> String {
         customSessionNameStore.customName(for: session.projectDirectory)
             ?? session.projectName

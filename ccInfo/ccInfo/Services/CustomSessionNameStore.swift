@@ -6,14 +6,15 @@ import OSLog
 ///
 /// - Persistence: JSON-encoded `[String: String]` written to `UserDefaults` under
 ///   `AppStorageKeys.customSessionNamesV1` (`"session.customNames.v1"`).
-/// - Reset semantics: empty or whitespace-only names are treated as a clear (D-09).
-/// - Slug keys are case-sensitive (D-10) — no normalization is performed.
+/// - Reset semantics: empty or whitespace-only names are treated as a clear.
+/// - Slug keys are case-sensitive — no normalization is performed.
 /// - Names are sanitized (control chars, bidi overrides, zero-width formatting stripped)
 ///   and clamped to `maxNameLength` characters at write time.
-/// - Decode failures fall back to an empty dictionary + warning log (D-07/D-08).
+/// - Decode failures fall back to an empty dictionary + warning log; the corrupt blob
+///   is reaped so the next launch starts clean.
 /// - Mutations are atomic: encode runs before in-memory mutation, so memory and disk
 ///   never disagree on a successful write. On encode failure neither side changes.
-/// - Test seam: `init(defaults:)` allows injecting an isolated `UserDefaults` instance (D-12).
+/// - Test seam: `init(defaults:)` allows injecting an isolated `UserDefaults` instance.
 @Observable
 @MainActor
 final class CustomSessionNameStore {
@@ -65,13 +66,13 @@ final class CustomSessionNameStore {
     // MARK: - Public API
 
     /// Returns the persisted custom name for the given slug, or `nil` if none is set.
-    /// Slug lookup is case-sensitive (D-10).
+    /// Slug lookup is case-sensitive.
     func customName(for slug: String) -> String? {
         entries[slug]
     }
 
     /// Sets the custom name for `slug`. Empty or whitespace-only `name` is treated as a
-    /// clear (D-09). Sanitization (strip control / bidi / zero-width chars) runs first,
+    /// clear. Sanitization (strip control / bidi / zero-width chars) runs first,
     /// then trim, then clamp to `maxNameLength`. Atomic: on encode failure neither
     /// memory nor disk are mutated.
     func setCustomName(_ name: String, for slug: String) {
@@ -130,7 +131,7 @@ final class CustomSessionNameStore {
             defaults.set(data, forKey: key)
             entries = next
         } catch {
-            // D-07/D-08: log and abort the mutation. Memory still mirrors disk.
+            // Log and abort the mutation so memory still mirrors disk.
             logger.error("Failed to encode custom session names: \(error.localizedDescription)")
         }
     }
@@ -146,7 +147,7 @@ final class CustomSessionNameStore {
         do {
             return try JSONDecoder().decode([String: String].self, from: data)
         } catch {
-            // D-07: corrupt or foreign-schema raw value → empty map + warning.
+            // Corrupt or foreign-schema raw value → empty map + warning.
             // Reap the corrupt blob so the next launch starts from a clean state.
             logger.warning("Failed to decode \(key, privacy: .public) — starting with empty map: \(error.localizedDescription)")
             defaults.removeObject(forKey: key)

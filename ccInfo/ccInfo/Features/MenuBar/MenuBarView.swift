@@ -605,8 +605,8 @@ struct SessionSwitcher: View {
     }
 
     /// Persists the draft via the shared rename model. Trim + clear-on-empty live
-    /// in the store (D-09 / SESSION-NAME-06), so the surface contract is identical
-    /// to the Settings → Sessions tab.
+    /// in the store, so the surface contract is identical to the
+    /// Settings → Sessions tab.
     private func save(slug: String) {
         appState.sessionRenameModel.commitDraft(for: slug)
         editingSlug = nil
