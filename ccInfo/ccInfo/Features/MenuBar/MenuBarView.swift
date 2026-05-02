@@ -533,9 +533,12 @@ struct SessionSwitcher: View {
                     ForEach(sessions) { session in
                         Group {
                             if session.isActive {
-                                Text(appState.displayName(for: session))
+                                // verbatim defends against the LocalizedStringKey overload
+                                // that would otherwise activate Markdown parsing on a
+                                // future refactor (e.g. wrapping the call in a literal).
+                                Text(verbatim: appState.displayName(for: session))
                             } else {
-                                Text("\(appState.displayName(for: session)) (\(String(localized: "Inactive")))")
+                                Text(verbatim: "\(appState.displayName(for: session)) (\(String(localized: "Inactive")))")
                             }
                         }
                         .help(helpText(for: session))

@@ -8,7 +8,8 @@ import OSLog
 ///   `AppStorageKeys.customSessionNamesV1` (`"session.customNames.v1"`).
 /// - Reset semantics: empty or whitespace-only names are treated as a clear (D-09).
 /// - Slug keys are case-sensitive (D-10) — no normalization is performed.
-/// - Names are clamped to `maxNameLength` characters at write time.
+/// - Names are sanitized (control chars, bidi overrides, zero-width formatting stripped)
+///   and clamped to `maxNameLength` characters at write time.
 /// - Decode failures fall back to an empty dictionary + warning log (D-07/D-08).
 /// - Mutations are atomic: encode runs before in-memory mutation, so memory and disk
 ///   never disagree on a successful write. On encode failure neither side changes.
@@ -20,6 +21,32 @@ final class CustomSessionNameStore {
     /// are clamped (paste guard). 200 chars covers any plausible project label
     /// while keeping `Picker` rendering and JSON re-encode cost bounded.
     static let maxNameLength = 200
+
+    /// Characters stripped from any submitted custom name. Targets two attack surfaces
+    /// plus three layout-corruption surfaces:
+    /// - Bidi overrides (CVE-2021-42574 "Trojan Source" class) — `safe\u{202E}lufless`
+    ///   would render as `sselfunsafe`, allowing visual spoofing in screenshots /
+    ///   settings exports.
+    /// - Zero-width formatting chars — make a name look empty while bypassing the
+    ///   trim-and-clear empty-check.
+    /// - C0/C1 control chars + DEL — break `Picker` row layout (newline) or render as
+    ///   garbage glyphs.
+    /// - Line / paragraph separators (U+2028 / U+2029).
+    /// `U+200D` ZWJ is preserved because it's required for emoji ligatures such as 👨‍👩‍👧.
+    private static let disallowedSet: CharacterSet = {
+        var set = CharacterSet()
+        set.insert(charactersIn: Unicode.Scalar(0x00)!..<Unicode.Scalar(0x20)!)
+        set.insert(Unicode.Scalar(0x7F)!)
+        set.insert(charactersIn: Unicode.Scalar(0x80)!..<Unicode.Scalar(0xA0)!)
+        set.insert(charactersIn: "\u{200E}\u{200F}\u{202A}\u{202B}\u{202C}\u{202D}\u{202E}\u{2066}\u{2067}\u{2068}\u{2069}")
+        set.insert(charactersIn: "\u{200B}\u{200C}\u{FEFF}")
+        set.insert(charactersIn: "\u{2028}\u{2029}")
+        return set
+    }()
+
+    private static func sanitize(_ name: String) -> String {
+        name.components(separatedBy: disallowedSet).joined()
+    }
 
     /// In-memory snapshot of all persisted entries (slug → custom name).
     /// Read-only from the outside; `set`/`clear` are the supported mutations.
@@ -44,11 +71,12 @@ final class CustomSessionNameStore {
     }
 
     /// Sets the custom name for `slug`. Empty or whitespace-only `name` is treated as a
-    /// clear (D-09). The trim is applied inside the store; callers don't have to prepare.
-    /// Names are clamped to `maxNameLength` characters before storage.
-    /// Atomic: on encode failure neither memory nor disk are mutated.
+    /// clear (D-09). Sanitization (strip control / bidi / zero-width chars) runs first,
+    /// then trim, then clamp to `maxNameLength`. Atomic: on encode failure neither
+    /// memory nor disk are mutated.
     func setCustomName(_ name: String, for slug: String) {
-        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sanitized = Self.sanitize(name)
+        let trimmed = sanitized.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
             clearCustomName(for: slug)
             return
