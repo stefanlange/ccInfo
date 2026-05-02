@@ -205,8 +205,8 @@ struct SessionsTab: View {
     @Environment(AppState.self) var appState
 
     @FocusState private var focusedSlug: String?
-    @State private var drafts: [String: String] = [:]
     @State private var pendingResetSlug: String?
+    @State private var pendingClearOrphans = false
 
     var body: some View {
         let activeSlugs = Set(appState.activeSessions.map(\.projectDirectory))
@@ -225,9 +225,21 @@ struct SessionsTab: View {
                         }
                     }
                     if !orphanedSorted.isEmpty {
-                        Section("Custom Names without Active Session") {
+                        Section {
                             ForEach(orphanedSorted, id: \.self) { slug in
                                 sessionRow(slug)
+                            }
+                        } header: {
+                            HStack {
+                                Text("Custom Names without Active Session")
+                                Spacer()
+                                Button {
+                                    pendingClearOrphans = true
+                                } label: {
+                                    Text("Clear orphans")
+                                        .font(.caption)
+                                }
+                                .buttonStyle(.borderless)
                             }
                         }
                     }
@@ -236,7 +248,11 @@ struct SessionsTab: View {
             }
         }
         .onChange(of: focusedSlug) { oldSlug, _ in
-            if let oldSlug { save(slug: oldSlug) }
+            // Skip when the user merely tabbed through a row without typing —
+            // the rename model only holds a draft once `setDraft` has been called.
+            guard let oldSlug,
+                  appState.sessionRenameModel.hasDraft(for: oldSlug) else { return }
+            appState.sessionRenameModel.commitDraft(for: oldSlug)
         }
         .confirmationDialog(
             Text("Reset custom name?"),
@@ -248,8 +264,7 @@ struct SessionsTab: View {
             presenting: pendingResetSlug
         ) { slug in
             Button("Reset to Default", role: .destructive) {
-                appState.customSessionNameStore.clearCustomName(for: slug)
-                drafts[slug] = ""
+                appState.sessionRenameModel.reset(slug: slug)
                 pendingResetSlug = nil
             }
             Button("Cancel", role: .cancel) {
@@ -258,28 +273,54 @@ struct SessionsTab: View {
         } message: { _ in
             Text("This will remove the custom name. The default project name will be shown again.")
         }
+        .confirmationDialog(
+            Text("Clear all orphans?"),
+            isPresented: $pendingClearOrphans,
+            titleVisibility: .visible
+        ) {
+            Button("Clear orphans", role: .destructive) {
+                let active = Set(appState.activeSessions.map(\.projectDirectory))
+                appState.customSessionNameStore.pruneOrphans(activeSlugs: active)
+                pendingClearOrphans = false
+            }
+            Button("Cancel", role: .cancel) {
+                pendingClearOrphans = false
+            }
+        } message: {
+            Text("This will remove every custom name whose project is no longer active.")
+        }
     }
 
     private func sessionRow(_ slug: String) -> some View {
-        HStack(spacing: Spacing.sm) {
+        LabeledContent {
+            HStack(spacing: Spacing.sm) {
+                TextField(
+                    "",
+                    text: bindingForDraft(slug),
+                    prompt: Text(verbatim: placeholder(for: slug))
+                )
+                .textFieldStyle(.roundedBorder)
+                .multilineTextAlignment(.leading)
+                .focused($focusedSlug, equals: slug)
+                .onSubmit { appState.sessionRenameModel.commitDraft(for: slug) }
+                .frame(minWidth: 140, idealWidth: 200)
+                .accessibilitySortPriority(2)
+                Button {
+                    pendingResetSlug = slug
+                } label: {
+                    Image(systemName: "arrow.counterclockwise")
+                }
+                .buttonStyle(.borderless)
+                .help("Reset to Default")
+                .accessibilityLabel(String(localized: "Reset to Default"))
+                .accessibilitySortPriority(1)
+            }
+        } label: {
             Text(slug)
                 .font(.system(.caption, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
-                .truncationMode(.middle)
-            Spacer()
-            TextField("", text: bindingForDraft(slug), prompt: Text(verbatim: placeholder(for: slug)))
-                .textFieldStyle(.roundedBorder)
-                .focused($focusedSlug, equals: slug)
-                .onSubmit { save(slug: slug) }
-                .frame(minWidth: 140, idealWidth: 200)
-            Button {
-                pendingResetSlug = slug
-            } label: {
-                Image(systemName: "arrow.counterclockwise")
-            }
-            .buttonStyle(.borderless)
-            .help("Reset to Default")
+                .truncationMode(.head)
         }
     }
 
@@ -294,32 +335,15 @@ struct SessionsTab: View {
         return slug
     }
 
-    /// Lazy per-slug binding into the `drafts` dictionary. On first read seeds the
-    /// draft from the persisted custom name (or "" if none), so the TextField is
-    /// editable immediately without a separate onAppear pass.
+    /// Per-slug binding routed through the shared rename model. The model's
+    /// `draft(for:)` returns the live draft when one exists, otherwise the
+    /// persisted name — so the TextField shows the right value on first paint
+    /// without needing a separate `onAppear` seed.
     private func bindingForDraft(_ slug: String) -> Binding<String> {
         Binding(
-            get: {
-                if let existing = drafts[slug] { return existing }
-                let seed = appState.customSessionNameStore.customName(for: slug) ?? ""
-                // Note: we don't mutate `drafts` from the getter — SwiftUI may call
-                // it during view updates. The first onSubmit/onChange-blur will
-                // write through `save(slug:)` and the dictionary catches up then.
-                return seed
-            },
-            set: { newValue in
-                drafts[slug] = newValue
-            }
+            get: { appState.sessionRenameModel.draft(for: slug) },
+            set: { appState.sessionRenameModel.setDraft($0, for: slug) }
         )
-    }
-
-    /// Reads the current draft for `slug` and pushes it to the store. The store's
-    /// `setCustomName` already trims and treats whitespace-only strings as a clear
-    /// (Phase 19 D-09 + 22-CONTEXT D-A3.2 / SESSION-NAME-06). No view-level trim
-    /// duplication is needed.
-    private func save(slug: String) {
-        let raw = drafts[slug] ?? appState.customSessionNameStore.customName(for: slug) ?? ""
-        appState.customSessionNameStore.setCustomName(raw, for: slug)
     }
 
     private var emptyState: some View {

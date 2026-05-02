@@ -558,6 +558,7 @@ struct SessionSwitcher: View {
                 .foregroundStyle(.secondary)
                 .disabled(sessions.isEmpty || selectedURL == nil)
                 .help(String(localized: "Rename session"))
+                .accessibilityLabel(String(localized: "Rename session"))
                 .popover(
                     item: Binding(
                         get: { editingSlug.map { IdentifiableSlug(id: $0) } },
@@ -590,15 +591,11 @@ struct SessionSwitcher: View {
         sessions.first(where: { $0.projectDirectory == slug })?.projectPath
     }
 
-    /// Persists the trimmed draft. Empty trim → implicit reset (SESSION-NAME-06).
-    /// Always closes the popover via `editingSlug = nil`.
+    /// Persists the draft via the shared rename model. Trim + clear-on-empty live
+    /// in the store (D-09 / SESSION-NAME-06), so the surface contract is identical
+    /// to the Settings → Sessions tab.
     private func save(slug: String) {
-        let trimmed = draftName.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty {
-            appState.customSessionNameStore.clearCustomName(for: slug)
-        } else {
-            appState.customSessionNameStore.setCustomName(trimmed, for: slug)
-        }
+        appState.sessionRenameModel.commit(draftName, for: slug)
         editingSlug = nil
     }
 
@@ -611,7 +608,7 @@ struct SessionSwitcher: View {
     /// No confirmation dialog (Cancel is the undo granularity for the draft;
     /// Reset is a deliberate, visually distinct click).
     private func reset(slug: String) {
-        appState.customSessionNameStore.clearCustomName(for: slug)
+        appState.sessionRenameModel.reset(slug: slug)
         editingSlug = nil
     }
 
@@ -634,11 +631,6 @@ struct SessionSwitcher: View {
         guard let url = selectedURL else { return nil }
         return sessions.first(where: { $0.sessionURL == url })?.projectDirectory
     }
-
-    /// Abbreviates an absolute path to the home-tilde form (`~/dev/foo`) when applicable.
-    private func abbreviatedPath(_ path: String) -> String {
-        NSString(string: path).abbreviatingWithTildeInPath
-    }
 }
 
 private struct RenamePopoverContent: View {
@@ -650,6 +642,8 @@ private struct RenamePopoverContent: View {
     let onSave: () -> Void
     let onCancel: () -> Void
     let onReset: () -> Void
+
+    @FocusState private var nameFieldFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -683,11 +677,12 @@ private struct RenamePopoverContent: View {
                     .foregroundStyle(.secondary)
                 TextField(resolvedDefault, text: $draftName)
                     .textFieldStyle(.roundedBorder)
+                    .focused($nameFieldFocused)
                     .onSubmit { onSave() }
             }
 
             HStack {
-                Button(action: onReset) {
+                Button(role: .destructive, action: onReset) {
                     Text("Reset to Default")
                 }
                 .disabled(!hasPersistedCustomName)
@@ -700,6 +695,11 @@ private struct RenamePopoverContent: View {
             }
         }
         .padding(Spacing.md)
+        .onAppear {
+            // Defer focus assignment one runloop tick — SwiftUI swallows
+            // focus changes that fire mid-popover-presentation on macOS.
+            DispatchQueue.main.async { nameFieldFocused = true }
+        }
     }
 
     private var displayPath: String {

@@ -1735,14 +1735,50 @@
         }
       }
     },
-    "Custom name" : {
-      "comment" : "Label for the editable display name field in the rename popover.",
+    "Clear all orphans?" : {
+      "comment" : "Title of the confirmation dialog shown before bulk-removing every custom name whose project is no longer active.",
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Anzeigename"
+            "value" : "Alle verwaisten Namen löschen?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear all orphans?"
+          }
+        }
+      }
+    },
+    "Clear orphans" : {
+      "comment" : "Button label that opens the bulk-remove confirmation for orphaned custom names in the Settings → Sessions tab.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verwaiste löschen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear orphans"
+          }
+        }
+      }
+    },
+    "Custom name" : {
+      "comment" : "Label for the editable display name field in the rename popover. DE matches the section header noun \"Eigene Namen\" for terminology consistency.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eigener Name"
           }
         },
         "en" : {
@@ -1808,13 +1844,13 @@
       }
     },
     "Rename session" : {
-      "comment" : "Tooltip for the pencil button next to the session switcher picker.",
+      "comment" : "Tooltip for the pencil button next to the session switcher picker. DE mirrors the EN action verb (rename) and reuses \"Sitzung\".",
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Anzeigenamen bearbeiten"
+            "value" : "Sitzung umbenennen"
           }
         },
         "en" : {
@@ -1911,6 +1947,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Slug"
+          }
+        }
+      }
+    },
+    "This will remove every custom name whose project is no longer active." : {
+      "comment" : "Message body of the confirmation dialog before bulk-removing every orphaned custom name from the Settings → Sessions tab.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entfernt alle eigenen Namen, deren Projekt nicht mehr aktiv ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This will remove every custom name whose project is no longer active."
           }
         }
       }
