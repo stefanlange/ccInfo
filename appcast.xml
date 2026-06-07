@@ -3,6 +3,30 @@
     <channel>
         <title>CCInfo</title>
         <item>
+            <title>1.13.0</title>
+            <pubDate>Sun, 07 Jun 2026 13:35:56 +0000</pubDate>
+            <link>https://github.com/stefanlange/ccInfo</link>
+            <sparkle:version>1.13.0</sparkle:version>
+            <sparkle:shortVersionString>1.13.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<ul>
+<li>Redesign the 5-hour usage chart: taller, with a smoothed curve, a fill that fades from the line toward the baseline, and a soft glow on the current value</li>
+<li>Blend the chart color gradually from green to yellow as usage rises, instead of holding flat green and then shifting abruptly near the top</li>
+<li>Translate the Reload and error buttons into German (they previously showed English), and reword the reset countdown, weekly-limit, and token-limit messages for more natural German</li>
+</ul>
+
+]]></description>
+            <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo-v1.13.0.dmg" length="3248125" type="application/octet-stream" sparkle:edSignature="mIikbOq+WEonbFO0+tVTtBrk/UJhI1eeVcWlOIKcbY74iKdQN0M3iu79XiDTbtiuKKG5FTYaCZPRJIWLzrCKCA=="/>
+            <sparkle:deltas>
+                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.13.0-1.12.0.delta" sparkle:deltaFrom="1.12.0" length="201082" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="hdDxnmE4gJJfbQ1q8KigrrUI6m/L17rcWhKrjxSvPBb6Zuzqi9uBOk/cOoa8iHDpD6bnIgEUAPh/a8jI2WQaDA=="/>
+                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.13.0-1.11.1.delta" sparkle:deltaFrom="1.11.1" length="313450" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="VS6n5yTZEvP6ePD5AHQAFnW2OoBt8SOQbC7Fizcn5jBEOWwgB7pGCVmh7j7+Y2lQFA1hk9rZJq1yBa8y8WGwAg=="/>
+                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.13.0-1.11.0.delta" sparkle:deltaFrom="1.11.0" length="337406" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="3iGw9jNdIatF2U8w0IvGVQHS4zcTHvWl0RVE9KPnVBQ1+ro3IPCWAJp/a9BTpWrg9JqDH8uL1Ks2MdnUw8BiDQ=="/>
+                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.13.0-1.10.0.delta" sparkle:deltaFrom="1.10.0" length="381590" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="zX416sXsp/w5NH10J/6lq/FUEYVn/boeFTRvCx+pleUsNU0EzVgC72LOBugV7fgvrWXNfhS8pu/ihRxn2eUeCA=="/>
+                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.13.0-1.9.0.delta" sparkle:deltaFrom="1.9.0" length="391218" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="kgY2LVTFewkUXgzJFhQrpog61MTk98KdwGUdqyjYpHdBHs3IgvyyFgbteRTRYtV+wCtwu4itnxo6HQy/wD+ICA=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>1.12.0</title>
             <pubDate>Sat, 02 May 2026 14:17:16 +0000</pubDate>
             <link>https://github.com/stefanlange/ccInfo</link>
@@ -108,35 +132,6 @@
                 <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.10.0-1.8.2.delta" sparkle:deltaFrom="1.8.2" length="409250" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="R+81g5YaItfiA5EDnkPT2E7fJDg2/9xtXKFvvgz9rFPFX4Ih0nBZrmTZzqGnpsHCgjcAOGk2tduJwhOvs0+rBw=="/>
                 <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.10.0-1.8.1.delta" sparkle:deltaFrom="1.8.1" length="410598" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="SwdxAuOA3VWf3kHuGOA+QFZu9OV9yFbFuq7e5NLFzXkECsquNsDZH1oM+fYNEpYRtrC1hq0JsmJ2xQU+u94oAQ=="/>
                 <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.10.0-1.8.0.delta" sparkle:deltaFrom="1.8.0" length="413038" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="iZEvZjZiCcMbBZXhFhvGlXgwsLNFYoFICnd9yHwaXNAMoci/xHM/i4iwPm09hOayKNTx2Am4pbu3YvroUoJbCA=="/>
-            </sparkle:deltas>
-        </item>
-        <item>
-            <title>1.9.0</title>
-            <pubDate>Tue, 31 Mar 2026 10:55:41 +0000</pubDate>
-            <link>https://github.com/stefanlange/ccInfo</link>
-            <sparkle:version>1.9.0</sparkle:version>
-            <sparkle:shortVersionString>1.9.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description><![CDATA[<ul>
-<li>Redesign Settings as a sidebar navigation with colored icon badges and the app icon on the About tab</li>
-<li>Replace the flat green chart fill with a smooth horizontal color gradient that follows the usage level from green through yellow to orange</li>
-<li>Fix a visual gap in the usage chart after restarting the app</li>
-<li>Fix chart gaps reappearing on the next launch by stripping restart markers from saved history</li>
-<li>Fix high CPU usage during active Claude sessions by switching FSEvents to directory-level coalescing and adding caches for parsed paths, context windows, and JSONL byte offsets</li>
-<li>Parse JSONL files incrementally — only new bytes are read after the initial parse, cutting steady-state I/O to near zero</li>
-<li>Combine the two directory walks for session discovery into a single pass</li>
-<li>Migrate AppState from ObservableObject to @Observable for fine-grained SwiftUI re-renders</li>
-<li>Implement Sparkle gentle reminders so update dialogs appear correctly for background apps</li>
-</ul>
-
-]]></description>
-            <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo-v1.9.0.dmg" length="3236213" type="application/octet-stream" sparkle:edSignature="wbQgEpCPNROdP/UiD/6SyMOZcnmzcSzgzmgNJ/FLAbE2Xr+Gpz32BrgwPIsz8QSPet9bIsubGCpZfwe36WRkBA=="/>
-            <sparkle:deltas>
-                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.9.0-1.8.3.delta" sparkle:deltaFrom="1.8.3" length="253162" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="3u65xRfW6QjUsKw8/GGYlpkvixTgHpYFw+8J6XyRlWtgsnJXfkeokPA5ts9SooBMpuJqhUxQYT30v5IabGHKDQ=="/>
-                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.9.0-1.8.2.delta" sparkle:deltaFrom="1.8.2" length="395110" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="gWR6xDzhXxJGVShvbtMlcABCXnqQkuq72pbzE6gJOOPqoFVknjdvXxdbzckEiUbQE9wSNEw5okXChgL254iQBA=="/>
-                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.9.0-1.8.1.delta" sparkle:deltaFrom="1.8.1" length="400906" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="Nch33BIY/uTVQjv+0vRKqQCdsfNLe70YpQFwf29/I3K/PwZTCs34an7a1ynR0kCWcuC9Jw4fLmiHbIhZhZ94Cg=="/>
-                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.9.0-1.8.0.delta" sparkle:deltaFrom="1.8.0" length="403846" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="prBSYj8/t6y6D4s61SCwMPFoEeb5DzGhXBhC5efcHzH1+/4sb1R8oMbSGzEeo20teM3cqiIbRW4fBP9OnF1zAA=="/>
             </sparkle:deltas>
         </item>
     </channel>
