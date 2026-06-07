@@ -29,7 +29,6 @@ struct ShareableChartView: View {
     private let chartHeight: CGFloat = 320
     private let lineWidth: CGFloat = 2.5
 
-    private let helper: ChartDrawingHelper
     private let colorLookup: [Color]
 
     private var windowStart: Date {
@@ -41,9 +40,8 @@ struct ShareableChartView: View {
         self.utilization = utilization
         self.resetsAt = resetsAt
         self.resetTimeFormatted = resetTimeFormatted
-        let h = ChartDrawingHelper(isLightMode: false)
-        self.helper = h
-        self.colorLookup = h.buildColorLookup()
+        // Export image is always dark — build the dark-appearance lookup once.
+        self.colorLookup = ChartDrawingHelper.buildColorLookup(isLightMode: false)
     }
 
     // MARK: - Colors
@@ -73,10 +71,10 @@ struct ShareableChartView: View {
                 HStack(alignment: .lastTextBaseline, spacing: 8) {
                     Text("\(Int(utilization))")
                         .font(.system(size: ExportTypography.heroNumber, weight: .black, design: .rounded))
-                        .foregroundStyle(helper.colorForUsage(utilization))
+                        .foregroundStyle(ChartDrawingHelper.colorForUsage(utilization, isLightMode: false))
                     Text("%")
                         .font(.system(size: ExportTypography.headline, weight: .bold, design: .rounded))
-                        .foregroundStyle(helper.colorForUsage(utilization).opacity(0.6))
+                        .foregroundStyle(ChartDrawingHelper.colorForUsage(utilization, isLightMode: false).opacity(0.6))
                     Spacer()
                     if let resetTimeFormatted {
                         VStack(alignment: .trailing, spacing: 2) {
@@ -110,16 +108,16 @@ struct ShareableChartView: View {
                 // Chart card
                 VStack(spacing: 0) {
                     HStack(alignment: .top, spacing: 0) {
-                        VStack(alignment: .trailing, spacing: 0) {
-                            Text("100%")
-                            Spacer()
-                            Text("50%")
-                            Spacer()
-                            Text("0%")
+                        ZStack(alignment: .trailing) {
+                            ForEach([100.0, 50.0, 0.0], id: \.self) { threshold in
+                                Text("\(Int(threshold))%")
+                                    .offset(y: ChartDrawingHelper.yPosition(for: threshold, height: chartHeight) - chartHeight / 2)
+                            }
                         }
                         .font(.system(size: ExportTypography.microMonospaced, weight: .medium, design: .monospaced))
                         .foregroundStyle(textMuted)
-                        .frame(width: leftMargin, height: chartHeight)
+                        .padding(.trailing, 6)
+                        .frame(width: leftMargin, height: chartHeight, alignment: .trailing)
 
                         chartPlot
                             .frame(height: chartHeight)
@@ -164,7 +162,6 @@ struct ShareableChartView: View {
 
     // MARK: - Chart Plot
 
-    /// Single GeometryReader that computes downsampled points once and draws all chart layers.
     private var chartPlot: some View {
         GeometryReader { geometry in
             let width = geometry.size.width
@@ -173,157 +170,70 @@ struct ShareableChartView: View {
             let points = ChartDrawingHelper.downsample(dataPoints, targetWidth: width)
             let winStart = windowStart
 
-            // Threshold lines
             ThresholdLinesShape()
                 .stroke(style: StrokeStyle(lineWidth: 1, dash: [6, 4]))
                 .foregroundStyle(Color.secondary.opacity(0.3))
 
-            // Build continuous area and line paths, splitting at gaps
-            let areaPaths: [Path] = ShareableChartView.buildContinuousPaths(
-                points: points, windowStart: winStart, width: width, height: height, closed: true
-            )
-            let linePaths: [Path] = ShareableChartView.buildContinuousPaths(
-                points: points, windowStart: winStart, width: width, height: height, closed: false
+            let smoothed = ChartDrawingHelper.buildSmoothedPaths(
+                points: points, windowStart: winStart, width: width, height: height)
+            let grad = ChartDrawingHelper.horizontalGradientStops(
+                points: points, windowStart: winStart, width: width, colors: colors)
+
+            // Area fill: horizontal hue gradient, faded from the curve down to the baseline.
+            // NOTE: UsageChartView mirrors this fade with Canvas drawLayer + `.destinationIn`.
+            // Shared constants (ChartDrawingHelper.areaFillOpacity) and the curve-anchored topY
+            // keep the two implementations visually identical.
+            let areaStops = grad.stops.map {
+                Gradient.Stop(color: $0.color.opacity(ChartDrawingHelper.areaFillOpacity), location: $0.location)
+            }
+            let fillTopFraction = smoothed.topY / max(height, 1)
+            let fillBottomFraction = (height - ChartDrawingHelper.plotVerticalInset) / max(height, 1)
+            ZStack {
+                ForEach(0..<smoothed.area.count, id: \.self) { idx in
+                    smoothed.area[idx].fill(LinearGradient(
+                        stops: areaStops,
+                        startPoint: UnitPoint(x: grad.startFraction, y: 0),
+                        endPoint: UnitPoint(x: grad.endFraction, y: 0)))
+                }
+            }
+            .mask(
+                LinearGradient(colors: [.white, .clear],
+                               startPoint: UnitPoint(x: 0.5, y: fillTopFraction),
+                               endPoint: UnitPoint(x: 0.5, y: fillBottomFraction))
             )
 
-            let hGradient = ShareableChartView.horizontalGradientStops(
-                points: points, windowStart: winStart, width: width, colors: colors
-            )
-
-            // Area fill with horizontal gradient
-            ForEach(0..<areaPaths.count, id: \.self) { idx in
-                areaPaths[idx]
-                    .fill(LinearGradient(
-                        stops: hGradient.stops.map { Gradient.Stop(color: $0.color.opacity(0.25), location: $0.location) },
-                        startPoint: UnitPoint(x: hGradient.startFraction, y: 0),
-                        endPoint: UnitPoint(x: hGradient.endFraction, y: 0)
-                    ))
+            // Line: horizontal hue gradient.
+            ForEach(0..<smoothed.line.count, id: \.self) { idx in
+                smoothed.line[idx].stroke(LinearGradient(
+                    stops: grad.stops,
+                    startPoint: UnitPoint(x: grad.startFraction, y: 0),
+                    endPoint: UnitPoint(x: grad.endFraction, y: 0)
+                ), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
             }
 
-            // Line with horizontal gradient
-            ForEach(0..<linePaths.count, id: \.self) { idx in
-                linePaths[idx]
-                    .stroke(LinearGradient(
-                        stops: hGradient.stops,
-                        startPoint: UnitPoint(x: hGradient.startFraction, y: 0),
-                        endPoint: UnitPoint(x: hGradient.endFraction, y: 0)
-                    ), lineWidth: lineWidth)
-            }
-
-            // Glow indicator
-            if let last = points.last, !last.isGap, points.contains(where: { !$0.isGap && $0.usage > 0 }) {
+            // Glow indicator: soft radial halo + white center. Guard count >= 2 so a single
+            // point (which produces no line/area) doesn't leave an orphaned dot.
+            if points.count >= 2, let last = points.last, !last.isGap,
+               points.contains(where: { !$0.isGap && $0.usage > 0 }) {
                 let x = ChartDrawingHelper.xPosition(for: last.timestamp, windowStart: winStart, width: width)
                 let y = ChartDrawingHelper.yPosition(for: Double(last.usage), height: height)
-                let color = helper.colorAt(Double(last.usage), from: colors)
+                let color = ChartDrawingHelper.colorAt(Double(last.usage), from: colors)
+                let halo = ChartDrawingHelper.glowHaloRadius
 
                 Circle()
-                    .fill(color.opacity(0.4))
-                    .frame(width: 12, height: 12)
+                    .fill(RadialGradient(
+                        gradient: Gradient(colors: [color.opacity(ChartDrawingHelper.glowHaloOpacity), color.opacity(0.0)]),
+                        center: .center, startRadius: 0, endRadius: halo))
+                    .frame(width: halo * 2, height: halo * 2)
                     .position(x: x, y: y)
-
-                Circle()
-                    .fill(color)
-                    .frame(width: 6, height: 6)
+                Circle().fill(color)
+                    .frame(width: ChartDrawingHelper.glowCoreDiameter, height: ChartDrawingHelper.glowCoreDiameter)
+                    .position(x: x, y: y)
+                Circle().fill(Color.white)
+                    .frame(width: ChartDrawingHelper.glowWhiteCoreDiameter, height: ChartDrawingHelper.glowWhiteCoreDiameter)
                     .position(x: x, y: y)
             }
         }
-    }
-
-    // MARK: - Gradient Helpers
-
-    /// Builds horizontal gradient stops from data points, mapping X position to usage color.
-    static func horizontalGradientStops(
-        points: [UsageDataPoint], windowStart: Date, width: CGFloat, colors: [Color]
-    ) -> (stops: [Gradient.Stop], startFraction: CGFloat, endFraction: CGFloat) {
-        var stops: [Gradient.Stop] = []
-        var minX: CGFloat = width
-        var maxX: CGFloat = 0
-
-        let nonGapPoints = points.filter { !$0.isGap }
-        for point in nonGapPoints {
-            let x = ChartDrawingHelper.xPosition(for: point.timestamp, windowStart: windowStart, width: width)
-            minX = min(minX, x)
-            maxX = max(maxX, x)
-        }
-
-        let range = maxX - minX
-        guard range > 0, width > 0 else {
-            let color = colors[max(0, min(100, points.first(where: { !$0.isGap })?.usage ?? 0))]
-            return ([Gradient.Stop(color: color, location: 0.5)], 0, 1)
-        }
-
-        for point in nonGapPoints {
-            let x = ChartDrawingHelper.xPosition(for: point.timestamp, windowStart: windowStart, width: width)
-            let location = (x - minX) / range
-            let index = max(0, min(100, point.usage))
-            stops.append(Gradient.Stop(color: colors[index], location: location))
-        }
-
-        stops.sort { $0.location < $1.location }
-        // Deduplicate
-        var deduped: [Gradient.Stop] = []
-        for stop in stops {
-            if let last = deduped.last, last.location == stop.location { continue }
-            deduped.append(stop)
-        }
-
-        return (deduped, minX / width, maxX / width)
-    }
-
-    /// Builds continuous paths from data points, splitting at gaps.
-    /// When `closed` is true, creates closed area paths (with baseline at bottom).
-    /// When `closed` is false, creates open line paths.
-    static func buildContinuousPaths(
-        points: [UsageDataPoint], windowStart: Date, width: CGFloat, height: CGFloat, closed: Bool
-    ) -> [Path] {
-        guard points.count > 1 else { return [] }
-
-        var paths: [Path] = []
-        var i = 0
-        while i < points.count - 1 {
-            let current = points[i]
-            let next = points[i + 1]
-            if current.isGap || next.isGap || (current.usage == 0 && next.usage == 0) {
-                i += 1
-                continue
-            }
-
-            var path = Path()
-            let startX = ChartDrawingHelper.xPosition(for: current.timestamp, windowStart: windowStart, width: width)
-            let startY = ChartDrawingHelper.yPosition(for: Double(current.usage), height: height)
-
-            if closed {
-                path.move(to: CGPoint(x: startX, y: height))
-                path.addLine(to: CGPoint(x: startX, y: startY))
-            } else {
-                path.move(to: CGPoint(x: startX, y: startY))
-            }
-
-            var lastX = ChartDrawingHelper.xPosition(for: next.timestamp, windowStart: windowStart, width: width)
-            var lastY = ChartDrawingHelper.yPosition(for: Double(next.usage), height: height)
-            path.addLine(to: CGPoint(x: lastX, y: lastY))
-            i += 1
-
-            while i < points.count - 1 {
-                let cur = points[i]
-                let nxt = points[i + 1]
-                if cur.isGap || nxt.isGap || (cur.usage == 0 && nxt.usage == 0) {
-                    break
-                }
-                lastX = ChartDrawingHelper.xPosition(for: nxt.timestamp, windowStart: windowStart, width: width)
-                lastY = ChartDrawingHelper.yPosition(for: Double(nxt.usage), height: height)
-                path.addLine(to: CGPoint(x: lastX, y: lastY))
-                i += 1
-            }
-
-            if closed {
-                path.addLine(to: CGPoint(x: lastX, y: height))
-                path.closeSubpath()
-            }
-
-            paths.append(path)
-        }
-        return paths
     }
 }
 
@@ -335,7 +245,7 @@ struct ThresholdLinesShape: Shape {
         Path { path in
             let thresholds: [Double] = [0, 50, 100]
             for threshold in thresholds {
-                let y = rect.height - (CGFloat(threshold / 100.0) * rect.height)
+                let y = ChartDrawingHelper.yPosition(for: threshold, height: rect.height)
                 path.move(to: CGPoint(x: rect.minX, y: y))
                 path.addLine(to: CGPoint(x: rect.maxX, y: y))
             }

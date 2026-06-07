@@ -10,7 +10,8 @@ struct UsageChartView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     // Chart dimensions
-    private let chartHeight: CGFloat = 50
+    private let chartHeight: CGFloat = 110
+    private let lineWidth: CGFloat = 2.0
     private let leftMargin: CGFloat = 36
     private let bottomMargin: CGFloat = 12
 
@@ -18,7 +19,7 @@ struct UsageChartView: View {
     @State private var colorLookup: [Color] = []
 
     private func buildColorLookup() -> [Color] {
-        ChartDrawingHelper(isLightMode: colorScheme == .light).buildColorLookup()
+        ChartDrawingHelper.buildColorLookup(isLightMode: colorScheme == .light)
     }
 
     var body: some View {
@@ -32,33 +33,30 @@ struct UsageChartView: View {
                     let plotHeight = chartHeight
                     let points = ChartDrawingHelper.downsample(dataPoints, targetWidth: chartWidth)
 
-                    // Draw dashed threshold lines
                     drawThresholdLines(context: context, width: plotWidth, height: plotHeight)
 
-                    // Draw area fill and line if we have data and colors are ready
                     if points.count > 0, colors.count == 101 {
-                        let (gradient, gradStartX, gradEndX) = horizontalGradientStops(points: points, width: plotWidth, colors: colors)
-                        drawAreaFill(context: context, points: points, width: plotWidth, height: plotHeight, gradient: gradient, startX: gradStartX, endX: gradEndX)
-                        drawLine(context: context, points: points, width: plotWidth, height: plotHeight, gradient: gradient, startX: gradStartX, endX: gradEndX)
-                        drawGlowIndicator(context: context, points: points, width: plotWidth, height: plotHeight, colors: colors)
+                        let grad = ChartDrawingHelper.horizontalGradientStops(
+                            points: points, windowStart: windowStart, width: plotWidth, colors: colors)
+                        let smoothed = ChartDrawingHelper.buildSmoothedPaths(
+                            points: points, windowStart: windowStart, width: plotWidth, height: plotHeight)
+                        let hasRealData = points.contains { !$0.isGap && $0.usage > 0 }
+                        drawAreaFill(context: context, areaPaths: smoothed.area, width: plotWidth, height: plotHeight, topY: smoothed.topY, grad: grad)
+                        drawLine(context: context, linePaths: smoothed.line, width: plotWidth, grad: grad)
+                        drawGlowIndicator(context: context, points: points, width: plotWidth, height: plotHeight, colors: colors, hasRealData: hasRealData)
                     }
                 }
                 .frame(width: geometry.size.width, height: chartHeight)
                 .offset(x: leftMargin, y: 0)
 
-                // Y-axis labels (left of chart)
-                VStack(alignment: .trailing, spacing: 0) {
-                    Text(verbatim: "100%")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text(verbatim: "50%")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text(verbatim: "0%")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                // Y-axis labels (left of chart), each vertically centered on its gridline.
+                ZStack(alignment: .trailing) {
+                    ForEach([100.0, 50.0, 0.0], id: \.self) { threshold in
+                        Text(verbatim: "\(Int(threshold))%")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .offset(y: ChartDrawingHelper.yPosition(for: threshold, height: chartHeight) - chartHeight / 2)
+                    }
                 }
                 .frame(width: leftMargin - 6, height: chartHeight, alignment: .trailing)
             }
@@ -120,7 +118,7 @@ struct UsageChartView: View {
         let dashPattern: [CGFloat] = [4, 3]
 
         for threshold in thresholds {
-            let y = height - (CGFloat(threshold / 100.0) * height)
+            let y = ChartDrawingHelper.yPosition(for: threshold, height: height)
             var path = Path()
             path.move(to: CGPoint(x: 0, y: y))
             path.addLine(to: CGPoint(x: width, y: y))
@@ -133,147 +131,67 @@ struct UsageChartView: View {
         }
     }
 
-    /// Builds horizontal gradient stops from data points, mapping each point's X position to its usage color.
-    private func horizontalGradientStops(
-        points: [UsageDataPoint], width: CGFloat, colors: [Color], opacity: Double = 1.0
-    ) -> (gradient: Gradient, startX: CGFloat, endX: CGFloat) {
-        var stops: [Gradient.Stop] = []
-        var minX: CGFloat = width
-        var maxX: CGFloat = 0
+    /// Fills the area under the curve with the horizontal hue gradient, faded out toward the baseline.
+    private func drawAreaFill(context: GraphicsContext, areaPaths: [Path], width: CGFloat, height: CGFloat, topY: CGFloat, grad: ChartDrawingHelper.GradientInfo) {
+        guard !areaPaths.isEmpty else { return }
+        // NOTE: ShareableChartView mirrors this fade with a SwiftUI `.mask`.
+        // Shared constants (ChartDrawingHelper.areaFillOpacity) and the curve-anchored `topY`
+        // keep the two implementations visually identical.
+        let clipShape = areaPaths.reduce(into: Path()) { $0.addPath($1) }
+        let plotRect = CGRect(x: 0, y: 0, width: width, height: height)
+        let baseline = height - ChartDrawingHelper.plotVerticalInset
 
-        for point in points where !point.isGap {
-            let x = xPosition(for: point.timestamp, width: width)
-            minX = min(minX, x)
-            maxX = max(maxX, x)
-        }
-
-        let range = maxX - minX
-        guard range > 0 else {
-            let color = colors[max(0, min(100, points.first(where: { !$0.isGap })?.usage ?? 0))]
-            return (Gradient(colors: [color.opacity(opacity)]), minX, maxX)
-        }
-
-        for point in points where !point.isGap {
-            let x = xPosition(for: point.timestamp, width: width)
-            let location = (x - minX) / range
-            let index = max(0, min(100, point.usage))
-            stops.append(Gradient.Stop(color: colors[index].opacity(opacity), location: location))
-        }
-
-        stops.sort { $0.location < $1.location }
-        // Deduplicate stops at the same location (required by Gradient)
-        var deduped: [Gradient.Stop] = []
-        for stop in stops {
-            if let last = deduped.last, last.location == stop.location { continue }
-            deduped.append(stop)
-        }
-        return (Gradient(stops: deduped), minX, maxX)
-    }
-
-    private func drawAreaFill(context: GraphicsContext, points: [UsageDataPoint], width: CGFloat, height: CGFloat, gradient: Gradient, startX: CGFloat, endX: CGFloat) {
-        guard points.count > 1 else { return }
-        let areaGradient = Gradient(stops: gradient.stops.map { Gradient.Stop(color: $0.color.opacity(0.25), location: $0.location) })
-
-        // Build continuous paths, splitting at gaps
-        var i = 0
-        while i < points.count - 1 {
-            let current = points[i]
-            let next = points[i + 1]
-            if current.isGap || next.isGap || (current.usage == 0 && next.usage == 0) {
-                i += 1
-                continue
-            }
-
-            var path = Path()
-            let sx = xPosition(for: current.timestamp, width: width)
-            let sy = yPosition(for: Double(current.usage), height: height)
-            path.move(to: CGPoint(x: sx, y: height))
-            path.addLine(to: CGPoint(x: sx, y: sy))
-
-            var lastX = xPosition(for: next.timestamp, width: width)
-            var lastY = yPosition(for: Double(next.usage), height: height)
-            path.addLine(to: CGPoint(x: lastX, y: lastY))
-            i += 1
-
-            while i < points.count - 1 {
-                let cur = points[i]
-                let nxt = points[i + 1]
-                if cur.isGap || nxt.isGap || (cur.usage == 0 && nxt.usage == 0) { break }
-                lastX = xPosition(for: nxt.timestamp, width: width)
-                lastY = yPosition(for: Double(nxt.usage), height: height)
-                path.addLine(to: CGPoint(x: lastX, y: lastY))
-                i += 1
-            }
-
-            path.addLine(to: CGPoint(x: lastX, y: height))
-            path.closeSubpath()
-
-            context.fill(path, with: .linearGradient(
-                areaGradient,
-                startPoint: CGPoint(x: startX, y: 0),
-                endPoint: CGPoint(x: endX, y: 0)
-            ))
+        context.drawLayer { layer in
+            layer.clip(to: clipShape)
+            // 1) Horizontal hue gradient across the whole plot.
+            layer.fill(Path(plotRect), with: .linearGradient(
+                Gradient(stops: grad.stops),
+                startPoint: CGPoint(x: grad.startFraction * width, y: 0),
+                endPoint: CGPoint(x: grad.endFraction * width, y: 0)))
+            // 2) Multiply alpha by a fade from the curve (topY) down to the baseline (F2 look).
+            layer.blendMode = .destinationIn
+            layer.fill(Path(plotRect), with: .linearGradient(
+                Gradient(stops: [
+                    .init(color: .white.opacity(ChartDrawingHelper.areaFillOpacity), location: 0),
+                    .init(color: .white.opacity(0.0), location: 1)
+                ]),
+                startPoint: CGPoint(x: 0, y: topY),
+                endPoint: CGPoint(x: 0, y: baseline)))
         }
     }
 
-    private func drawLine(context: GraphicsContext, points: [UsageDataPoint], width: CGFloat, height: CGFloat, gradient: Gradient, startX: CGFloat, endX: CGFloat) {
-        guard points.count > 1 else { return }
-
-        var i = 0
-        while i < points.count - 1 {
-            let current = points[i]
-            let next = points[i + 1]
-            if current.isGap || next.isGap || (current.usage == 0 && next.usage == 0) {
-                i += 1
-                continue
-            }
-
-            var path = Path()
-            let sx = xPosition(for: current.timestamp, width: width)
-            let sy = yPosition(for: Double(current.usage), height: height)
-            path.move(to: CGPoint(x: sx, y: sy))
-
-            var lastX = xPosition(for: next.timestamp, width: width)
-            var lastY = yPosition(for: Double(next.usage), height: height)
-            path.addLine(to: CGPoint(x: lastX, y: lastY))
-            i += 1
-
-            while i < points.count - 1 {
-                let cur = points[i]
-                let nxt = points[i + 1]
-                if cur.isGap || nxt.isGap || (cur.usage == 0 && nxt.usage == 0) { break }
-                lastX = xPosition(for: nxt.timestamp, width: width)
-                lastY = yPosition(for: Double(nxt.usage), height: height)
-                path.addLine(to: CGPoint(x: lastX, y: lastY))
-                i += 1
-            }
-
+    /// Strokes the smoothed line with the horizontal hue gradient.
+    private func drawLine(context: GraphicsContext, linePaths: [Path], width: CGFloat, grad: ChartDrawingHelper.GradientInfo) {
+        for path in linePaths {
             context.stroke(path, with: .linearGradient(
-                gradient,
-                startPoint: CGPoint(x: startX, y: 0),
-                endPoint: CGPoint(x: endX, y: 0)
-            ), lineWidth: 1.5)
+                Gradient(stops: grad.stops),
+                startPoint: CGPoint(x: grad.startFraction * width, y: 0),
+                endPoint: CGPoint(x: grad.endFraction * width, y: 0)),
+                style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
         }
     }
 
-    private func drawGlowIndicator(context: GraphicsContext, points: [UsageDataPoint], width: CGFloat, height: CGFloat, colors: [Color]) {
-        guard points.count >= 2 else { return }
+    private func drawGlowIndicator(context: GraphicsContext, points: [UsageDataPoint], width: CGFloat, height: CGFloat, colors: [Color], hasRealData: Bool) {
+        guard points.count >= 2, hasRealData else { return }
         guard let last = points.last, !last.isGap else { return }
-        // No glow when there's no real usage in the window
-        guard points.contains(where: { !$0.isGap && $0.usage > 0 }) else { return }
 
         let x = xPosition(for: last.timestamp, width: width)
         let y = yPosition(for: Double(last.usage), height: height)
+        let color = ChartDrawingHelper.colorAt(Double(last.usage), from: colors)
 
-        let helper = ChartDrawingHelper(isLightMode: colorScheme == .light)
-        let color = helper.colorAt(Double(last.usage), from: colors)
+        let halo = ChartDrawingHelper.glowHaloRadius
+        let core = ChartDrawingHelper.glowCoreDiameter
+        let white = ChartDrawingHelper.glowWhiteCoreDiameter
 
-        var glowPath = Path()
-        glowPath.addEllipse(in: CGRect(x: x - 4, y: y - 4, width: 8, height: 8))
-        context.fill(glowPath, with: .color(color.opacity(0.4)))
-
-        var dotPath = Path()
-        dotPath.addEllipse(in: CGRect(x: x - 2, y: y - 2, width: 4, height: 4))
-        context.fill(dotPath, with: .color(color))
+        // Soft radial halo
+        context.fill(
+            Path(ellipseIn: CGRect(x: x - halo, y: y - halo, width: halo * 2, height: halo * 2)),
+            with: .radialGradient(
+                Gradient(colors: [color.opacity(ChartDrawingHelper.glowHaloOpacity), color.opacity(0.0)]),
+                center: CGPoint(x: x, y: y), startRadius: 0, endRadius: halo))
+        // Colored core
+        context.fill(Path(ellipseIn: CGRect(x: x - core / 2, y: y - core / 2, width: core, height: core)), with: .color(color))
+        // White center for pop
+        context.fill(Path(ellipseIn: CGRect(x: x - white / 2, y: y - white / 2, width: white, height: white)), with: .color(.white))
     }
 }
