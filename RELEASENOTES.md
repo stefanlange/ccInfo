@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.13.0 – 2026-06-07
+
+- Redesign the 5-hour usage chart: taller, with a smoothed curve, a fill that fades from the line toward the baseline, and a soft glow on the current value
+- Blend the chart color gradually from green to yellow as usage rises, instead of holding flat green and then shifting abruptly near the top
+- Translate the Reload and error buttons into German (they previously showed English), and reword the reset countdown, weekly-limit, and token-limit messages for more natural German
+
 ## 1.12.0 – 2026-05-02
 
 - Rename any session via the pencil button next to the switcher or the new Sessions tab in Settings; names persist across restarts and replace the auto-derived project name everywhere
