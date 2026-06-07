@@ -32,4 +32,5 @@
 # Claude Code
 .claude/
 .planning/
+.superpowers/
 CLAUDE.md
