@@ -51,36 +51,30 @@ enum ChartDrawingHelper {
 
     // MARK: - Color Interpolation
 
-    /// Computes a smoothly interpolated color for the given usage percentage.
-    /// Interpolates across green -> yellow -> orange -> red zones using thresholds from `UtilizationThresholds`.
+    /// Computes a smoothly interpolated color for the given usage percentage by interpolating
+    /// between anchor colors across the 0...100 scale. Green holds the low ("safe") range and
+    /// eases gradually into yellow from ~25% so the gradient transitions evenly instead of
+    /// staying flat-green and then shifting abruptly. The yellow/orange/red anchors stay aligned
+    /// with the yellow-orange (75) and orange-red (90) thresholds.
     static func colorForUsage(_ percent: Double, isLightMode: Bool) -> Color {
         let p = max(0, min(100, percent))
 
-        let deepGreen = RGBColor(r: 0.0, g: 0.65, b: 0.0)
-        let green = RGBColor(r: 0.0, g: 0.8, b: 0.0)
-        let yellow = RGBColor(r: 1.0, g: 0.9, b: 0.0)
-        let orange = RGBColor(r: 1.0, g: 0.6, b: 0.0)
-        let red = RGBColor(r: 1.0, g: 0.0, b: 0.0)
+        let anchors: [(p: Double, color: RGBColor)] = [
+            (0,  RGBColor(r: 0.0,  g: 0.6,  b: 0.0)),   // deep green
+            (25, RGBColor(r: 0.0,  g: 0.8,  b: 0.0)),   // bright green — safe zone holds here
+            (UtilizationThresholds.greenYellowThreshold,  RGBColor(r: 0.65, g: 0.85, b: 0.0)), // ~50%: yellow-green
+            (UtilizationThresholds.yellowOrangeThreshold, RGBColor(r: 1.0,  g: 0.9,  b: 0.0)),  // 75%: yellow
+            (UtilizationThresholds.orangeRedThreshold,    RGBColor(r: 1.0,  g: 0.6,  b: 0.0)),  // 90%: orange
+            (100, RGBColor(r: 1.0, g: 0.0, b: 0.0)),    // red
+        ]
 
-        let greenYellow = UtilizationThresholds.greenYellowThreshold
-        let yellowOrange = UtilizationThresholds.yellowOrangeThreshold
-        let orangeRed = UtilizationThresholds.orangeRedThreshold
-
-        var interpolated: RGBColor
-
-        if p < greenYellow {
-            // Smooth gradient from deep green to bright green within the "safe" zone
-            let t = p / greenYellow
-            interpolated = interpolateRGB(from: deepGreen, to: green, t: t)
-        } else if p < yellowOrange {
-            let t = (p - greenYellow) / (yellowOrange - greenYellow)
-            interpolated = interpolateRGB(from: green, to: yellow, t: t)
-        } else if p < orangeRed {
-            let t = (p - yellowOrange) / (orangeRed - yellowOrange)
-            interpolated = interpolateRGB(from: yellow, to: orange, t: t)
-        } else {
-            let t = (p - orangeRed) / (100 - orangeRed)
-            interpolated = interpolateRGB(from: orange, to: red, t: t)
+        var interpolated = anchors[0].color
+        for i in 1..<anchors.count where p <= anchors[i].p {
+            let lo = anchors[i - 1], hi = anchors[i]
+            let span = hi.p - lo.p
+            let t = span > 0 ? (p - lo.p) / span : 0
+            interpolated = interpolateRGB(from: lo.color, to: hi.color, t: t)
+            break
         }
 
         if !isLightMode {
