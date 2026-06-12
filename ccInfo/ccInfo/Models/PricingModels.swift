@@ -10,6 +10,12 @@ struct LiteLLMModel: Codable, Sendable {
     let cacheReadInputTokenCost: Double?
     let maxOutputTokens: Int?
     let maxInputTokens: Int?
+    // Explicit long-context tier rates (above 200k input tokens). Present only on models
+    // that actually charge a long-context premium (e.g. Opus 4.6). Absent on flat-priced
+    // 1M-window models (e.g. Fable), which must not be tiered.
+    let inputCostPerTokenAbove200k: Double?
+    let cacheCreationInputTokenCostAbove200k: Double?
+    let cacheReadInputTokenCostAbove200k: Double?
 
     enum CodingKeys: String, CodingKey {
         case inputCostPerToken = "input_cost_per_token"
@@ -18,11 +24,9 @@ struct LiteLLMModel: Codable, Sendable {
         case cacheReadInputTokenCost = "cache_read_input_token_cost"
         case maxOutputTokens = "max_output_tokens"
         case maxInputTokens = "max_input_tokens"
-    }
-
-    /// Models with 1M context window have special tiered pricing above 200k input tokens
-    var isExtendedContext: Bool {
-        (maxInputTokens ?? maxOutputTokens ?? 0) >= 500_000
+        case inputCostPerTokenAbove200k = "input_cost_per_token_above_200k_tokens"
+        case cacheCreationInputTokenCostAbove200k = "cache_creation_input_token_cost_above_200k_tokens"
+        case cacheReadInputTokenCostAbove200k = "cache_read_input_token_cost_above_200k_tokens"
     }
 }
 
@@ -34,6 +38,10 @@ struct ModelPricing: Codable, Sendable {
     let outputCostPerToken: Double
     let cacheCreationCostPerToken: Double
     let cacheReadCostPerToken: Double
+    /// Long-context tier rates (above 200k input tokens). `nil` = flat pricing, no premium.
+    let inputCostPerTokenAbove200k: Double?
+    let cacheCreationCostPerTokenAbove200k: Double?
+    let cacheReadCostPerTokenAbove200k: Double?
 
     /// Conservative Sonnet 4 fallback pricing (per-token, not per-MTok)
     /// Input: $3/MTok = 3e-06, Output: $15/MTok = 1.5e-05
@@ -54,29 +62,39 @@ struct ModelPricing: Codable, Sendable {
         self.outputCostPerToken = litellm.outputCostPerToken
         self.cacheCreationCostPerToken = litellm.cacheCreationInputTokenCost ?? 0.0
         self.cacheReadCostPerToken = litellm.cacheReadInputTokenCost ?? 0.0
+        self.inputCostPerTokenAbove200k = litellm.inputCostPerTokenAbove200k
+        self.cacheCreationCostPerTokenAbove200k = litellm.cacheCreationInputTokenCostAbove200k
+        self.cacheReadCostPerTokenAbove200k = litellm.cacheReadInputTokenCostAbove200k
     }
 
     /// Direct initialization for default/fallback values
-    init(inputCostPerToken: Double, outputCostPerToken: Double, cacheCreationCostPerToken: Double, cacheReadCostPerToken: Double) {
+    init(inputCostPerToken: Double, outputCostPerToken: Double, cacheCreationCostPerToken: Double, cacheReadCostPerToken: Double,
+         inputCostPerTokenAbove200k: Double? = nil, cacheCreationCostPerTokenAbove200k: Double? = nil, cacheReadCostPerTokenAbove200k: Double? = nil) {
         self.inputCostPerToken = inputCostPerToken
         self.outputCostPerToken = outputCostPerToken
         self.cacheCreationCostPerToken = cacheCreationCostPerToken
         self.cacheReadCostPerToken = cacheReadCostPerToken
+        self.inputCostPerTokenAbove200k = inputCostPerTokenAbove200k
+        self.cacheCreationCostPerTokenAbove200k = cacheCreationCostPerTokenAbove200k
+        self.cacheReadCostPerTokenAbove200k = cacheReadCostPerTokenAbove200k
     }
 }
 
 // MARK: - Cached Pricing Data
 
-/// Container for cached pricing data with extended context metadata
+/// Container for cached pricing data, tagged with a schema version for cache migration.
 struct CachedPricingData: Codable, Sendable {
     let pricing: [String: ModelPricing]
-    let extendedContextKeys: Set<String>
     let cacheVersion: Int
 
-    init(pricing: [String: ModelPricing], extendedContextKeys: Set<String>) {
+    /// Bumped to 2 when tiered pricing moved from a hardcoded 1.25x heuristic to the
+    /// real above-200k rates carried in `ModelPricing`. Older caches lack those fields
+    /// and self-heal on the next refresh.
+    static let currentVersion = 2
+
+    init(pricing: [String: ModelPricing]) {
         self.pricing = pricing
-        self.extendedContextKeys = extendedContextKeys
-        self.cacheVersion = 1
+        self.cacheVersion = Self.currentVersion
     }
 }
 
@@ -91,23 +109,15 @@ struct TieredModelPricing: Sendable {
     let cacheCreationCostPerTokenAboveThreshold: Double?
     let cacheReadCostPerTokenAboveThreshold: Double?
 
-    /// Create tiered pricing from base pricing
-    /// - Parameters:
-    ///   - base: Base ModelPricing for below-threshold tokens
-    ///   - isExtendedContext: true for 1M-context models (applies 1.25x rates above 200k tokens)
-    static func from(base: ModelPricing, isExtendedContext: Bool) -> TieredModelPricing {
-        if isExtendedContext {
-            // 1M-context models: 200k threshold, 1.25x rates above
-            // Output rate is NOT tiered (Anthropic only tiers input tokens)
-            return TieredModelPricing(
-                base: base,
-                inputTokenThreshold: 200_000,
-                inputCostPerTokenAboveThreshold: base.inputCostPerToken * 1.25,
-                cacheCreationCostPerTokenAboveThreshold: base.cacheCreationCostPerToken * 1.25,
-                cacheReadCostPerTokenAboveThreshold: base.cacheReadCostPerToken * 1.25
-            )
-        } else {
-            // Standard context: no tiering
+    /// Create tiered pricing from base pricing.
+    ///
+    /// Tiering is driven entirely by the model's own data: a model is tiered iff it carries
+    /// an explicit above-200k input rate. Models with a 1M window but no published premium
+    /// (e.g. Fable) stay flat — no fabricated surcharge. Output is never tiered (Anthropic
+    /// only tiers input/cache tokens). Cache rates above the threshold fall back to the base
+    /// rate if the data omits a tiered value while still tiering input.
+    static func from(base: ModelPricing) -> TieredModelPricing {
+        guard let aboveInput = base.inputCostPerTokenAbove200k else {
             return TieredModelPricing(
                 base: base,
                 inputTokenThreshold: nil,
@@ -116,11 +126,18 @@ struct TieredModelPricing: Sendable {
                 cacheReadCostPerTokenAboveThreshold: nil
             )
         }
+        return TieredModelPricing(
+            base: base,
+            inputTokenThreshold: 200_000,
+            inputCostPerTokenAboveThreshold: aboveInput,
+            cacheCreationCostPerTokenAboveThreshold: base.cacheCreationCostPerTokenAbove200k ?? base.cacheCreationCostPerToken,
+            cacheReadCostPerTokenAboveThreshold: base.cacheReadCostPerTokenAbove200k ?? base.cacheReadCostPerToken
+        )
     }
 
     /// Sonnet default with no tiering (standard context)
     static var sonnetDefault: TieredModelPricing {
-        TieredModelPricing.from(base: ModelPricing.sonnetDefault, isExtendedContext: false)
+        TieredModelPricing.from(base: ModelPricing.sonnetDefault)
     }
 }
 
