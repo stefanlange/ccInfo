@@ -332,7 +332,7 @@ struct SessionSection: View {
     let period: StatisticsPeriod
 
     private var sortedModels: [ModelIdentifier] {
-        let tierOrder: [ClaudeModel: Int] = [.opus: 0, .sonnet: 1, .haiku: 2, .unknown: 3]
+        let tierOrder: [ClaudeModel: Int] = [.fable: 0, .opus: 1, .sonnet: 2, .haiku: 3, .unknown: 4]
         return session.models.sorted { a, b in
             let aTier = tierOrder[a.family] ?? 999
             let bTier = tierOrder[b.family] ?? 999

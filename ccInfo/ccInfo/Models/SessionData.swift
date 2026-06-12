@@ -35,6 +35,7 @@ enum StatisticsPeriod: String, CaseIterable, Sendable {
 
 /// Represents Claude model variants for UI grouping
 enum ClaudeModel: String, Sendable, CaseIterable {
+    case fable = "fable"
     case opus = "opus"
     case sonnet = "sonnet"
     case haiku = "haiku"
@@ -42,6 +43,7 @@ enum ClaudeModel: String, Sendable, CaseIterable {
 
     var displayName: String {
         switch self {
+        case .fable: return "Fable"
         case .opus: return "Opus"
         case .sonnet: return "Sonnet"
         case .haiku: return "Haiku"
@@ -169,7 +171,7 @@ struct ContextWindow: Sendable {
             return
         }
         switch family {
-        case .opus:
+        case .opus, .fable:
             self.isExtendedContext = true
         case .sonnet:
             let stored = UserDefaults.standard.integer(forKey: AppStorageKeys.sonnetContextSize)

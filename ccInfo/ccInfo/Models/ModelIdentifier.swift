@@ -30,11 +30,27 @@ struct ModelIdentifier: Sendable, Hashable {
 
     static let unknown = ModelIdentifier(rawId: "<unknown>", availableModelKeys: [])
 
+    // MARK: - Compiled Regexes
+    // Hoisted to static constants so each pattern is compiled once, not on every call.
+    // `extractVersion`/`newestModelForFamily` run per JSONL entry on the cost hot path.
+
+    /// `claude-{family}-{major}-{minor}(-{date})?` — minor bounded to 1–2 digits so it can't
+    /// swallow an 8-digit date suffix. Example: "claude-opus-4-6", "claude-sonnet-4-5-20250929".
+    private static let majorMinorVersionRegex = /claude-[a-z]+-(\d+)-(\d{1,2})(?:-\d{8})?/
+    /// `claude-{family}-{major}(-{date})?` — single version number. Example: "claude-fable-5".
+    private static let majorOnlyVersionRegex = /claude-[a-z]+-(\d+)(?:-\d{8})?/
+    /// Legacy `claude-{major}-{family}-{date}`. Example: "claude-3-opus-20240229".
+    private static let legacyVersionRegex = /claude-(\d+)-[a-z]+-\d{8}/
+    /// Runs of digits, for element-wise numeric comparison of model keys.
+    private static let digitRunRegex = /\d+/
+
     // MARK: - Private Detection Methods
 
     private static func detectFamily(_ id: String) -> ClaudeModel {
         let lower = id.lowercased()
-        if lower.contains("opus") {
+        if lower.contains("fable") {
+            return .fable
+        } else if lower.contains("opus") {
             return .opus
         } else if lower.contains("sonnet") {
             return .sonnet
@@ -47,16 +63,19 @@ struct ModelIdentifier: Sendable, Hashable {
 
     private static func extractVersion(_ id: String) -> String? {
         // New format: claude-{family}-{major}-{minor}(-{date})?
-        // Example: "claude-opus-4-6" or "claude-sonnet-4-5-20250929"
-        if let match = id.wholeMatch(of: /claude-[a-z]+-(\d+)-(\d+)(?:-\d{8})?/) {
+        if let match = id.wholeMatch(of: Self.majorMinorVersionRegex) {
             let major = String(match.1)
             let minor = String(match.2)
             return "\(major).\(minor)"
         }
 
+        // Major-only format: claude-{family}-{major}(-{date})?
+        if let match = id.wholeMatch(of: Self.majorOnlyVersionRegex) {
+            return String(match.1)
+        }
+
         // Legacy format: claude-{major}-{family}-{date}
-        // Example: "claude-3-opus-20240229"
-        if let match = id.wholeMatch(of: /claude-(\d+)-[a-z]+-\d{8}/) {
+        if let match = id.wholeMatch(of: Self.legacyVersionRegex) {
             return String(match.1)
         }
 
@@ -73,7 +92,7 @@ struct ModelIdentifier: Sendable, Hashable {
         }
 
         // Step 2: Short form resolution (not a fallback - intentional)
-        let shortForms = ["opus", "sonnet", "haiku"]
+        let shortForms = ["fable", "opus", "sonnet", "haiku"]
         if shortForms.contains(lower) {
             let newest = newestModelForFamily(lower, in: availableModelKeys)
             logger.debug("Short form '\(id)' resolved to '\(newest)'")
@@ -97,8 +116,8 @@ struct ModelIdentifier: Sendable, Hashable {
 
         let sorted = familyModels.sorted { a, b in
             // Extract all numeric components
-            let aNumbers = a.matches(of: /\d+/).compactMap { Int($0.output) }
-            let bNumbers = b.matches(of: /\d+/).compactMap { Int($0.output) }
+            let aNumbers = a.matches(of: Self.digitRunRegex).compactMap { Int($0.output) }
+            let bNumbers = b.matches(of: Self.digitRunRegex).compactMap { Int($0.output) }
 
             // Compare element-wise descending
             for (aNum, bNum) in zip(aNumbers, bNumbers) {
