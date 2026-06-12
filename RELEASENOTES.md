@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.14.0 – 2026-06-12
+
+- Add support for the new Fable model, with its own badge, 1M context window, and cost estimates; the bundled pricing data also covers Opus 4.7 and 4.8
+- Estimate costs more accurately for long sessions by using each model's real long-context pricing instead of one fixed surcharge above 200k tokens
+- Fix the usage chart's current-value glow getting clipped at the left and right edges
+
 ## 1.13.0 – 2026-06-07
 
 - Redesign the 5-hour usage chart: taller, with a smoothed curve, a fill that fades from the line toward the baseline, and a soft glow on the current value
