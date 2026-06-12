@@ -23,6 +23,9 @@ enum ChartDrawingHelper {
     /// Vertical breathing room reserved at the top (100%) and bottom (0%) of the plot so the
     /// glow halo of a point at either extreme is never clipped. Equals the glow radius.
     static let plotVerticalInset: CGFloat = glowHaloRadius
+    /// Horizontal counterpart: breathing room at the start (0h) and end (5h) of the plot so the
+    /// glow halo of a point at either edge of the window is never clipped. Equals the glow radius.
+    static let plotHorizontalInset: CGFloat = glowHaloRadius
 
     /// Return shape of `horizontalGradientStops`: gradient stops plus the start/end
     /// positions expressed as fractions of the plot width (0...1).
@@ -105,11 +108,14 @@ enum ChartDrawingHelper {
 
     // MARK: - Position Helpers
 
-    /// X position for a timestamp within the 5-hour window.
+    /// X position for a timestamp within the 5-hour window. Maps the window into the usable band
+    /// `[plotHorizontalInset, width - plotHorizontalInset]`, leaving room for the glow halo at the
+    /// window edges so it is never clipped.
     static func xPosition(for timestamp: Date, windowStart: Date, width: CGFloat) -> CGFloat {
         let elapsed = timestamp.timeIntervalSince(windowStart)
         let normalized = elapsed / (5 * 3600)
-        return CGFloat(max(0, min(1, normalized))) * width
+        let usable = max(0, width - 2 * plotHorizontalInset)
+        return plotHorizontalInset + CGFloat(max(0, min(1, normalized))) * usable
     }
 
     /// Y position for a usage percentage. Maps 0...100% into the usable band
