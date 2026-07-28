@@ -1,0 +1,9 @@
+<ul>
+<li>Fix the statistics table naming the same model twice, such as &quot;Opus 5, Opus 5&quot;</li>
+<li>Recalculate session costs after the pricing data changes while the app runs, instead of keeping the older estimates until the next restart</li>
+<li>Fix the offline cost estimate falling back to a year-old model at three times the correct rate; this also affected the first seconds after launch, before the current rates finish loading</li>
+<li>Update the bundled pricing data with Opus 5, Sonnet 5 and Sonnet 4.6</li>
+<li>Drop the mention of Sonnet 4 pricing from the estimate hint on the cost row, since the estimate usually uses rates from the model&#39;s own family</li>
+<li>Show all costs with two decimal places; amounts under one cent no longer switch to four</li>
+</ul>
+
