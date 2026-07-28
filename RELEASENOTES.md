@@ -1,5 +1,14 @@
 # Release Notes
 
+## 1.14.1 – 2026-07-28
+
+- Fix the statistics table naming the same model twice, such as "Opus 5, Opus 5"
+- Recalculate session costs after the pricing data changes while the app runs, instead of keeping the older estimates until the next restart
+- Fix the offline cost estimate falling back to a year-old model at three times the correct rate; this also affected the first seconds after launch, before the current rates finish loading
+- Update the bundled pricing data with Opus 5, Sonnet 5 and Sonnet 4.6
+- Drop the mention of Sonnet 4 pricing from the estimate hint on the cost row, since the estimate usually uses rates from the model's own family
+- Show all costs with two decimal places; amounts under one cent no longer switch to four
+
 ## 1.14.0 – 2026-06-12
 
 - Add support for the new Fable model, with its own badge, 1M context window, and cost estimates; the bundled pricing data also covers Opus 4.7 and 4.8
