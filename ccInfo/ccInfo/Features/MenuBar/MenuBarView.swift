@@ -342,9 +342,13 @@ struct SessionSection: View {
     }
 
     private func formatModelList() -> String {
-        sortedModels
+        // Distinct raw IDs can share a display name — a dated and an undated key for the same
+        // version both render as "Sonnet 4.5" — so unique on the rendered name, not the identifier.
+        var seen = Set<String>()
+        return sortedModels
             .filter { $0.family != .unknown }
             .map { $0.displayName }
+            .filter { seen.insert($0).inserted }
             .joined(separator: ", ")
     }
 
@@ -412,11 +416,11 @@ struct SessionSection: View {
                     }
                     .gridColumnAlignment(.trailing)
                     .help(session.isCostEstimated && session.estimatedCost > 0
-                        ? String(localized: "Estimated (Sonnet 4 Pricing) \u{2014} model not in pricing database")
+                        ? String(localized: "Estimated \u{2014} model not in pricing database")
                         : "")
                 }
                 .accessibilityElement(children: .combine)
-                .accessibilityHint(session.isCostEstimated && session.estimatedCost > 0 ? "Estimated based on Sonnet 4 pricing" : "")
+                .accessibilityHint(session.isCostEstimated && session.estimatedCost > 0 ? "Estimated because the model is not in the pricing database" : "")
             }.font(.caption)
         }
     }

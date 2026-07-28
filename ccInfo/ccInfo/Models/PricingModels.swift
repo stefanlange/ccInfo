@@ -33,7 +33,11 @@ struct LiteLLMModel: Codable, Sendable {
 // MARK: - Model Pricing (Internal)
 
 /// Internal representation of model pricing with per-token costs
-struct ModelPricing: Codable, Sendable {
+///
+/// `Equatable` so a refresh can tell a genuinely new rate table from a reload of the same one.
+/// Exact `Double` comparison is right here: these values come straight out of the JSON decode
+/// and no arithmetic touches them before storage.
+struct ModelPricing: Codable, Sendable, Equatable {
     let inputCostPerToken: Double
     let outputCostPerToken: Double
     let cacheCreationCostPerToken: Double

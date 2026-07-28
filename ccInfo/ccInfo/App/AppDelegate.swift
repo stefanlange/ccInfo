@@ -275,9 +275,6 @@ final class AppState {
         let snapshotURL = selectedSessionURL
 
         do {
-            let availableKeys = await PricingService.shared.availableModelKeys
-            guard !Task.isCancelled else { return }
-
             // Discover active and recently inactive sessions (single directory walk)
             let (foundSessions, fallback) = await jsonlParser.findSessionsWithFallback(threshold: sessionActivityThreshold)
             guard !Task.isCancelled else { return }
@@ -299,11 +296,11 @@ final class AppState {
             var newContextState: ContextWindowState?
             var newSessionData: SessionData?
             if let url = resolvedURL {
-                newContextState = try await jsonlParser.getContextWindowState(for: url, availableModelKeys: availableKeys)
-                newSessionData = try await jsonlParser.parseForPeriod(snapshotPeriod, sessionURL: url, availableModelKeys: availableKeys)
+                newContextState = try await jsonlParser.getContextWindowState(for: url)
+                newSessionData = try await jsonlParser.parseForPeriod(snapshotPeriod, sessionURL: url)
             } else {
                 newContextState = nil
-                newSessionData = try await jsonlParser.parseForPeriod(snapshotPeriod, availableModelKeys: availableKeys)
+                newSessionData = try await jsonlParser.parseForPeriod(snapshotPeriod)
             }
 
             // Only apply results if snapshot is still current
@@ -328,8 +325,7 @@ final class AppState {
             return
         }
         do {
-            let availableKeys = await PricingService.shared.availableModelKeys
-            let newContextState = try await jsonlParser.getContextWindowState(for: url, availableModelKeys: availableKeys)
+            let newContextState = try await jsonlParser.getContextWindowState(for: url)
             guard !Task.isCancelled, url == selectedSessionURL else { return }
             contextWindowState = newContextState
         } catch {

@@ -7,6 +7,10 @@ actor PricingService {
     private var pricingData: [String: ModelPricing]?
     private(set) var dataSource: PricingDataSource = .bundled
     private(set) var lastUpdateTimestamp: Date?
+    /// Bumped on every `pricingData` assignment. Consumers that cache values derived from pricing
+    /// (a resolved `pricingKey`, an `isFallback` flag, an accumulated cost) compare against this
+    /// to tell whether their cache was built under a different rate table.
+    private(set) var generation: Int = 0
     private let logger = Logger(subsystem: "com.ccinfo.app", category: "PricingService")
     private var refreshTask: Task<Void, Never>?
 
@@ -26,6 +30,15 @@ actor PricingService {
     /// Returns the set of lowercase model keys available in current pricing data
     var availableModelKeys: Set<String> {
         Set(pricingData?.keys.map { $0.lowercased() } ?? [])
+    }
+
+    /// The current rate table's keys together with the `generation` they belong to.
+    ///
+    /// Callers that cache anything derived from pricing must take both from this one call. Reading
+    /// the keys and the generation separately lets a refresh slip between them, which resolves
+    /// values against one table and files them under another.
+    func pricingSnapshot() -> (generation: Int, modelKeys: Set<String>) {
+        (generation, availableModelKeys)
     }
 
     /// Returns pricing for the specified model ID, with Sonnet fallback if not found
@@ -113,6 +126,22 @@ actor PricingService {
         }
     }
 
+    /// Install a rate table. Bumping `generation` is what lets consumers notice that anything
+    /// derived from the old rates — including already-accumulated costs — is stale.
+    ///
+    /// The bump is skipped when the incoming table is identical, because plenty of refreshes carry
+    /// no new rates: a re-auth restarts monitoring and reloads a still-fresh disk cache, and a
+    /// failed fetch falls back to the very cache it just came from. Consumers pay a full re-read
+    /// per bump, so the comparison earns its keep many times over.
+    private func applyPricingData(_ data: [String: ModelPricing], source: PricingDataSource) {
+        dataSource = source
+        lastUpdateTimestamp = Date.now
+
+        guard pricingData != data else { return }
+        pricingData = data
+        generation += 1
+    }
+
     /// Refresh pricing data with fallback chain: Cache (if fresh) -> Network -> Cache (stale) -> Bundled
     private func refreshPricingData() async {
         // Step 1: Check cache staleness
@@ -120,9 +149,7 @@ actor PricingService {
 
         // If cache exists and is fresh, load and use it
         if !cacheStale, let cached = loadCachedData() {
-            pricingData = cached
-            dataSource = .cached
-            lastUpdateTimestamp = Date.now
+            applyPricingData(cached, source: .cached)
             logger.info("Loaded \(cached.count) models from fresh cache")
             return
         }
@@ -130,9 +157,7 @@ actor PricingService {
         // Step 2: Try network fetch
         do {
             let fetched = try await fetchFromNetwork()
-            pricingData = fetched
-            dataSource = .live
-            lastUpdateTimestamp = Date.now
+            applyPricingData(fetched, source: .live)
             saveCachedData(fetched)
             logger.info("Fetched \(fetched.count) models from network, cache updated")
             return
@@ -142,9 +167,7 @@ actor PricingService {
 
         // Step 3: Fall back to stale cache if available
         if let cached = loadCachedData() {
-            pricingData = cached
-            dataSource = .cached
-            lastUpdateTimestamp = Date.now
+            applyPricingData(cached, source: .cached)
             logger.warning("Using stale cache (\(cached.count) models) after network failure")
             return
         }

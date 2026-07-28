@@ -30,6 +30,20 @@ struct ModelIdentifier: Sendable, Hashable {
 
     static let unknown = ModelIdentifier(rawId: "<unknown>", availableModelKeys: [])
 
+    // MARK: - Identity
+
+    // Identity is the raw model ID alone. `pricingKey` and `isFallback` are derived from whichever
+    // rate table happened to be loaded when this value was built, so including them would let one
+    // model occupy two slots in a `Set` — once resolved via family fallback, once matched exactly.
+
+    static func == (lhs: ModelIdentifier, rhs: ModelIdentifier) -> Bool {
+        lhs.rawId == rhs.rawId
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(rawId)
+    }
+
     // MARK: - Compiled Regexes
     // Hoisted to static constants so each pattern is compiled once, not on every call.
     // `extractVersion`/`newestModelForFamily` run per JSONL entry on the cost hot path.
@@ -43,6 +57,10 @@ struct ModelIdentifier: Sendable, Hashable {
     private static let legacyVersionRegex = /claude-(\d+)-[a-z]+-\d{8}/
     /// Runs of digits, for element-wise numeric comparison of model keys.
     private static let digitRunRegex = /\d+/
+    /// Release date stamps: `-20250514` (Anthropic/Bedrock) and `@20250514` (Vertex AI). Neither
+    /// is a version component — left in place, `[4, 20250514]` outranks `[4, 8]` and the family
+    /// fallback picks a year-old model. Matching only `-` would leave the Vertex form behind.
+    private static let dateStampRegex = /[-@]\d{8}/
 
     // MARK: - Private Detection Methods
 
@@ -112,24 +130,35 @@ struct ModelIdentifier: Sendable, Hashable {
     }
 
     private static func newestModelForFamily(_ family: String, in keys: Set<String>) -> String {
-        let familyModels = keys.filter { $0.contains(family.lowercased()) }
-
-        let sorted = familyModels.sorted { a, b in
-            // Extract all numeric components
-            let aNumbers = a.matches(of: Self.digitRunRegex).compactMap { Int($0.output) }
-            let bNumbers = b.matches(of: Self.digitRunRegex).compactMap { Int($0.output) }
-
-            // Compare element-wise descending
-            for (aNum, bNum) in zip(aNumbers, bNumbers) {
-                if aNum != bNum {
+        // Strip date stamps before the numeric compare, and do it once per key rather than inside
+        // the comparator — this runs per JSONL entry whose model needs a fallback.
+        let ranked = keys
+            .filter { $0.contains(family.lowercased()) }
+            .map { key in
+                (key: key,
+                 version: key.replacing(Self.dateStampRegex, with: "")
+                    .matches(of: Self.digitRunRegex).compactMap { Int($0.output) },
+                 isCanonical: !key.contains("/") && !key.contains("."))
+            }
+            .sorted { a, b in
+                // Compare element-wise descending
+                for (aNum, bNum) in zip(a.version, b.version) where aNum != bNum {
                     return aNum > bNum
                 }
+
+                // Same version: prefer the plain `claude-…` key over a provider-scoped one.
+                // Bedrock and Vertex charge a regional premium, and their suffixes (`-v1:0`,
+                // `@default`) also pad the version array, so without this they'd win on length.
+                if a.isCanonical != b.isCanonical { return a.isCanonical }
+
+                // If all compared elements equal, longer version array wins
+                if a.version.count != b.version.count { return a.version.count > b.version.count }
+
+                // Break remaining ties by name: `Set` iteration order is seeded per process, so
+                // without this the chosen key — and the rate it carries — varies between launches.
+                return a.key < b.key
             }
 
-            // If all compared elements equal, longer version array wins
-            return aNumbers.count > bNumbers.count
-        }
-
-        return sorted.first ?? "claude-sonnet-4-5"
+        return ranked.first?.key ?? "claude-sonnet-4-5"
     }
 }

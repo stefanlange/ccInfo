@@ -13,6 +13,11 @@ actor JSONLParser {
 
     /// Cache for getContextWindowForFile results, keyed by file size.
     /// A size change means new entries were appended → re-read needed.
+    ///
+    /// Not invalidated on a pricing change, unlike `parseStateCache`: the cached `ModelIdentifier`
+    /// may carry a stale `pricingKey`/`isFallback`, but every consumer reads only what derives
+    /// from `rawId` (`displayName`, `family`). It also holds a single value rather than a set, so
+    /// one model cannot appear twice. Revisit if a consumer starts reading pricing from it.
     private var contextWindowCache: [URL: (size: UInt64, result: ContextWindow)] = [:]
 
     // MARK: - Incremental Parse Cache
@@ -27,6 +32,15 @@ actor JSONLParser {
 
     private var parseStateCache: [URL: FileParseState] = [:]
     private static let maxParseStateCacheEntries = 200
+
+    /// `PricingService.generation` the `parseStateCache` was last built under.
+    private var cachedPricingGeneration: Int?
+
+    /// Resolved identifiers by raw model ID. Building one costs a family-fallback search through
+    /// every pricing key whenever the model has no exact match, and a session hits the same
+    /// handful of IDs thousands of times. Cleared with `parseStateCache`, since both go stale
+    /// against the same rate table.
+    private var modelIdentifierCache: [String: ModelIdentifier] = [:]
 
     init(pricingService: PricingService = .shared) {
         self.pricingService = pricingService
@@ -100,6 +114,18 @@ actor JSONLParser {
 
     // MARK: - Private Methods
 
+    /// Resolve a raw model ID through `modelIdentifierCache`.
+    ///
+    /// `availableModelKeys` is only consulted on a miss. That is sound because the keys are derived
+    /// from the same rate table as `PricingService.generation`, which is what clears this cache.
+    private func modelIdentifier(for rawId: String, availableModelKeys: Set<String>) -> ModelIdentifier {
+        if let cached = modelIdentifierCache[rawId] { return cached }
+
+        let identifier = ModelIdentifier(rawId: rawId, availableModelKeys: availableModelKeys)
+        modelIdentifierCache[rawId] = identifier
+        return identifier
+    }
+
     /// Calculate cost for a single entry, using costUSD if available, falling back to token-based pricing
     private func costForEntry(
         costUSD: Double?,
@@ -110,12 +136,12 @@ actor JSONLParser {
     ) async -> (cost: Double, model: ModelIdentifier?) {
         // costUSD takes priority (ccusage auto mode)
         if let costUSD = costUSD {
-            let model = rawModelId.map { ModelIdentifier(rawId: $0, availableModelKeys: availableModelKeys) }
+            let model = rawModelId.map { modelIdentifier(for: $0, availableModelKeys: availableModelKeys) }
             return (costUSD, model)
         }
         // Calculate from tokens if model available
         if let rawModelId = rawModelId {
-            let identifier = ModelIdentifier(rawId: rawModelId, availableModelKeys: availableModelKeys)
+            let identifier = modelIdentifier(for: rawModelId, availableModelKeys: availableModelKeys)
             let tiered = await pricingService.tieredPricing(for: identifier.pricingKey)
 
             // Extract token counts
@@ -208,6 +234,31 @@ actor JSONLParser {
     }
 
     // MARK: - Incremental Parsing
+
+    /// Take the current rate table's keys, dropping any cache built under an older one.
+    ///
+    /// Pricing feeds `pricingKey`, `isFallback` and every accumulated cost, so a cached
+    /// accumulator built under an older table is stale twice over: one raw model ID can survive
+    /// in `models` under two identities, and entries keep the rates they were first billed at.
+    ///
+    /// Re-reading from byte 0 is the only fix for the cost. `totalCost` is a single sum, and the
+    /// 200k tier split in `costForEntry` runs against a counter that advances across input, then
+    /// cache creation, then cache read, and on across entries — so which tokens landed above the
+    /// threshold cannot be recovered from per-category totals, no matter how they are broken down.
+    ///
+    /// The keys come back from the same call that reports the generation, so what gets parsed and
+    /// what the caches are tagged with always describe the same table.
+    private func currentModelKeys() async -> Set<String> {
+        let snapshot = await pricingService.pricingSnapshot()
+
+        if cachedPricingGeneration != snapshot.generation {
+            parseStateCache.removeAll(keepingCapacity: true)
+            modelIdentifierCache.removeAll(keepingCapacity: true)
+            cachedPricingGeneration = snapshot.generation
+        }
+
+        return snapshot.modelKeys
+    }
 
     /// Incrementally parse new bytes of a single JSONL file into its cached state.
     @discardableResult
@@ -310,7 +361,7 @@ actor JSONLParser {
         findMostRecentSession()?.sessionURL
     }
     
-    func parseSession(at url: URL, availableModelKeys: Set<String> = []) async throws -> SessionData {
+    func parseSession(at url: URL, availableModelKeys: Set<String>) async throws -> SessionData {
         let fallbackSessionId = url.deletingPathExtension().lastPathComponent
 
         // Incrementally parse main session file
@@ -350,7 +401,7 @@ actor JSONLParser {
         return SessionData(sessionId: sessionId, tokens: totalTokens, models: allModels)
     }
 
-    func parseAggregate(since periodStart: Date, availableModelKeys: Set<String> = []) async -> SessionData {
+    func parseAggregate(since periodStart: Date, availableModelKeys: Set<String>) async -> SessionData {
         // filterDate mismatch is handled per-file inside incrementalParse,
         // so no bulk cache invalidation needed here.
 
@@ -390,18 +441,20 @@ actor JSONLParser {
         return SessionData(sessionId: nil, tokens: totalTokens, models: allModels)
     }
 
-    func parseForPeriod(_ period: StatisticsPeriod, sessionURL: URL? = nil, availableModelKeys: Set<String> = []) async throws -> SessionData? {
+    func parseForPeriod(_ period: StatisticsPeriod, sessionURL: URL? = nil) async throws -> SessionData? {
+        let modelKeys = await currentModelKeys()
+
         switch period {
         case .session:
             guard let url = sessionURL ?? findLatestSession() else { return nil }
-            return try await parseSession(at: url, availableModelKeys: availableModelKeys)
+            return try await parseSession(at: url, availableModelKeys: modelKeys)
         case .today, .thisWeek, .thisMonth:
             guard let start = period.periodStart() else { return nil }
-            return await parseAggregate(since: start, availableModelKeys: availableModelKeys)
+            return await parseAggregate(since: start, availableModelKeys: modelKeys)
         }
     }
     
-    func getContextWindowForFile(at url: URL, availableModelKeys: Set<String> = []) throws -> ContextWindow {
+    func getContextWindowForFile(at url: URL, availableModelKeys: Set<String>) throws -> ContextWindow {
         // Read the last 1MB to find the most recent usage entry.
         // Individual JSONL entries can be 100KB+ so a generous tail avoids missing them.
         let handle = try FileHandle(forReadingFrom: url)
@@ -434,7 +487,7 @@ actor JSONLParser {
                   let usage = entry.message?.usage else { continue }
 
             let activeModel: ModelIdentifier? = entry.rawModelId.map {
-                ModelIdentifier(rawId: $0, availableModelKeys: availableModelKeys)
+                modelIdentifier(for: $0, availableModelKeys: availableModelKeys)
             }
             let finalModel = activeModel?.family != .unknown ? activeModel : nil
             let result = ContextWindow(currentTokens: usage.totalInputTokens, activeModel: finalModel)
@@ -447,11 +500,11 @@ actor JSONLParser {
         return result
     }
 
-    func getCurrentContextWindow(availableModelKeys: Set<String> = []) throws -> ContextWindow {
+    func getCurrentContextWindow() async throws -> ContextWindow {
         guard let url = findLatestSession() else {
             return ContextWindow(currentTokens: 0, activeModel: nil)
         }
-        return try getContextWindowForFile(at: url, availableModelKeys: availableModelKeys)
+        return try getContextWindowForFile(at: url, availableModelKeys: await currentModelKeys())
     }
 
     func findActiveAgents(for sessionURL: URL, threshold: TimeInterval = 30) -> [(url: URL, agentId: String, lastModified: Date)] {
@@ -482,18 +535,19 @@ actor JSONLParser {
         return agents
     }
 
-    func getContextWindowState(availableModelKeys: Set<String> = [], agentThreshold: TimeInterval = 30) throws -> ContextWindowState? {
+    func getContextWindowState(agentThreshold: TimeInterval = 30) async throws -> ContextWindowState? {
         guard let sessionURL = findLatestSession() else { return nil }
-        return try getContextWindowState(for: sessionURL, availableModelKeys: availableModelKeys, agentThreshold: agentThreshold)
+        return try await getContextWindowState(for: sessionURL, agentThreshold: agentThreshold)
     }
 
-    func getContextWindowState(for sessionURL: URL, availableModelKeys: Set<String> = [], agentThreshold: TimeInterval = 30) throws -> ContextWindowState {
-        let mainContext = try getContextWindowForFile(at: sessionURL, availableModelKeys: availableModelKeys)
+    func getContextWindowState(for sessionURL: URL, agentThreshold: TimeInterval = 30) async throws -> ContextWindowState {
+        let modelKeys = await currentModelKeys()
+        let mainContext = try getContextWindowForFile(at: sessionURL, availableModelKeys: modelKeys)
         let activeAgentFiles = findActiveAgents(for: sessionURL, threshold: agentThreshold)
 
         var agentContexts: [AgentContext] = []
         for agent in activeAgentFiles {
-            guard let ctx = try? getContextWindowForFile(at: agent.url, availableModelKeys: availableModelKeys),
+            guard let ctx = try? getContextWindowForFile(at: agent.url, availableModelKeys: modelKeys),
                   ctx.currentTokens > 0 else { continue }
             agentContexts.append(AgentContext(
                 agentId: agent.agentId,
