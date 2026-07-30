@@ -1,5 +1,12 @@
 # Release Notes
 
+## 1.14.2 – 2026-07-30
+
+- Read each model's context window from the live rate data instead of guessing it from the model family. Sonnet 5 and Sonnet 4.6 now count against 1M tokens, so their utilization no longer reads about five times too high and the autocompact warning stops firing far too early
+- Count Opus 4.1 and Opus 4.5 against 200K, the window they actually have, so the autocompact warning arrives while there is still room to act
+- Remove the Sonnet context setting. A session holding more than 200K tokens proves the larger window by itself, so there is nothing left to pick
+- Show every Sonnet badge in orange; the red one marked the setting that is now gone
+
 ## 1.14.1 – 2026-07-28
 
 - Fix the statistics table naming the same model twice, such as "Opus 5, Opus 5"
