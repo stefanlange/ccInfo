@@ -149,36 +149,50 @@ struct SessionData: Sendable {
 
 struct ContextWindow: Sendable {
     private enum Constants {
-        static let standardMaxTokens = 200_000
-        static let extendedMaxTokens = 1_000_000
+        static let standardMaxTokens = ModelContextInfo.standardWindow
+        static let extendedMaxTokens = ModelContextInfo.extendedWindow
         static let autoCompactBuffer = 33_000
         static let autoCompactWarningBuffer = 20_000
     }
 
     let currentTokens: Int
     let activeModel: ModelIdentifier?
-    let isExtendedContext: Bool
+    /// Window the model is expected to run in, taken from the rate table.
+    let nativeMaxTokens: Int
 
+    /// Never assume a window smaller than the session has demonstrably filled.
+    ///
+    /// A 200k session cannot hold more than 200k tokens, so a transcript that shows more proves a
+    /// larger window was active. That is the only signal available for Sonnet models whose 1M
+    /// window sits behind a beta header: the transcript records no trace of the header, and the
+    /// rate table reports the same size either way. It also catches a table that lags behind a
+    /// model's real window, and it costs nothing when the expectation was right.
+    ///
+    /// Two limits worth knowing. The jump goes straight to 1M because those are the only two sizes
+    /// Anthropic ships; a third size would need a real ladder here. And the proof is the *current*
+    /// token count, so it is not sticky: once Claude Code compacts a beta-window session back under
+    /// 200k, the smaller window is assumed again until it grows past the mark. Keeping a per-session
+    /// high-water mark would fix that, but it would only hold for as long as the app stays running.
     var maxTokens: Int {
-        isExtendedContext ? Constants.extendedMaxTokens : Constants.standardMaxTokens
+        currentTokens > nativeMaxTokens ? Constants.extendedMaxTokens : nativeMaxTokens
     }
 
     init(currentTokens: Int, activeModel: ModelIdentifier? = nil) {
         self.currentTokens = currentTokens
         self.activeModel = activeModel
-        guard let family = activeModel?.family else {
-            self.isExtendedContext = false
+
+        guard let activeModel else {
+            self.nativeMaxTokens = Constants.standardMaxTokens
             return
         }
-        switch family {
-        case .opus, .fable:
-            self.isExtendedContext = true
-        case .sonnet:
-            let stored = UserDefaults.standard.integer(forKey: AppStorageKeys.sonnetContextSize)
-            self.isExtendedContext = stored == Constants.extendedMaxTokens
-        case .haiku, .unknown:
-            self.isExtendedContext = false
-        }
+        // For a beta-gated 1M window, 200k is what the model runs in by default — whatever the
+        // table reports as its ceiling. LiteLLM does not draw that line: `claude-sonnet-4-5` is
+        // listed at 200k while `claude-sonnet-4-20250514` is listed at 1M, though both need the
+        // header. Expect the smaller window for both and let `maxTokens` recover the larger one
+        // from what the session actually used.
+        self.nativeMaxTokens = activeModel.reachesExtendedContextOnlyViaBeta
+            ? Constants.standardMaxTokens
+            : activeModel.nativeMaxInputTokens ?? Constants.standardMaxTokens
     }
 
     var effectiveMaxTokens: Int {

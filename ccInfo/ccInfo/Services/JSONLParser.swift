@@ -14,10 +14,11 @@ actor JSONLParser {
     /// Cache for getContextWindowForFile results, keyed by file size.
     /// A size change means new entries were appended → re-read needed.
     ///
-    /// Not invalidated on a pricing change, unlike `parseStateCache`: the cached `ModelIdentifier`
-    /// may carry a stale `pricingKey`/`isFallback`, but every consumer reads only what derives
-    /// from `rawId` (`displayName`, `family`). It also holds a single value rather than a set, so
-    /// one model cannot appear twice. Revisit if a consumer starts reading pricing from it.
+    /// Invalidated on a pricing change alongside `parseStateCache`: `ContextWindow` resolves its
+    /// window size from the rate table, so an entry built under an older table can report the
+    /// wrong size for the whole session. Nothing outside the rate table feeds that size —
+    /// `maxTokens` derives the beta-window case from `currentTokens`, which is part of the cached
+    /// value itself — so this cache needs no other invalidation trigger.
     private var contextWindowCache: [URL: (size: UInt64, result: ContextWindow)] = [:]
 
     // MARK: - Incremental Parse Cache
@@ -41,6 +42,10 @@ actor JSONLParser {
     /// handful of IDs thousands of times. Cleared with `parseStateCache`, since both go stale
     /// against the same rate table.
     private var modelIdentifierCache: [String: ModelIdentifier] = [:]
+
+    // `PricingCatalog` is passed down every parse path rather than held here: `incrementalParse`
+    // suspends at each `await costForEntry`, and a stored catalog could be swapped in that gap —
+    // leaving an identifier that mixes one table's keys with another's window sizes.
 
     init(pricingService: PricingService = .shared) {
         self.pricingService = pricingService
@@ -116,13 +121,21 @@ actor JSONLParser {
 
     /// Resolve a raw model ID through `modelIdentifierCache`.
     ///
-    /// `availableModelKeys` is only consulted on a miss. That is sound because the keys are derived
-    /// from the same rate table as `PricingService.generation`, which is what clears this cache.
-    private func modelIdentifier(for rawId: String, availableModelKeys: Set<String>) -> ModelIdentifier {
-        if let cached = modelIdentifierCache[rawId] { return cached }
+    /// The result is only filed away when `catalog` belongs to the generation the cache is tagged
+    /// with. A parse that began before a refresh keeps its own catalog across every suspension
+    /// point, so once another task installs a newer table and clears the caches, this parse is
+    /// still resolving against the old one — and `nativeMaxInputTokens` would outlive the table it
+    /// came from, reporting the wrong window until the next refresh.
+    private func modelIdentifier(for rawId: String, catalog: PricingCatalog) -> ModelIdentifier {
+        // The generation gates the read as well as the write: an outdated parse must neither leave
+        // its identifiers behind nor pick up ones a newer parse filed while it was suspended.
+        let cacheIsCurrent = catalog.generation == cachedPricingGeneration
+        if cacheIsCurrent, let cached = modelIdentifierCache[rawId] { return cached }
 
-        let identifier = ModelIdentifier(rawId: rawId, availableModelKeys: availableModelKeys)
-        modelIdentifierCache[rawId] = identifier
+        let identifier = ModelIdentifier(rawId: rawId, catalog: catalog)
+        if cacheIsCurrent {
+            modelIdentifierCache[rawId] = identifier
+        }
         return identifier
     }
 
@@ -131,17 +144,17 @@ actor JSONLParser {
         costUSD: Double?,
         rawModelId: String?,
         usage: JSONLEntry.TokenUsage,
-        availableModelKeys: Set<String>,
+        catalog: PricingCatalog,
         cumulativeInputTokens: Int
     ) async -> (cost: Double, model: ModelIdentifier?) {
         // costUSD takes priority (ccusage auto mode)
         if let costUSD = costUSD {
-            let model = rawModelId.map { modelIdentifier(for: $0, availableModelKeys: availableModelKeys) }
+            let model = rawModelId.map { modelIdentifier(for: $0, catalog: catalog) }
             return (costUSD, model)
         }
         // Calculate from tokens if model available
         if let rawModelId = rawModelId {
-            let identifier = modelIdentifier(for: rawModelId, availableModelKeys: availableModelKeys)
+            let identifier = modelIdentifier(for: rawModelId, catalog: catalog)
             let tiered = await pricingService.tieredPricing(for: identifier.pricingKey)
 
             // Extract token counts
@@ -235,7 +248,7 @@ actor JSONLParser {
 
     // MARK: - Incremental Parsing
 
-    /// Take the current rate table's keys, dropping any cache built under an older one.
+    /// Take the current rate table's catalog, dropping any cache built under an older one.
     ///
     /// Pricing feeds `pricingKey`, `isFallback` and every accumulated cost, so a cached
     /// accumulator built under an older table is stale twice over: one raw model ID can survive
@@ -246,25 +259,29 @@ actor JSONLParser {
     /// cache creation, then cache read, and on across entries — so which tokens landed above the
     /// threshold cannot be recovered from per-category totals, no matter how they are broken down.
     ///
-    /// The keys come back from the same call that reports the generation, so what gets parsed and
-    /// what the caches are tagged with always describe the same table.
-    private func currentModelKeys() async -> Set<String> {
-        let snapshot = await pricingService.pricingSnapshot()
+    /// `contextWindowCache` goes with them: its `ContextWindow` values carry the window size the
+    /// old table reported for the model, which a new table can correct.
+    ///
+    /// The catalog carries its own generation, so what gets parsed and what the caches are tagged
+    /// with always describe the same table.
+    private func currentPricingCatalog() async -> PricingCatalog {
+        let catalog = await pricingService.pricingSnapshot()
 
-        if cachedPricingGeneration != snapshot.generation {
+        if cachedPricingGeneration != catalog.generation {
             parseStateCache.removeAll(keepingCapacity: true)
             modelIdentifierCache.removeAll(keepingCapacity: true)
-            cachedPricingGeneration = snapshot.generation
+            contextWindowCache.removeAll(keepingCapacity: true)
+            cachedPricingGeneration = catalog.generation
         }
 
-        return snapshot.modelKeys
+        return catalog
     }
 
     /// Incrementally parse new bytes of a single JSONL file into its cached state.
     @discardableResult
     private func incrementalParse(
         url: URL,
-        availableModelKeys: Set<String>,
+        catalog: PricingCatalog,
         extractSessionId: Bool = false,
         filterDate: Date? = nil
     ) async -> FileParseState? {
@@ -326,7 +343,7 @@ actor JSONLParser {
                         costUSD: entry.costUSD,
                         rawModelId: entry.rawModelId,
                         usage: usage,
-                        availableModelKeys: availableModelKeys,
+                        catalog: catalog,
                         cumulativeInputTokens: cumInput
                     )
                     accumulator.accumulate(usage: usage, rawModelId: entry.rawModelId, entryCost: cost, entryModel: model)
@@ -361,13 +378,15 @@ actor JSONLParser {
         findMostRecentSession()?.sessionURL
     }
     
-    func parseSession(at url: URL, availableModelKeys: Set<String>) async throws -> SessionData {
+    /// `private` on purpose: every catalog-taking entry point must be reached through
+    /// `currentPricingCatalog()`, so no caller can hand in a table the caches aren't tagged with.
+    private func parseSession(at url: URL, catalog: PricingCatalog) async throws -> SessionData {
         let fallbackSessionId = url.deletingPathExtension().lastPathComponent
 
         // Incrementally parse main session file
         guard let mainState = await incrementalParse(
             url: url,
-            availableModelKeys: availableModelKeys,
+            catalog: catalog,
             extractSessionId: true
         ) else {
             return SessionData(sessionId: fallbackSessionId, tokens: .zero, models: [])
@@ -390,7 +409,7 @@ actor JSONLParser {
             for subagentURL in subagentFiles where subagentURL.pathExtension == "jsonl" {
                 if let subState = await incrementalParse(
                     url: subagentURL,
-                    availableModelKeys: availableModelKeys
+                    catalog: catalog
                 ) {
                     totalTokens = totalTokens + subState.accumulator.buildTokenStats()
                     allModels.formUnion(subState.accumulator.models)
@@ -401,7 +420,7 @@ actor JSONLParser {
         return SessionData(sessionId: sessionId, tokens: totalTokens, models: allModels)
     }
 
-    func parseAggregate(since periodStart: Date, availableModelKeys: Set<String>) async -> SessionData {
+    private func parseAggregate(since periodStart: Date, catalog: PricingCatalog) async -> SessionData {
         // filterDate mismatch is handled per-file inside incrementalParse,
         // so no bulk cache invalidation needed here.
 
@@ -430,7 +449,7 @@ actor JSONLParser {
 
             if let state = await incrementalParse(
                 url: url,
-                availableModelKeys: availableModelKeys,
+                catalog: catalog,
                 filterDate: periodStart
             ) {
                 totalTokens = totalTokens + state.accumulator.buildTokenStats()
@@ -442,19 +461,19 @@ actor JSONLParser {
     }
 
     func parseForPeriod(_ period: StatisticsPeriod, sessionURL: URL? = nil) async throws -> SessionData? {
-        let modelKeys = await currentModelKeys()
+        let catalog = await currentPricingCatalog()
 
         switch period {
         case .session:
             guard let url = sessionURL ?? findLatestSession() else { return nil }
-            return try await parseSession(at: url, availableModelKeys: modelKeys)
+            return try await parseSession(at: url, catalog: catalog)
         case .today, .thisWeek, .thisMonth:
             guard let start = period.periodStart() else { return nil }
-            return await parseAggregate(since: start, availableModelKeys: modelKeys)
+            return await parseAggregate(since: start, catalog: catalog)
         }
     }
     
-    func getContextWindowForFile(at url: URL, availableModelKeys: Set<String>) throws -> ContextWindow {
+    private func getContextWindowForFile(at url: URL, catalog: PricingCatalog) throws -> ContextWindow {
         // Read the last 1MB to find the most recent usage entry.
         // Individual JSONL entries can be 100KB+ so a generous tail avoids missing them.
         let handle = try FileHandle(forReadingFrom: url)
@@ -487,7 +506,7 @@ actor JSONLParser {
                   let usage = entry.message?.usage else { continue }
 
             let activeModel: ModelIdentifier? = entry.rawModelId.map {
-                modelIdentifier(for: $0, availableModelKeys: availableModelKeys)
+                modelIdentifier(for: $0, catalog: catalog)
             }
             let finalModel = activeModel?.family != .unknown ? activeModel : nil
             let result = ContextWindow(currentTokens: usage.totalInputTokens, activeModel: finalModel)
@@ -504,7 +523,7 @@ actor JSONLParser {
         guard let url = findLatestSession() else {
             return ContextWindow(currentTokens: 0, activeModel: nil)
         }
-        return try getContextWindowForFile(at: url, availableModelKeys: await currentModelKeys())
+        return try getContextWindowForFile(at: url, catalog: await currentPricingCatalog())
     }
 
     func findActiveAgents(for sessionURL: URL, threshold: TimeInterval = 30) -> [(url: URL, agentId: String, lastModified: Date)] {
@@ -541,13 +560,13 @@ actor JSONLParser {
     }
 
     func getContextWindowState(for sessionURL: URL, agentThreshold: TimeInterval = 30) async throws -> ContextWindowState {
-        let modelKeys = await currentModelKeys()
-        let mainContext = try getContextWindowForFile(at: sessionURL, availableModelKeys: modelKeys)
+        let catalog = await currentPricingCatalog()
+        let mainContext = try getContextWindowForFile(at: sessionURL, catalog: catalog)
         let activeAgentFiles = findActiveAgents(for: sessionURL, threshold: agentThreshold)
 
         var agentContexts: [AgentContext] = []
         for agent in activeAgentFiles {
-            guard let ctx = try? getContextWindowForFile(at: agent.url, availableModelKeys: modelKeys),
+            guard let ctx = try? getContextWindowForFile(at: agent.url, catalog: catalog),
                   ctx.currentTokens > 0 else { continue }
             agentContexts.append(AgentContext(
                 agentId: agent.agentId,

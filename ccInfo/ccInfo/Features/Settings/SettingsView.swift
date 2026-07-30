@@ -115,7 +115,6 @@ struct GeneralTab: View {
     @AppStorage(AppStorageKeys.sessionActivityThreshold) private var sessionActivityThreshold: Double = AppStorageKeys.Defaults.sessionActivityThreshold
     @AppStorage(AppStorageKeys.menuBarSlot1) private var menuBarSlot1: MenuBarSlot = AppStorageKeys.Defaults.menuBarSlot1
     @AppStorage(AppStorageKeys.menuBarSlot2) private var menuBarSlot2: MenuBarSlot = AppStorageKeys.Defaults.menuBarSlot2
-    @AppStorage(AppStorageKeys.sonnetContextSize) private var sonnetContextSize: Int = AppStorageKeys.Defaults.sonnetContextSize
 
     private let logger = Logger(subsystem: "com.ccinfo.app", category: "Settings")
 
@@ -148,14 +147,6 @@ struct GeneralTab: View {
                 }
                 .onChange(of: sessionActivityThreshold) { _, _ in
                     appState.updateSessionActivityThreshold()
-                }
-
-                Picker("Sonnet Context", selection: $sonnetContextSize) {
-                    Text(verbatim: "200K").tag(200_000)   // unit suffix, language-independent
-                    Text(verbatim: "1M").tag(1_000_000)   // unit suffix, language-independent
-                }
-                .onChange(of: sonnetContextSize) { _, _ in
-                    Task { await appState.refreshLocalData() }
                 }
             }
 

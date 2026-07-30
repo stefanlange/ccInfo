@@ -5,7 +5,7 @@ extension ContextWindow {
         switch model.family {
         case .fable:   return .indigo
         case .opus:    return .purple
-        case .sonnet:  return isExtendedContext ? .red : .orange
+        case .sonnet:  return .orange
         case .haiku:   return .cyan
         case .unknown: return .secondary
         }

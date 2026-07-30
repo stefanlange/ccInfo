@@ -24,8 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverD
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         UserDefaults.standard.register(defaults: [
-            "SUEnableAutomaticChecks": true,
-            AppStorageKeys.sonnetContextSize: AppStorageKeys.Defaults.sonnetContextSize
+            "SUEnableAutomaticChecks": true
         ])
         try? updaterController.updater.start()
         Task {

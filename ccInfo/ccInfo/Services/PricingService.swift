@@ -5,6 +5,9 @@ actor PricingService {
     static let shared = PricingService()
 
     private var pricingData: [String: ModelPricing]?
+    /// Lookup tables derived from `pricingData`, built in `init` and rebuilt on every install so
+    /// that consumers don't pay for the derivation on each snapshot.
+    private var catalog: PricingCatalog
     private(set) var dataSource: PricingDataSource = .bundled
     private(set) var lastUpdateTimestamp: Date?
     /// Bumped on every `pricingData` assignment. Consumers that cache values derived from pricing
@@ -16,8 +19,11 @@ actor PricingService {
 
     private init() {
         // Non-blocking init: load bundled data synchronously (milliseconds, safe)
-        // Uses static method to avoid actor-isolation warnings in nonisolated init
-        self.pricingData = Self.loadBundledData(logger: logger)
+        // Uses static methods to avoid actor-isolation warnings in nonisolated init
+        let bundled = Self.loadBundledData(logger: logger)
+        self.pricingData = bundled
+        // `generation` still holds its initializer value here; keep the catalog's copy in step.
+        self.catalog = Self.makeCatalog(from: bundled, generation: 0)
         // dataSource defaults to .bundled via property initializer
         if pricingData != nil {
             lastUpdateTimestamp = Date.now
@@ -27,18 +33,13 @@ actor PricingService {
 
     // MARK: - Public API
 
-    /// Returns the set of lowercase model keys available in current pricing data
-    var availableModelKeys: Set<String> {
-        Set(pricingData?.keys.map { $0.lowercased() } ?? [])
-    }
-
-    /// The current rate table's keys together with the `generation` they belong to.
+    /// The current rate table's lookup tables, tagged with the `generation` they belong to.
     ///
-    /// Callers that cache anything derived from pricing must take both from this one call. Reading
-    /// the keys and the generation separately lets a refresh slip between them, which resolves
-    /// values against one table and files them under another.
-    func pricingSnapshot() -> (generation: Int, modelKeys: Set<String>) {
-        (generation, availableModelKeys)
+    /// The generation travels inside the catalog so a caller cannot read the two separately and
+    /// have a refresh slip between them — which would resolve values against one table and file
+    /// them under another.
+    func pricingSnapshot() -> PricingCatalog {
+        catalog
     }
 
     /// Returns pricing for the specified model ID, with Sonnet fallback if not found
@@ -126,6 +127,28 @@ actor PricingService {
         }
     }
 
+    /// Derive the lookup tables a parse pass needs from a rate table.
+    /// Static + nonisolated so the actor's init can build the first one.
+    private nonisolated static func makeCatalog(
+        from data: [String: ModelPricing]?,
+        generation: Int
+    ) -> PricingCatalog {
+        guard let data else { return .empty }
+
+        var modelKeys = Set<String>(minimumCapacity: data.count)
+        var contextInfo: [String: ModelContextInfo] = [:]
+        for (key, pricing) in data {
+            // Lowercase both tables in lockstep — `ModelIdentifier` resolves a `pricingKey`
+            // against `modelKeys` and then looks the window up under that same key.
+            let lowercased = key.lowercased()
+            modelKeys.insert(lowercased)
+            if let info = ModelContextInfo(pricing: pricing) {
+                contextInfo[lowercased] = info
+            }
+        }
+        return PricingCatalog(generation: generation, modelKeys: modelKeys, contextInfo: contextInfo)
+    }
+
     /// Install a rate table. Bumping `generation` is what lets consumers notice that anything
     /// derived from the old rates — including already-accumulated costs — is stale.
     ///
@@ -140,6 +163,7 @@ actor PricingService {
         guard pricingData != data else { return }
         pricingData = data
         generation += 1
+        catalog = Self.makeCatalog(from: data, generation: generation)
     }
 
     /// Refresh pricing data with fallback chain: Cache (if fresh) -> Network -> Cache (stale) -> Bundled

@@ -1639,16 +1639,6 @@
         }
       }
     },
-    "Sonnet Context" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sonnet-Kontext"
-          }
-        }
-      }
-    },
     "Sonnet Weekly" : {
       "localizations" : {
         "de" : {

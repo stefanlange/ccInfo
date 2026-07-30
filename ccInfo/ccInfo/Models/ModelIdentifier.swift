@@ -8,8 +8,28 @@ struct ModelIdentifier: Sendable, Hashable {
     let version: String?
     let pricingKey: String
     let isFallback: Bool
+    /// Context window the model ships with, `nil` when the rate table has nothing usable for it.
+    let nativeMaxInputTokens: Int?
+    /// The model charges above 200k input tokens, which marks its 1M window as opt-in.
+    let hasLongContextPremium: Bool
 
     private static let logger = Logger(subsystem: "com.ccinfo.app", category: "ModelIdentifier")
+
+    /// The model's 1M window is a paid beta mode, not the window it runs in by default.
+    ///
+    /// Two signals have to agree, because neither is sufficient on its own. An above-200k input
+    /// rate says a long-context tier exists — but that is a pricing fact, and the table pairs it
+    /// with natively 1M models too (`us.anthropic.claude-opus-4-6-v1` reports 1M *and* a premium).
+    /// The version says which models actually gate 1M behind a beta header: Sonnet 4 and 4.5 do,
+    /// Sonnet 4.6 onwards ships it. Testing the premium alone would clamp a future Sonnet to 200k
+    /// the day Anthropic starts charging for its long context, which is the very bug this avoids.
+    /// An unparsable version keeps the clamp, so dated and provider-scoped forms of those two
+    /// models stay covered.
+    var reachesExtendedContextOnlyViaBeta: Bool {
+        guard family == .sonnet, hasLongContextPremium else { return false }
+        guard let version = Self.numericVersion(version) else { return true }
+        return version <= (major: 4, minor: 5)
+    }
 
     var displayName: String {
         guard let version = version else {
@@ -18,23 +38,28 @@ struct ModelIdentifier: Sendable, Hashable {
         return "\(family.displayName) \(version)"
     }
 
-    init(rawId: String, availableModelKeys: Set<String>) {
+    init(rawId: String, catalog: PricingCatalog) {
         self.rawId = rawId
         self.family = Self.detectFamily(rawId)
         self.version = Self.extractVersion(rawId)
 
-        let resolved = Self.resolvePricingKey(rawId, family: family, availableModelKeys: availableModelKeys)
+        let resolved = Self.resolvePricingKey(rawId, family: family, availableModelKeys: catalog.modelKeys)
         self.pricingKey = resolved.key
         self.isFallback = resolved.isFallback
+
+        let context = Self.contextInfo(for: resolved, in: catalog)
+        self.nativeMaxInputTokens = context?.maxInputTokens
+        self.hasLongContextPremium = context?.hasLongContextPremium ?? false
     }
 
-    static let unknown = ModelIdentifier(rawId: "<unknown>", availableModelKeys: [])
+    static let unknown = ModelIdentifier(rawId: "<unknown>", catalog: .empty)
 
     // MARK: - Identity
 
-    // Identity is the raw model ID alone. `pricingKey` and `isFallback` are derived from whichever
-    // rate table happened to be loaded when this value was built, so including them would let one
-    // model occupy two slots in a `Set` — once resolved via family fallback, once matched exactly.
+    // Identity is the raw model ID alone. `pricingKey`, `isFallback`, `nativeMaxInputTokens` and
+    // `hasLongContextPremium` are derived from whichever rate table happened to be loaded when
+    // this value was built, so including them would let one model occupy two slots in a `Set` —
+    // once resolved via family fallback, once matched exactly.
 
     static func == (lhs: ModelIdentifier, rhs: ModelIdentifier) -> Bool {
         lhs.rawId == rhs.rawId
@@ -129,6 +154,44 @@ struct ModelIdentifier: Sendable, Hashable {
         return ("claude-sonnet-4-5", true)
     }
 
+    /// Window facts for a resolved key — but only when that key really describes this model.
+    ///
+    /// A family fallback lands on the newest key of the family. For a rate that is the best guess
+    /// available; for a window it is a trap. The version-descending sort in `newestModelForFamily`
+    /// only prefers canonical keys on a *tie*, so a provider-scoped key with a higher version
+    /// number wins outright — and the table carries provider entries whose window contradicts
+    /// their canonical sibling (`au.anthropic.claude-opus-4-6-v1:0` reports 200k where
+    /// `claude-opus-4-6` reports 1M). Return nothing rather than import one of those; the caller
+    /// then stays on its own conservative default. An exact match keeps its value: for a model
+    /// only listed under a provider key, that entry is the best information there is.
+    private static func contextInfo(
+        for resolved: (key: String, isFallback: Bool),
+        in catalog: PricingCatalog
+    ) -> ModelContextInfo? {
+        guard !resolved.isFallback || isCanonicalKey(resolved.key) else { return nil }
+        return catalog.contextInfo[resolved.key]
+    }
+
+    /// A plain `claude-…` key, as opposed to a provider-scoped one (`us.anthropic.…`,
+    /// `vertex_ai/…`, `claude-sonnet-4-5-20250929-v1:0`).
+    ///
+    /// The `:` matters as much as the other two: a Bedrock-shaped key carries no dot, so without it
+    /// `…-v1:0` counts as canonical, wins a version tie on its longer version array, and hands its
+    /// regional rate and possibly contradictory window to a family fallback.
+    private static func isCanonicalKey(_ key: String) -> Bool {
+        !key.contains("/") && !key.contains(".") && !key.contains(":")
+    }
+
+    /// `version` as comparable components — `"4"` → `(4, 0)`, `"4.5"` → `(4, 5)`.
+    private static func numericVersion(_ version: String?) -> (major: Int, minor: Int)? {
+        guard let version else { return nil }
+        let parts = version.split(separator: ".")
+        guard let major = parts.first.flatMap({ Int($0) }) else { return nil }
+        guard parts.count > 1 else { return (major, 0) }
+        guard let minor = Int(parts[1]) else { return nil }
+        return (major, minor)
+    }
+
     private static func newestModelForFamily(_ family: String, in keys: Set<String>) -> String {
         // Strip date stamps before the numeric compare, and do it once per key rather than inside
         // the comparator — this runs per JSONL entry whose model needs a fallback.
@@ -138,7 +201,7 @@ struct ModelIdentifier: Sendable, Hashable {
                 (key: key,
                  version: key.replacing(Self.dateStampRegex, with: "")
                     .matches(of: Self.digitRunRegex).compactMap { Int($0.output) },
-                 isCanonical: !key.contains("/") && !key.contains("."))
+                 isCanonical: isCanonicalKey(key))
             }
             .sorted { a, b in
                 // Compare element-wise descending
