@@ -249,6 +249,14 @@ final class AppState {
             usageHistoryService.record(usagePercent: percent, resetsAt: usage.fiveHour.resetsAt)
             usageHistory = usageHistoryService.history
         } catch let apiError as ClaudeAPIClient.APIError {
+            if case .incompleteUsageData(let field) = apiError {
+                // Transient backend glitch: skip this poll silently, retry next cycle.
+                // Do not set `error` (would surface a false alarm to the user) and do
+                // not touch usageData/history — as if this poll never happened.
+                logger.warning("Skipped poll: usage response missing \(field, privacy: .public)")
+                isLoading = false
+                return
+            }
             error = apiError
             logger.error("API error: \(apiError.localizedDescription)")
             if case .sessionExpired = apiError {

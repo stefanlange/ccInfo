@@ -12,6 +12,7 @@ actor ClaudeAPIClient {
         case invalidResponse
         case httpError(Int)
         case sessionExpired
+        case incompleteUsageData(field: String)
 
         var errorDescription: String? {
             switch self {
@@ -20,6 +21,7 @@ actor ClaudeAPIClient {
             case .invalidResponse: String(localized: "Invalid server response")
             case .httpError(let code): String(localized: "HTTP error: \(code)")
             case .sessionExpired: String(localized: "Session expired")
+            case .incompleteUsageData(let field): String(localized: "Usage data incomplete (missing \(field))")
             }
         }
     }
@@ -68,7 +70,21 @@ actor ClaudeAPIClient {
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        return UsageData(from: try decoder.decode(UsageResponse.self, from: data))
+        let usageResponse = try decoder.decode(UsageResponse.self, from: data)
+
+        // A successfully-decoded response with a missing mandatory window is a
+        // transient backend anomaly (observed in production), not a legitimate 0%
+        // reading. Treat it as a fetch failure so the caller skips this poll
+        // instead of UsageData silently falling back to `utilization = 0`.
+        guard usageResponse.fiveHour != nil else {
+            logger.warning("Usage response missing five_hour window; skipping poll")
+            throw APIError.incompleteUsageData(field: "five_hour")
+        }
+        guard usageResponse.sevenDay != nil else {
+            logger.warning("Usage response missing seven_day window; skipping poll")
+            throw APIError.incompleteUsageData(field: "seven_day")
+        }
+        return UsageData(from: usageResponse)
     }
 
     /// Fetch organization name for display purposes

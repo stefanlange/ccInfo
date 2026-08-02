@@ -22,6 +22,13 @@ final class UsageHistoryService {
     /// so the chart connects smoothly to persisted history after an app restart.
     private var suppressNextGap = false
 
+    /// Set when a single 0% reading follows non-zero history — a *candidate*
+    /// window reset that has not yet been confirmed. A transient API glitch
+    /// (see ClaudeAPIClient's incompleteUsageData guard) can also produce a
+    /// lone spurious 0% reading, so history is only cleared once a second
+    /// consecutive 0% poll confirms it really is a reset.
+    private var pendingZeroResetCandidate = false
+
     /// UserDefaults key for persisting `lastResetsAt` across app restarts so
     /// the time-based reset detection can still fire on the first post-restart
     /// poll when the API hasn't yet advanced `resetsAt`.
@@ -79,11 +86,24 @@ final class UsageHistoryService {
 
         // Value-based fallback: API may still report a stale resetsAt on the
         // first post-reset poll. A 0% reading after non-zero history is a
-        // window-reset signal regardless (5h window is stepped, not rolling).
+        // *candidate* window-reset signal (5h window is stepped, not rolling) --
+        // but a single 0% reading can also be a transient API glitch. Require
+        // confirmation from a second consecutive 0% poll before clearing, and
+        // never record the unconfirmed candidate point itself, so a lone glitch
+        // never touches the chart.
         if clamped == 0, let last = dataPoints.last, !last.isGap, last.usage > 0 {
-            logger.info("Window reset (value-based, prev \(last.usage, privacy: .public)%), cleared \(self.dataPoints.count, privacy: .public) points")
-            dataPoints.removeAll()
-            suppressNextGap = true
+            if pendingZeroResetCandidate {
+                logger.info("Window reset (value-based, confirmed by 2nd poll, prev \(last.usage, privacy: .public)%), cleared \(self.dataPoints.count, privacy: .public) points")
+                dataPoints.removeAll()
+                suppressNextGap = true
+                pendingZeroResetCandidate = false
+            } else {
+                logger.info("Candidate window reset (value-based, prev \(last.usage, privacy: .public)%), awaiting 2nd-poll confirmation")
+                pendingZeroResetCandidate = true
+                return
+            }
+        } else {
+            pendingZeroResetCandidate = false
         }
 
         // Defensive: drop any points outside the current window (e.g. after
@@ -190,6 +210,7 @@ final class UsageHistoryService {
     func handleWindowReset() {
         dataPoints.removeAll()
         lastResetsAt = nil
+        pendingZeroResetCandidate = false
         saveToDisk()
         logger.info("History cleared due to window reset")
     }

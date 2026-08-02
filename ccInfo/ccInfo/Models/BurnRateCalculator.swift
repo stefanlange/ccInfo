@@ -1,6 +1,19 @@
 import Foundation
+import OSLog
 
 enum BurnRateCalculator {
+    private static let logger = Logger(subsystem: "com.ccinfo.app", category: "BurnRateCalculator")
+
+    /// Maximum plausible usage-percent change per second between two
+    /// consecutive polls. Expressed as a rate (not a fixed point-count) so it
+    /// scales correctly regardless of the user-configured poll interval
+    /// (default 30s, see MenuBarConfiguration.Defaults.refreshInterval).
+    /// 20 points per default 30s poll (~0.667 %/s) is comfortably above any
+    /// realistic single-poll token-burn burst, yet well below a one-poll
+    /// glitch spike (observed: ~35 points in ~30s from a phantom 0% reading,
+    /// see UsageHistoryService.record).
+    private static let maxPlausibleRatePerSecond: Double = 20.0 / 30.0
+
     struct Prediction {
         let hitsLimitAt: Date
         let minutesUntilLimit: Int
@@ -35,13 +48,18 @@ enum BurnRateCalculator {
         let cutoff = now.addingTimeInterval(-15 * 60)
         let recentPoints = history.filter { !$0.isGap && $0.timestamp >= cutoff }
 
+        // Drop individual points whose jump from the last accepted point exceeds
+        // what's physically plausible in the elapsed time — a single spurious
+        // reading must not dominate the regression's slope.
+        let plausiblePoints = filterOutliers(recentPoints)
+
         // Guard: need at least 3 data points
-        guard recentPoints.count >= 3 else { return nil }
+        guard plausiblePoints.count >= 3 else { return nil }
 
         // Linear regression: find slope in usage-percent per second
         // Use the earliest point as the reference time to avoid floating-point precision issues
-        let referenceTime = recentPoints.first!.timestamp
-        let pairs: [(x: Double, y: Double)] = recentPoints.map { point in
+        let referenceTime = plausiblePoints.first!.timestamp
+        let pairs: [(x: Double, y: Double)] = plausiblePoints.map { point in
             (x: point.timestamp.timeIntervalSince(referenceTime),
              y: Double(point.usage))
         }
@@ -72,5 +90,27 @@ enum BurnRateCalculator {
 
         let minutesUntilLimit = max(1, Int(secondsToLimit / 60))
         return Prediction(hitsLimitAt: hitsLimitAt, minutesUntilLimit: minutesUntilLimit)
+    }
+
+    /// Greedily drops points whose rate of change from the last *accepted*
+    /// point exceeds `maxPlausibleRatePerSecond`. Comparing against the last
+    /// accepted point (not the raw previous point) prevents one bad reading
+    /// from also poisoning the comparison for the point right after it (e.g.
+    /// a phantom 0% dip followed by a real recovery value).
+    private static func filterOutliers(_ points: [UsageDataPoint]) -> [UsageDataPoint] {
+        guard let first = points.first else { return points }
+        var accepted = [first]
+        for point in points.dropFirst() {
+            guard let previous = accepted.last else { continue }
+            let elapsed = point.timestamp.timeIntervalSince(previous.timestamp)
+            guard elapsed > 0 else { continue }
+            let rate = abs(Double(point.usage - previous.usage)) / elapsed
+            if rate <= maxPlausibleRatePerSecond {
+                accepted.append(point)
+            } else {
+                logger.debug("Discarded outlier point (rate \(rate, privacy: .public) %/s exceeds \(maxPlausibleRatePerSecond, privacy: .public) %/s cap)")
+            }
+        }
+        return accepted
     }
 }
