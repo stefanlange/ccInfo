@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.15.0 – 2026-08-02
+
+- Send a notification when the 5-hour window resets, naming how much of it you used. A window you never touched stays quiet
+- Do the same when the weekly window resets; this one arrives whether or not you used the week
+- Fix the usage chart occasionally dropping its whole curve mid-window and starting over from zero, which also set off a burn rate warning claiming the limit was minutes away. An incomplete response from the usage API counted as 0% usage, which looks exactly like a window reset
+
 ## 1.14.2 – 2026-07-30
 
 - Read each model's context window from the live rate data instead of guessing it from the model family. Sonnet 5 and Sonnet 4.6 now count against 1M tokens, so their utilization no longer reads about five times too high and the autocompact warning stops firing far too early
