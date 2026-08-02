@@ -15,6 +15,10 @@ final class NotificationService {
     private var notifiedSevenDay: Set<Int> = []
     private var notifiedBurnRate = false
 
+    // What each window's reset notification is currently scheduled for, so an
+    // unchanged window does not re-register the same request on every poll.
+    private var lastScheduledReset: [WindowType: (resetsAt: Date, utilization: Int)] = [:]
+
     private init() {}
 
     // MARK: - Authorization
@@ -146,10 +150,78 @@ final class NotificationService {
         }
     }
 
+    // MARK: - Window Reset Notifications
+
+    /// Schedule (or cancel) the "window reset" notification for `window`.
+    ///
+    /// Uses `UNTimeIntervalNotificationTrigger` so it survives app sleep/restart
+    /// (the system delivers it even if ccInfo isn't running at fire time), unlike
+    /// the `trigger: nil` (immediate) requests used elsewhere in this file. An
+    /// interval counts down from now rather than matching calendar fields, which
+    /// would drift by an hour across a DST change on the weekly window.
+    ///
+    /// `requiresUsage` gates the 5-hour window on the user having consumed
+    /// something in it, so an untouched window stays silent. The weekly window
+    /// passes false: a week boundary is worth knowing about either way.
+    func checkWindowReset(_ window: WindowType, usage: UsageData.WindowUsage, requiresUsage: Bool) async {
+        guard let resetsAt = usage.resetsAt, resetsAt > Date(),
+              !requiresUsage || usage.utilization > 0 else {
+            cancelPendingReset(window)
+            lastScheduledReset[window] = nil
+            return
+        }
+
+        let utilization = Int(usage.utilization)
+        // Re-adding replaces the pending request, which is how the body stays
+        // current. Skip it while nothing has changed, so an untouched window
+        // does not re-register every poll for hours on end.
+        guard lastScheduledReset[window]?.resetsAt != resetsAt
+                || lastScheduledReset[window]?.utilization != utilization else { return }
+
+        await scheduleReset(window, at: resetsAt, utilization: utilization)
+        lastScheduledReset[window] = (resetsAt, utilization)
+    }
+
+    private func scheduleReset(_ window: WindowType, at resetsAt: Date, utilization: Int) async {
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "\(window.localizedLimitLabel) Reset")
+        content.body = String(
+            localized: "You used \(utilization)% of your previous \(window.localizedSentenceForm) window. Fresh capacity is available now."
+        )
+        content.sound = .default
+        content.interruptionLevel = .active
+
+        let trigger = UNTimeIntervalNotificationTrigger(
+            timeInterval: max(1, resetsAt.timeIntervalSinceNow), repeats: false
+        )
+        let request = UNNotificationRequest(
+            identifier: resetIdentifier(for: window), content: content, trigger: trigger
+        )
+
+        do {
+            try await notificationCenter.add(request)
+            logger.info("Scheduled \(window.rawValue, privacy: .public) reset notification for \(resetsAt, privacy: .public) at \(utilization, privacy: .public)%")
+        } catch {
+            logger.error("Failed to schedule reset notification: \(error.localizedDescription)")
+        }
+    }
+
+    private func cancelPendingReset(_ window: WindowType) {
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: [resetIdentifier(for: window)])
+    }
+
+    private func resetIdentifier(for window: WindowType) -> String {
+        "usage-reset-\(window.rawValue)"
+    }
+
     /// Reset notification state when user signs out or app restarts
     func resetAllThresholds() {
         notifiedFiveHour.removeAll()
         notifiedSevenDay.removeAll()
         notifiedBurnRate = false
+        for window in WindowType.allCases {
+            cancelPendingReset(window)
+        }
+        lastScheduledReset.removeAll()
     }
 }

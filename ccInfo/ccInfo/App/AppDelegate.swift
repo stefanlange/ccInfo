@@ -244,6 +244,8 @@ final class AppState {
             usageData = usage
             await NotificationService.shared.checkThresholds(usage: usage)
             await NotificationService.shared.checkBurnRate(history: usageHistoryService.history, usage: usage)
+            await NotificationService.shared.checkWindowReset(.fiveHour, usage: usage.fiveHour, requiresUsage: true)
+            await NotificationService.shared.checkWindowReset(.sevenDay, usage: usage.sevenDay, requiresUsage: false)
 
             let percent = Int(usage.fiveHour.utilization)
             usageHistoryService.record(usagePercent: percent, resetsAt: usage.fiveHour.resetsAt)

@@ -6,7 +6,7 @@ import Foundation
 /// diverging from implicit-`LocalizedStringKey` convention used elsewhere in
 /// the project. This is required because `UNMutableNotificationContent.title` and `.body`
 /// are typed as `String` and do not accept `LocalizedStringKey`.
-enum WindowType: String {
+enum WindowType: String, CaseIterable {
     case fiveHour = "5-Hour"
     case sevenDay = "Weekly"
 
