@@ -3,6 +3,30 @@
     <channel>
         <title>CCInfo</title>
         <item>
+            <title>1.15.0</title>
+            <pubDate>Sun, 02 Aug 2026 16:10:20 +0000</pubDate>
+            <link>https://github.com/stefanlange/ccInfo</link>
+            <sparkle:version>1.15.0</sparkle:version>
+            <sparkle:shortVersionString>1.15.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<ul>
+<li>Send a notification when the 5-hour window resets, naming how much of it you used. A window you never touched stays quiet</li>
+<li>Do the same when the weekly window resets; this one arrives whether or not you used the week</li>
+<li>Fix the usage chart occasionally dropping its whole curve mid-window and starting over from zero, which also set off a burn rate warning claiming the limit was minutes away. An incomplete response from the usage API counted as 0% usage, which looks exactly like a window reset</li>
+</ul>
+
+]]></description>
+            <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo-v1.15.0.dmg" length="3282328" type="application/octet-stream" sparkle:edSignature="Bijyfs7LgI+1XtC6ZOqJowheSCso75OcwpzD2kiodQrhAB1FVpRELeoC7XTutPbMIaY6x2p5Ln+wIEv7CoOCCw=="/>
+            <sparkle:deltas>
+                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.15.0-1.14.2.delta" sparkle:deltaFrom="1.14.2" length="174994" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="yGV5p+YJknMhzjfDhtTRR0XfNbLPgp1y03ssYkjz9Vqs2c3vOEx+xj7IULrrbgOBLIPVOE5YGCHPb8/5dRG5CA=="/>
+                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.15.0-1.14.1.delta" sparkle:deltaFrom="1.14.1" length="209774" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="+0vmQBdD0R8PqanuvLyVNBhrgW10VYQyju70P2mFkFNfjdz2KB56DT33koPpoDqhgjSGK87EUqZ8J77IzXx2Dg=="/>
+                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.15.0-1.14.0.delta" sparkle:deltaFrom="1.14.0" length="268766" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="vHyxrJPRaaVSR4+M27GEikyQNK0A5avfkh5u3GT8+CMoDRYi6/7+2H58OQzc69ja7w4Tbr/M9s2dwWPvDzVWBw=="/>
+                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.15.0-1.13.0.delta" sparkle:deltaFrom="1.13.0" length="300222" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="jH0jtzDNkWW1FDQ326rPLDLCvVHk1fWyKY+QF/UehYZ56TWesYDTdzmxZKG9mT9qz8+NrBEw5UvCYggrxfoeBg=="/>
+                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.15.0-1.12.0.delta" sparkle:deltaFrom="1.12.0" length="338434" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="PkoaQkwDrWaa4bNaUPYx8h+enCHDF2QIn926VMfmE/jxLH9UXINu87omnSTwjq8PGuk50gt8Lhk2rfDGzStTCw=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>1.14.2</title>
             <pubDate>Thu, 30 Jul 2026 17:20:10 +0000</pubDate>
             <link>https://github.com/stefanlange/ccInfo</link>
@@ -100,29 +124,6 @@
                 <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.13.0-1.11.0.delta" sparkle:deltaFrom="1.11.0" length="337406" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="3iGw9jNdIatF2U8w0IvGVQHS4zcTHvWl0RVE9KPnVBQ1+ro3IPCWAJp/a9BTpWrg9JqDH8uL1Ks2MdnUw8BiDQ=="/>
                 <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.13.0-1.10.0.delta" sparkle:deltaFrom="1.10.0" length="381590" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="zX416sXsp/w5NH10J/6lq/FUEYVn/boeFTRvCx+pleUsNU0EzVgC72LOBugV7fgvrWXNfhS8pu/ihRxn2eUeCA=="/>
                 <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.13.0-1.9.0.delta" sparkle:deltaFrom="1.9.0" length="391218" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="kgY2LVTFewkUXgzJFhQrpog61MTk98KdwGUdqyjYpHdBHs3IgvyyFgbteRTRYtV+wCtwu4itnxo6HQy/wD+ICA=="/>
-            </sparkle:deltas>
-        </item>
-        <item>
-            <title>1.12.0</title>
-            <pubDate>Sat, 02 May 2026 14:17:16 +0000</pubDate>
-            <link>https://github.com/stefanlange/ccInfo</link>
-            <sparkle:version>1.12.0</sparkle:version>
-            <sparkle:shortVersionString>1.12.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description><![CDATA[<ul>
-<li>Rename any session via the pencil button next to the switcher or the new Sessions tab in Settings; names persist across restarts and replace the auto-derived project name everywhere</li>
-<li>Show the absolute reset time of the 5-hour window below the chart (e.g. &quot;Mo 1.5. 16:30&quot;) next to the existing time-until-reset countdown</li>
-</ul>
-
-]]></description>
-            <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo-v1.12.0.dmg" length="3238560" type="application/octet-stream" sparkle:edSignature="848PBzYLKxpqf77wkofxKB1o1fWhOlc4/j6AGve49EWtjU147+feHwEggDymHivI5ZGwj4QvHiM5wYamjtAUBA=="/>
-            <sparkle:deltas>
-                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.12.0-1.11.1.delta" sparkle:deltaFrom="1.11.1" length="207386" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="jqThr96GeDoYKRBnVlPBOz6U6aCWM3Wd5ThhZ1x5OWaVCLx1AZtPXVpV4sm38IP7ibmWxyfN8pKj2f8QkAOVDA=="/>
-                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.12.0-1.11.0.delta" sparkle:deltaFrom="1.11.0" length="235978" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="8+bjv361xTyiXEtTNo53JuUqw8U6QH6H7tPRvTOzNbidgmKyV9QSzpg+832zjwX3NuJII0UlHKbFrAEGJxatAQ=="/>
-                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.12.0-1.10.0.delta" sparkle:deltaFrom="1.10.0" length="282246" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="/63gvEAyke7QMj0w5QwQ7IbnR/qVx7JCFy86oOkB6bLQUltQTm9pyItQGTjGn3p1mfamgcuvNQhLULg2kpu5Dg=="/>
-                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.12.0-1.9.0.delta" sparkle:deltaFrom="1.9.0" length="293002" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="WLxupjI2LzqC7BZmDnpm4SbSxPi2t7EDZWmUvaYznGnhZQlu84MHWvJ0JFw3XBjFH+dXq+GR2R4+4Gi6Fnt2Bw=="/>
-                <enclosure url="https://stefanlange.github.io/ccInfo/ccInfo1.12.0-1.8.3.delta" sparkle:deltaFrom="1.8.3" length="402886" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="980240" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="MgGEK6WKNWr9jJa+xzO98GHV9duTPY8EDhQRI5bAavMvbZLqJN09Rzird3NG89Ok8HoQXt1YZrc4t/fZ/qxJDQ=="/>
             </sparkle:deltas>
         </item>
     </channel>
