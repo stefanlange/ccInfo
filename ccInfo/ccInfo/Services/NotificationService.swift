@@ -15,9 +15,40 @@ final class NotificationService {
     private var notifiedSevenDay: Set<Int> = []
     private var notifiedBurnRate = false
 
-    // What each window's reset notification is currently scheduled for, so an
-    // unchanged window does not re-register the same request on every poll.
-    private var lastScheduledReset: [WindowType: (resetsAt: Date, utilization: Int)] = [:]
+    /// Floor for the trigger interval. `UNTimeIntervalNotificationTrigger` raises on
+    /// an interval of zero or less, and a reset this close is about to rotate anyway.
+    private static let minimumResetLead: TimeInterval = 60
+
+    /// How far apart two reset times must be to describe different windows.
+    ///
+    /// `resets_at` carries the API's own sub-second clock, so consecutive responses
+    /// name the same instant with slightly different values (measured: the decoded
+    /// `Date` moved across all five polling intervals while utilization held still).
+    /// The deviation oscillates rather than accumulating; measured against a reference
+    /// 44 minutes old, both windows sat within a second of it. A tolerance this size
+    /// therefore holds indefinitely, while a real rotation moves the reset by hours
+    /// and stays clearly distinguishable.
+    private static let resetMatchTolerance: TimeInterval = 60
+
+    /// Whether `scheduled` and `candidate` describe the same reset.
+    private static func isSameReset(_ scheduled: Date?, _ candidate: Date) -> Bool {
+        guard let scheduled else { return false }
+        return abs(scheduled.timeIntervalSince(candidate)) < resetMatchTolerance
+    }
+
+    /// When the reset notification currently registered for `window` will fire, if any.
+    ///
+    /// Asks the notification centre rather than tracking it in a property: pending
+    /// requests outlive the process, so in-memory bookkeeping reads as "nothing
+    /// registered" after every relaunch and re-registers a request that is already
+    /// there and still correct. Each re-register is shown to the user.
+    private func pendingResetDate(for window: WindowType) async -> Date? {
+        let identifier = resetIdentifier(for: window)
+        let pending = await notificationCenter.pendingNotificationRequests()
+        guard let request = pending.first(where: { $0.identifier == identifier }),
+              let trigger = request.trigger as? UNTimeIntervalNotificationTrigger else { return nil }
+        return trigger.nextTriggerDate()
+    }
 
     private init() {}
 
@@ -160,47 +191,69 @@ final class NotificationService {
     /// interval counts down from now rather than matching calendar fields, which
     /// would drift by an hour across a DST change on the weekly window.
     ///
+    /// Registered once per window and then left alone. Adding a request replaces any
+    /// pending one under the same identifier, and macOS shows that replacement to the
+    /// user instead of swapping it silently, so a re-register costs a delivery. That
+    /// is why the body carries no usage figure: keeping a percentage current would
+    /// mean re-registering as the number moves, which is what made 1.15.0 deliver a
+    /// copy on every poll. Nothing in the text changes over the window's life, so the
+    /// request can be written far ahead and still be right when it fires.
+    ///
     /// `requiresUsage` gates the 5-hour window on the user having consumed
     /// something in it, so an untouched window stays silent. The weekly window
     /// passes false: a week boundary is worth knowing about either way.
     func checkWindowReset(_ window: WindowType, usage: UsageData.WindowUsage, requiresUsage: Bool) async {
-        guard let resetsAt = usage.resetsAt, resetsAt > Date(),
-              !requiresUsage || usage.utilization > 0 else {
+        let pendingReset = await pendingResetDate(for: window)
+
+        // Without a reset time there is nothing this notification could announce.
+        guard let resetsAt = usage.resetsAt else {
             cancelPendingReset(window)
-            lastScheduledReset[window] = nil
             return
         }
 
-        let utilization = Int(usage.utilization)
-        // Re-adding replaces the pending request, which is how the body stays
-        // current. Skip it while nothing has changed, so an untouched window
-        // does not re-register every poll for hours on end.
-        guard lastScheduledReset[window]?.resetsAt != resetsAt
-                || lastScheduledReset[window]?.utilization != utilization else { return }
+        // Already registered for this reset, either earlier in this run or by a
+        // previous one. Leave it alone: it is still correct, and re-adding it would
+        // reach the user a second time.
+        if Self.isSameReset(pendingReset, resetsAt) { return }
 
-        await scheduleReset(window, at: resetsAt, utilization: utilization)
-        lastScheduledReset[window] = (resetsAt, utilization)
+        // An untouched window has nothing to announce, so nothing gets registered.
+        // A request already standing is deliberately left alone: the API can report a
+        // rotated window's utilization of 0 while `resets_at` still names the reset
+        // that is happening right now (see ClaudeAPIClient's stale-value handling),
+        // and cancelling on that reading would delete the very notification the user
+        // is owed, moments before it fires.
+        guard !requiresUsage || usage.utilization > 0 else { return }
+
+        // Measure the lead once and pass it down: re-reading it when building the
+        // trigger could yield a smaller, in the limit non-positive, value, and
+        // UNTimeIntervalNotificationTrigger raises on an interval of zero or less.
+        let lead = resetsAt.timeIntervalSinceNow
+
+        // Too close to aim at. Any pending request stays standing for the same reason
+        // as above: this is the branch a rotating window passes through.
+        guard lead >= Self.minimumResetLead else { return }
+
+        await scheduleReset(window, at: resetsAt, lead: lead)
     }
 
-    private func scheduleReset(_ window: WindowType, at resetsAt: Date, utilization: Int) async {
+    private func scheduleReset(_ window: WindowType, at resetsAt: Date, lead: TimeInterval) async {
         let content = UNMutableNotificationContent()
         content.title = String(localized: "\(window.localizedLimitLabel) Reset")
-        content.body = String(
-            localized: "You used \(utilization)% of your previous \(window.localizedSentenceForm) window. Fresh capacity is available now."
-        )
+        // The title names which window reset, so the body only states what follows
+        // from it. Deliberately free of any figure: a value that moves would have to
+        // be revised, and revising means re-registering, which the user sees.
+        content.body = String(localized: "The full allowance is available again.")
         content.sound = .default
         content.interruptionLevel = .active
 
-        let trigger = UNTimeIntervalNotificationTrigger(
-            timeInterval: max(1, resetsAt.timeIntervalSinceNow), repeats: false
-        )
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: lead, repeats: false)
         let request = UNNotificationRequest(
             identifier: resetIdentifier(for: window), content: content, trigger: trigger
         )
 
         do {
             try await notificationCenter.add(request)
-            logger.info("Scheduled \(window.rawValue, privacy: .public) reset notification for \(resetsAt, privacy: .public) at \(utilization, privacy: .public)%")
+            logger.info("Scheduled \(window.rawValue, privacy: .public) reset notification for \(resetsAt, privacy: .public)")
         } catch {
             logger.error("Failed to schedule reset notification: \(error.localizedDescription)")
         }
@@ -219,9 +272,10 @@ final class NotificationService {
         notifiedFiveHour.removeAll()
         notifiedSevenDay.removeAll()
         notifiedBurnRate = false
+        // Signing out invalidates the pending resets too; they would otherwise fire
+        // for an account this install no longer watches.
         for window in WindowType.allCases {
             cancelPendingReset(window)
         }
-        lastScheduledReset.removeAll()
     }
 }
