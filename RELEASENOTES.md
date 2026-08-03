@@ -1,5 +1,12 @@
 # Release Notes
 
+## 1.15.1 – 2026-08-03
+
+- Fix the window reset notification arriving again every 30 seconds instead of once. The usage API stamps a fresh sub-second value onto its reset time with every response, so the check that was supposed to stop ccInfo from registering the notification again never matched, and every re-registration reached you as another copy
+- Drop the usage percentage from that notification. Keeping the figure current is what forced the repeated registering; the text now names which window reset and leaves out the number, so the notification is registered once per window
+- Stop another copy arriving every time ccInfo starts. A notification already waiting with the system is now recognised as such instead of being registered again
+- Keep the notification when the API reports a rotated window as unused while still naming the reset that is happening. That reading used to cancel the notification seconds before it was due
+
 ## 1.15.0 – 2026-08-02
 
 - Send a notification when the 5-hour window resets, naming how much of it you used. A window you never touched stays quiet
