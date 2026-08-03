@@ -1,5 +1,9 @@
 # Release Notes
 
+## 1.15.2 – 2026-08-03
+
+- Stop the 80% and 95% alerts repeating while usage rests near the mark. Any dip below a threshold counted as a fresh window and armed the alert again; that now waits for the window to actually reset
+
 ## 1.15.1 – 2026-08-03
 
 - Fix the window reset notification arriving again every 30 seconds instead of once. The usage API stamps a fresh sub-second value onto its reset time with every response, so the check that was supposed to stop ccInfo from registering the notification again never matched, and every re-registration reached you as another copy
