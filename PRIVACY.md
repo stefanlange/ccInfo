@@ -50,7 +50,7 @@ It also uses:
 - **Network access** for API calls to claude.ai, update checks via Sparkle appcast, and pricing data from LiteLLM
 - **File system write access** to `~/Library/Application Support/ccInfo/` for credential and cache storage
 - **File system read access** to `~/.claude/projects/` for session data
-- **Notification permission** (optional) for usage threshold alerts (80%/95%)
+- **Notification permission** (optional) for usage threshold alerts (80%/95%), burn rate warnings, and window reset notices
 
 ## Open Source
 
