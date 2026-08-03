@@ -15,6 +15,10 @@ final class NotificationService {
     private var notifiedSevenDay: Set<Int> = []
     private var notifiedBurnRate = false
 
+    // The reset the notified thresholds above belong to, so a rotation can clear them
+    // while a dip in utilization cannot. See `clearThresholdsIfRotated`.
+    private var thresholdWindowReset: [WindowType: Date] = [:]
+
     /// Floor for the trigger interval. `UNTimeIntervalNotificationTrigger` raises on
     /// an interval of zero or less, and a reset this close is about to rotate anyway.
     private static let minimumResetLead: TimeInterval = 60
@@ -73,9 +77,8 @@ final class NotificationService {
 
     /// Check usage and send notifications if thresholds are crossed
     func checkThresholds(usage: UsageData) async {
-        // Reset thresholds that are no longer applicable (allows re-notification after reset)
-        notifiedFiveHour = notifiedFiveHour.filter { Double($0) <= usage.fiveHour.utilization }
-        notifiedSevenDay = notifiedSevenDay.filter { Double($0) <= usage.sevenDay.utilization }
+        clearThresholdsIfRotated(.fiveHour, resetsAt: usage.fiveHour.resetsAt)
+        clearThresholdsIfRotated(.sevenDay, resetsAt: usage.sevenDay.resetsAt)
 
         await checkAndNotify(
             window: .fiveHour,
@@ -88,6 +91,27 @@ final class NotificationService {
             utilization: usage.sevenDay.utilization,
             resetTime: usage.sevenDay.formattedTimeUntilReset
         )
+    }
+
+    /// Re-arm `window`'s thresholds when the window itself has rotated.
+    ///
+    /// Re-arming used to key off utilization falling back below a threshold, on the
+    /// assumption that only a reset can lower it. Utilization is not that dependable:
+    /// the API reports it rounded, and the weekly figure can recede as older usage
+    /// ages out, so a value resting near a threshold re-armed it and notified again on
+    /// the next crossing. The reset time is what actually identifies a window, so a
+    /// rotation clears the set and a mere dip leaves it alone.
+    ///
+    /// Without a reset time a window cannot be told apart, and the quiet choice is to
+    /// keep the set as it stands rather than risk notifying twice for one window.
+    private func clearThresholdsIfRotated(_ window: WindowType, resetsAt: Date?) {
+        guard let resetsAt, !Self.isSameReset(thresholdWindowReset[window], resetsAt) else { return }
+
+        switch window {
+        case .fiveHour: notifiedFiveHour.removeAll()
+        case .sevenDay: notifiedSevenDay.removeAll()
+        }
+        thresholdWindowReset[window] = resetsAt
     }
 
     private func checkAndNotify(window: WindowType, utilization: Double, resetTime: String?) async {
@@ -272,6 +296,7 @@ final class NotificationService {
         notifiedFiveHour.removeAll()
         notifiedSevenDay.removeAll()
         notifiedBurnRate = false
+        thresholdWindowReset.removeAll()
         // Signing out invalidates the pending resets too; they would otherwise fire
         // for an account this install no longer watches.
         for window in WindowType.allCases {
